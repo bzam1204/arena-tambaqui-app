@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* Protocolo Sombra - Tactical Design System */
+
+@layer base {
+  :root {
+    /* Paleta Tática */
+    --bg-operational: #0B0E14;
+    --surface-hud: #141A26;
+    --primary-cyan: #00F0FF;
+    --secondary-amber: #D4A536;
+    --text-primary: #E6F1FF;
+    --text-secondary: #7F94B0;
+    --border-structure: #2D3A52;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-[#0B0E14] text-[#E6F1FF];
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    position: relative;
+  }
+
+  /* Scanline effect overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15) 0px,
+      transparent 1px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.15) 3px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Vignette effect */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, transparent 0%, rgba(11, 14, 20, 0.7) 100%);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  h1 {
+    font-family: 'Chakra Petch', sans-serif;
+  }
+
+  h2 {
+    font-family: 'Chakra Petch', sans-serif;
+  }
+
+  h3 {
+    font-family: 'Chakra Petch', sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Tactical clip-path for angled corners */
+  .clip-tactical {
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+
+  .clip-tactical-sm {
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  }
+
+  /* Perfect hexagon clip-path */
+  .clip-hexagon {
+    clip-path: polygon(
+      30% 0%, 70% 0%, 
+      100% 30%, 100% 70%, 
+      70% 100%, 30% 100%, 
+      0% 70%, 0% 30%
+    );
+  }
+
+  /* Glow effects */
+  .glow-cyan {
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+  }
+
+  .glow-cyan-intense {
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 10px rgba(255, 107, 0, 0.3);
+  }
+
+  .glow-amber-intense {
+    box-shadow: 0 0 20px rgba(255, 107, 0, 0.6);
+  }
+
+  /* Monospace for technical data */
+  .font-mono-technical {
+    font-family: 'Roboto Mono', 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+
+  /* Loading bar animation */
+  @keyframes loading-bar {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
+  }
+
+  .animate-loading-bar {
+    animation: loading-bar 1.5s ease-in-out infinite;
+  }
+}
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
