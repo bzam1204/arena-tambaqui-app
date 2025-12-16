@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MobileFeedCard } from '@/components/MobileFeedCard';
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
+import { Spinner } from '@/components/Spinner';
 import { useSession } from '@/app/context/session-context';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
@@ -25,12 +26,12 @@ export function FeedPage({ isLoggedIn }: Props) {
   const [preSelectedPlayerId, setPreSelectedPlayerId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const { data: feed = [] } = useQuery({
+  const { data: feed = [], isLoading: feedLoading } = useQuery({
     queryKey: ['feed'],
     queryFn: () => feedGateway.listFeed(),
   });
 
-  const { data: players = [] } = useQuery({
+  const { data: players = [], isLoading: playersLoading } = useQuery({
     queryKey: ['players'],
     queryFn: () => playerGateway.listPlayers(),
   });
@@ -68,9 +69,11 @@ export function FeedPage({ isLoggedIn }: Props) {
         <h2 className="text-sm font-mono-technical tracking-wider uppercase text-[#7F94B0] mb-4">
           Registro Global
         </h2>
-        {feed.map((entry) => (
-          <MobileFeedCard key={entry.id} entry={entry} onTargetClick={handleTargetClick} />
-        ))}
+        {feedLoading ? (
+          <Spinner label="carregando feed" />
+        ) : (
+          feed.map((entry) => <MobileFeedCard key={entry.id} entry={entry} onTargetClick={handleTargetClick} />)
+        )}
       </div>
 
       <button
@@ -103,6 +106,7 @@ export function FeedPage({ isLoggedIn }: Props) {
           setIsModalOpen(false);
         }}
       />
+      {(playersLoading || feedLoading) && feed.length === 0 && <Spinner label="sincronizando dados" />}
     </div>
   );
 }

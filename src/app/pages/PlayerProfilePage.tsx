@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
+import { Spinner } from '@/components/Spinner';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import { Inject, TkPlayerGateway, TkFeedGateway } from '@/infra/container';
@@ -21,6 +22,7 @@ export function PlayerProfilePage() {
     enabled: Boolean(id),
   });
 
+  if (!player && history.length === 0) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;
   return <MobilePlayerProfile player={{ ...player, history }} onTargetClick={() => {}} />;
 }

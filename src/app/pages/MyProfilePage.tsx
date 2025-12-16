@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
+import { Spinner } from '@/components/Spinner';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
@@ -46,6 +47,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
     },
   });
 
+  if (!player) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;
   return (
     <MobilePlayerProfile
