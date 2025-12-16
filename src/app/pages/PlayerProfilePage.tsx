@@ -106,7 +106,17 @@ export function PlayerProfilePage() {
         actionsAboveHistory={
           <div className="px-0">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                if (!state.userId) {
+                  navigate('/auth');
+                  return;
+                }
+                if (!state.playerId) {
+                  navigate('/onboarding');
+                  return;
+                }
+                setIsModalOpen(true);
+              }}
               className="w-full bg-[#D4A536] text-[#0B0E14] font-mono-technical uppercase py-3 rounded-lg shadow-[0_0_20px_rgba(212,165,54,0.5)]"
             >
               [ REPORTAR JOGADOR ]
