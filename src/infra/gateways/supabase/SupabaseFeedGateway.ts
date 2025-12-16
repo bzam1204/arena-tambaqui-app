@@ -3,6 +3,7 @@ import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { FeedEntry } from '@/app/gateways/PlayerGateway';
 import { getSupabaseClient } from '@/infra/supabase/client';
 import { format } from '@/infra/gateways/supabase/date';
+import { calculateReputation } from '@/domain/reputation';
 
 @injectable()
 export class SupabaseFeedGateway implements FeedGateway {
@@ -15,6 +16,7 @@ export class SupabaseFeedGateway implements FeedGateway {
     created_at,
     is_retracted,
     target_player_id,
+    submitter_player_id,
     target:players!feed_target_player_id_fkey(
       id,
       nickname,
@@ -73,11 +75,42 @@ export class SupabaseFeedGateway implements FeedGateway {
   }
 
   async retract(entryId: string, submitterId: string): Promise<void> {
+    const { data, error: fetchErr } = await this.supabase
+      .from(this.table)
+      .select('id,type,target_player_id,is_retracted')
+      .eq('id', entryId)
+      .eq('submitter_player_id', submitterId)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!data) throw new Error('Registro não encontrado ou não pertence ao autor');
+
     const { error } = await this.supabase
       .from(this.table)
       .update({ is_retracted: true })
       .eq('id', entryId)
       .eq('submitter_player_id', submitterId);
     if (error) throw error;
+
+    if (data.type === 'report' && data.target_player_id) {
+      const { data: player, error: playerErr } = await this.supabase
+        .from('players')
+        .select('id,praise_count,report_count')
+        .eq('id', data.target_player_id)
+        .maybeSingle();
+      if (playerErr) throw playerErr;
+      if (player) {
+        const newReports = Math.max(0, (player.report_count ?? 0) - 1);
+        const newPraise = player.praise_count ?? 0;
+        const newReputation = calculateReputation({ elogios: newPraise, denuncias: newReports });
+        const { error: updateErr } = await this.supabase
+          .from('players')
+          .update({
+            report_count: newReports,
+            reputation: newReputation,
+          })
+          .eq('id', data.target_player_id);
+        if (updateErr) throw updateErr;
+      }
+    }
   }
 }

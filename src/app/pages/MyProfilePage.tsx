@@ -30,9 +30,14 @@ export function MyProfilePage({ userId, playerId }: Props) {
 
   const handleRetract = async (entryId: string) => {
     await feedGateway.retract(entryId, playerId);
-    const updated = await feedGateway.listBySubmitter(playerId);
-    setHistory(updated);
-    if (player) setPlayer({ ...player, history: updated });
+    const [updatedPlayer, updatedFeed] = await Promise.all([
+      playerGateway.getPlayer(playerId),
+      feedGateway.listBySubmitter(playerId),
+    ]);
+    if (updatedPlayer) {
+      setPlayer({ ...updatedPlayer, history: updatedFeed });
+    }
+    setHistory(updatedFeed);
   };
 
   if (!player) return null;
