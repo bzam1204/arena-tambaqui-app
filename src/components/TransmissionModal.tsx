@@ -14,9 +14,9 @@ interface TransmissionModalProps {
   onClose: () => void;
   players: TransmissionPlayer[];
   preSelectedPlayerId?: string | null;
-  onSubmit: (data: { 
-    targetId: string; 
-    type: 'report' | 'praise'; 
+  onSubmit: (data: {
+    targetId: string;
+    type: 'report' | 'praise';
     content: string;
   }) => void;
   onSuccess: () => void;
@@ -52,7 +52,7 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
 
   if (!isOpen) return null;
 
-  const filteredPlayers = players.filter(p => 
+  const filteredPlayers = players.filter(p =>
     p.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -114,7 +114,7 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
               <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                 Selecione o Operador Alvo
               </label>
-              
+
               {/* Search */}
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7F94B0]" />
@@ -192,39 +192,47 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
                 Tipo de Transmissão
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleSelectType('report')}
-                  className={`clip-tactical p-4 border-2 transition-all rounded-lg ${
-                    reportType === 'report'
-                      ? 'border-[#D4A536] bg-[#D4A536]/20'
-                      : 'border-[#2D3A52] bg-[#141A26] hover:border-[#D4A536]'
-                  }`}
-                >
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <AlertTriangle className={`w-5 h-5 ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`} />
-                  </div>
-                  <div className={`font-mono-technical text-xs uppercase ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
-                    Denúncia
-                  </div>
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleSelectType('praise')}
-                  className={`clip-tactical p-4 border-2 transition-all rounded-lg ${
-                    reportType === 'praise'
-                      ? 'border-[#00F0FF] bg-[#00F0FF]/20'
-                      : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]'
-                  }`}
-                >
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Award className={`w-5 h-5 ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`} />
+
+
+                <div className='container-arrow'>
+                  {reportType === 'report' && (<> <svg className='arrow-up ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                  </svg>
+                    <svg className='arrow-down ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                    </svg></>
+                  )}
+                  <div className={`clip-tactical-stats ${reportType === 'report' ? 'bg-[#D4A536]  ' : 'text-[#7F94B0] '} rounded-md p-[2px] text-center`}>
+                    <div className={`clip-tactical-stats transition-all ${reportType === 'report' ? 'inner-shadow-ambar bg-[#2e2819]!' : 'text-[#7F94B0] bg-[#141A26]'} rounded-md p-2 flex flex-col items-center justify-center h-20 text-center`}>
+                      <button type="button" onClick={() => handleSelectType('report')}>
+                        <div className={`flex items-center justify-center gap-2 mb-2  ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
+                          [<AlertTriangle className={`w-5 h-5 ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`} />]
+                        </div>
+                        <div className={`font-mono-technical text-xs uppercase ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>Denúncia</div>
+                      </button>
+                    </div>
                   </div>
-                  <div className={`font-mono-technical text-xs uppercase ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
-                    Elogio
+                </div>
+                <div className='container-arrow'>
+                  {reportType === 'praise' && (<> <svg className='arrow-up blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                  </svg>
+                    <svg className='arrow-down blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                    </svg></>
+                  )}
+                  <div className={`clip-tactical-stats ${reportType === 'praise' ? 'bg-[#2ad4e0]  ' : 'text-[#7F94B0] '} rounded-md p-[2px] text-center`}>
+                    <div className={`clip-tactical-stats transition-all ${reportType === 'praise' ? 'inner-shadow-blue bg-[#153b42]!' : 'text-[#7F94B0] bg-[#141A26]'} rounded-md p-2 flex flex-col items-center justify-center h-20 text-center`}>
+                      <button type="button" onClick={() => handleSelectType('praise')}>
+                        <div className={`flex items-center justify-center gap-2 mb-2  ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+                          [<Award className={`w-5 h-5 ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`} />]
+                        </div>
+                        <div className={`font-mono-technical text-xs uppercase ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>Elogio</div>
+                      </button>
+                    </div>
                   </div>
-                </button>
+                </div>
               </div>
             </div>
           )}

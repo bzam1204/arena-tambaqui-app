@@ -35,6 +35,15 @@ export function MobilePlayerProfile({
   actionsAboveHistory,
   onRankClick,
 }: MobilePlayerProfileProps) {
+  const hexToRgba = (hex: string, alpha: number) => {
+    const clean = hex.replace('#', '');
+    const bigint = parseInt(clean, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(player.name);
   const [editNickname, setEditNickname] = useState(player.nickname);
@@ -43,11 +52,11 @@ export function MobilePlayerProfile({
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
-      return { text: 'ESTÁVEL', color: 'text-[#00F0FF]', barColor: 'bg-[#00F0FF]' };
+      return { text: 'ESTÁVEL', color: 'text-[#00F0FF]', barColor: 'bg-[#00F0FF]', glowHex: '#00F0FF' };
     } else if (player.reputation >= 4) {
-      return { text: 'SOB VIGILÂNCIA', color: 'text-[#D4A536]', barColor: 'bg-[#D4A536]' };
+      return { text: 'SOB VIGILÂNCIA', color: 'text-[#D4A536]', barColor: 'bg-[#D4A536]', glowHex: '#D4A536' };
     } else {
-      return { text: 'CRÍTICO', color: 'text-[#FF6B00]', barColor: 'bg-[#FF6B00]' };
+      return { text: 'CRÍTICO', color: 'text-[#FF6B00]', barColor: 'bg-[#FF6B00]', glowHex: '#FF6B00' };
     }
   };
 
@@ -84,11 +93,17 @@ export function MobilePlayerProfile({
   };
 
   const status = getReputationStatus();
+  const glowStyles = {
+    ['--glow-border' as any]: hexToRgba(status.glowHex, 0.4),
+    ['--glow-inner' as any]: hexToRgba(status.glowHex, 0.7),
+    ['--glow-middle' as any]: hexToRgba(status.glowHex, 0.6),
+    ['--glow-outer' as any]: hexToRgba(status.glowHex, 0.4),
+  };
 
   return (
-    <div className="px-4 py-6 space-y-6">
+    <div className="p-6 !pt-10 space-y-6">
       {/* Player Card */}
-      <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-6">
+      <div>
         {/* Edit Button (Top Right) */}
         {isOwnProfile && !isEditing && (
           <div className="flex justify-end mb-4">
@@ -103,15 +118,15 @@ export function MobilePlayerProfile({
         )}
 
         {/* Avatar */}
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-2">
           <div className="relative mb-4">
-            <div className={`w-32 h-32 ${status.barColor} clip-hexagon p-[3px]`}>
-              <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+            <div className={`w-40 h-44 ${status.barColor} clip-hexagon-perfect p-[3px]`}>
+              <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                 {(isEditing ? editAvatar : player.avatar) ? (
-                  <img 
-                    src={isEditing ? editAvatar : player.avatar} 
-                    alt={isEditing ? editNickname : player.nickname} 
-                    className="w-full h-full object-cover clip-hexagon rounded-[5px]"
+                  <img
+                    src={isEditing ? editAvatar : player.avatar}
+                    alt={isEditing ? editNickname : player.nickname}
+                    className="w-full h-full object-cover clip-hexagon-perfect rounded-[4px]"
                   />
                 ) : (
                   <User className="w-16 h-16 text-[#7F94B0]" />
@@ -130,7 +145,7 @@ export function MobilePlayerProfile({
               </label>
             )}
           </div>
-          
+
           {/* Nickname - Editable */}
           {isEditing ? (
             <div className="w-full mb-4">
@@ -146,9 +161,9 @@ export function MobilePlayerProfile({
               />
             </div>
           ) : (
-            <h2 className="text-2xl text-center mb-2 text-[#E6F1FF]">{player.nickname}</h2>
+            <h2 className="text-4xl text-center mb-2 text-[#E6F1FF]">{player.nickname}</h2>
           )}
-          
+
           {/* Full Name - Editable */}
           {isEditing ? (
             <div className="w-full mb-4">
@@ -165,7 +180,7 @@ export function MobilePlayerProfile({
             </div>
           ) : (
             <div className="mb-3 space-y-1">
-              <p className="text-sm mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
+              <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
               {(player.rankPrestige || player.rankShame) && (
                 <button
                   type="button"
@@ -221,49 +236,61 @@ export function MobilePlayerProfile({
         </div>
 
         {/* Reputation Status */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-[#7F94B0] font-mono-technical uppercase">Status de Reputação</span>
-            <span className={`text-xs font-mono-technical ${status.color}`}>
-              [ {player.reputation}/10 ] {status.text}
-            </span>
-          </div>
-          <div className="flex gap-1 h-6">
+        <div className="mb-6 flex flex-col justify-center items-center gap-1">
+          <span className="text-lg text-[#7F94B0] tracking-normal font-mono-technical uppercase">Status de Reputação</span>
+          <div className="flex gap-1.5 w-full border border-[#2D3A52] p-1.5 rounded-md h-fit justify-around">
             {Array.from({ length: 10 }).map((_, i) => (
               <div
                 key={i}
-                className={`flex-1 clip-tactical-sm border border-[#2D3A52] ${
-                  i < player.reputation
-                    ? status.barColor
-                    : 'bg-[#0B0E14]'
-                }`}
+                style={i < player.reputation ? glowStyles : undefined}
+                className={` rounded w-7 sm:flex-1 h-10 ${i < player.reputation ? status.barColor + ' luminescent-div bg-gray-100! ' : 'bg-[#384d61]'}`}
               />
             ))}
           </div>
+          <span className={`text-lg tracking-normal [word-spacing:0px] font-mono-technical ${status.color}`}>
+            [{player.reputation}/10] {status.text}
+          </span>
         </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Reports */}
-        <div className="bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-lg p-4 text-center">
-          <div className="text-3xl text-[#D4A536] font-mono-technical mb-1">
-              {player.reportCount.toString().padStart(2, '0')}
-            </div>
-            <div className="text-xs text-[#7F94B0] uppercase font-mono-technical">
-              Denúncias<br/>Recebidas
-            </div>
-          </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Reports */}
+
 
           {/* Praises */}
-          <div className="bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg p-4 text-center">
-            <div className="text-3xl text-[#00F0FF] font-mono-technical mb-1">
-              {player.praiseCount.toString().padStart(2, '0')}
+          <div className='container-arrow'>
+            <svg className='arrow-up blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+            </svg>
+            <svg className='arrow-down blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+            </svg>
+            <div className="clip-tactical-stats bg-[#2ad4e0] rounded-md p-[2px] text-center">
+              <div className="clip-tactical-stats inner-shadow-blue bg-[#092c2e] rounded-md p-2 text-center">
+                <div className="text-5xl text-[#00F0FF] font-mono-technical mb-1">{player.praiseCount.toString().padStart(2, '0')}</div>
+                <div className="text-sm text-[#00F0FF] uppercase font-mono-technical">Elogios<br />Recebidos</div>
+              </div>
             </div>
-          <div className="text-xs text-[#7F94B0] uppercase font-mono-technical">
-            Elogios<br/>Recebidos
+          </div>
+          <div className='container-arrow'>
+            <svg className='arrow-up ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+            </svg>
+            <svg className='arrow-down ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+            </svg>
+            <div className="clip-tactical-stats bg-[#D4A536] rounded-md p-[2px] text-center">
+              <div className="clip-tactical-stats  inner-shadow-ambar bg-[#2e2509] rounded-md p-2 text-center">
+                <div className="text-5xl text-[#D4A536] font-mono-technical mb-1">
+                  {player.reportCount.toString().padStart(2, '0')}
+                </div>
+                <div className="text-sm text-[#D4A536] uppercase font-mono-technical">
+                  Denúncias<br />Recebidas
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* History Section */}

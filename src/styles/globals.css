@@ -14,9 +14,7 @@
     --border-structure: #2D3A52;
   }
 
-  * {
-
-  }
+  * {}
 
   body {
     @apply bg-[#0B0E14] text-[#E6F1FF];
@@ -32,13 +30,11 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: repeating-linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.15) 0px,
-      transparent 1px,
-      transparent 2px,
-      rgba(0, 0, 0, 0.15) 3px
-    );
+    background: repeating-linear-gradient(0deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        transparent 1px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.15) 3px);
     pointer-events: none;
     z-index: 9999;
   }
@@ -70,9 +66,64 @@
 }
 
 @layer utilities {
+
   /* Tactical clip-path for angled corners */
   .clip-tactical {
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+
+  .inner-shadow-blue {
+    box-shadow:
+      inset -1px -1px 2px 2px rgb(18, 225, 240),
+      inset 0px 0px 10px 5px rgba(18, 225, 240, 0.30),
+      inset 0px 0px 10px 15px rgba(18, 225, 240, 0.10);
+  }
+
+  .container-arrow {
+    position: relative;
+    /* O contexto de posicionamento para o ::after */
+
+    overflow: visible;
+    /* Garante que o conteúdo que transborda seja visível */
+  }
+
+  .arrow-up {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: 10;
+    height: 8px;
+    width: 8px;
+    transform: rotate(180deg);
+  }
+
+  .arrow-down {
+    position: absolute;
+    bottom: 3px;
+    right: 2px;
+    height: 8px;
+    width: 8px;
+  }
+
+  .ambar-arrow {
+    box-shadow: -3px -8px 12px 8px rgba(212, 165, 54, 0.20), inset 0px 2px 11px 9px rgb(212 165 54 / 19%);
+    color: #d4a536;
+  }
+
+  .blue-arrow {
+    box-shadow: -3px -8px 12px 8px rgba(18, 225, 240, 0.20), inset 0px 2px 11px 9px rgb(18 225 240 / 19%);
+    color: #00ecfbe3;
+  }
+
+  .inner-shadow-ambar {
+    box-shadow:
+      inset -1px -1px 2px 2px rgb(212, 165, 54),
+      inset 0px 0px 10px 5px rgba(212, 165, 54, 0.30),
+      inset 0px 0px 10px 15px rgba(212, 165, 54, 0.10);
+  }
+
+  .clip-tactical-stats {
+    clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
   }
 
   .clip-tactical-sm {
@@ -81,13 +132,63 @@
 
   /* Perfect hexagon clip-path */
   .clip-hexagon {
-    clip-path: polygon(
-      30% 0%, 70% 0%, 
-      100% 30%, 100% 70%, 
-      70% 100%, 30% 100%, 
-      0% 70%, 0% 30%
-    );
+    clip-path: polygon(30% 0%, 70% 0%,
+        100% 30%, 100% 70%,
+        70% 100%, 30% 100%,
+        0% 70%, 0% 30%);
   }
+
+  .clip-hexagon-perfect {
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    /* Additional styling for visualization */
+    /* background-color: #ffffff; Example background color */
+    /* aspect-ratio: 1 / cos(30deg); Maintains perfect aspect ratio as size changes */
+  }
+
+  .luminescent-div {
+    background-color: #05051a;
+    /* Dark background to enhance the glow */
+    border: 1px solid var(--glow-border, rgba(0, 123, 255, 0.4));
+    /* Subtle border matching the glow */
+    border-radius: 15px;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Key property for the luminescence effect */
+    box-shadow:
+      /* Inner, sharp glow */
+      inset 0 0 10px var(--glow-inner, rgba(0, 123, 255, 0.7)),
+      /* Outer, soft glow */
+      0 0 20px var(--glow-middle, rgba(0, 123, 255, 0.6)),
+      /* Outer, wider glow */
+      0 0 40px var(--glow-outer, rgba(0, 123, 255, 0.4));
+
+    /* Add smooth transition for interactive effects (like hover) */
+    transition: box-shadow 0.4s ease-in-out;
+  }
+
+  .luminescent-bg {
+    background-color: var(--glow-bg, #05051a);
+    border: 1px solid var(--glow-border, rgba(0, 123, 255, 0.4));
+    box-shadow:
+      inset 0 0 10px var(--glow-inner, rgba(0, 123, 255, 0.7)),
+      0 0 20px var(--glow-middle, rgba(0, 123, 255, 0.6)),
+      0 0 40px var(--glow-outer, rgba(0, 123, 255, 0.4));
+    transition: box-shadow 0.4s ease-in-out;
+  }
+
+  /* Even-sided hexagon (flatter top/bottom)
+  .clip-hexagon-perfect {
+    clip-path: polygon(
+      25% 0%,
+      75% 0%,
+      100% 50%,
+      75% 100%,
+      25% 100%,
+      0% 50%
+    );
+  } */
 
   /* Glow effects */
   .glow-cyan {
@@ -117,6 +218,7 @@
     0% {
       transform: translateX(-100%);
     }
+
     100% {
       transform: translateX(400%);
     }
