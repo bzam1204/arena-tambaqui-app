@@ -26,6 +26,7 @@ export interface FeedEntry {
 export interface PlayerGateway {
   getPlayer(id: string): Promise<Player | null>;
   listPlayers(): Promise<Player[]>;
+  listPlayersPaged(params: { page: number; pageSize?: number }): Promise<Player[]>;
   searchPlayers(term: string): Promise<Player[]>;
 }
 

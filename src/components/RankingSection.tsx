@@ -27,9 +27,6 @@ export function RankingSection({ players, onPlayerClick }: RankingSectionProps) 
     }
   });
 
-  // Take top 10
-  const topPlayers = sortedPlayers.slice(0, 10);
-
   return (
     <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-4 mb-6">
       {/* Title */}
@@ -74,7 +71,7 @@ export function RankingSection({ players, onPlayerClick }: RankingSectionProps) 
 
       {/* Player List */}
       <div className="space-y-2">
-        {topPlayers.map((player, index) => {
+        {sortedPlayers.map((player, index) => {
           const count = activeTab === 'prestige' ? player.elogios : player.denuncias;
           const rankColor = index === 0 ? 'text-[#D4A536]' : index === 1 ? 'text-[#7F94B0]' : index === 2 ? 'text-[#B87333]' : 'text-[#4A5568]';
           

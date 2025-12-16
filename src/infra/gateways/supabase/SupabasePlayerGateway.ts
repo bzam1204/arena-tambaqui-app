@@ -26,6 +26,19 @@ export class SupabasePlayerGateway implements PlayerGateway {
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
 
+  async listPlayersPaged(params: { page: number; pageSize?: number }): Promise<Player[]> {
+    const pageSize = params.pageSize ?? 20;
+    const from = params.page * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
+      .order('praise_count', { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return (data || []).map((row) => this.mapPlayer(row) as Player);
+  }
+
   async searchPlayers(term: string): Promise<Player[]> {
     const { data, error } = await this.supabase
       .from(this.table)

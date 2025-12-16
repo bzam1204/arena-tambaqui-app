@@ -49,7 +49,10 @@ export function AppLayout({ isLoggedIn }: Props) {
       <BottomNav
         currentView={currentView as any}
         onNavigate={(view) => {
-          if (view === 'feed') navigate('/mural/feed');
+          if (view === 'feed') {
+            navigate('/mural/feed');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
           if (view === 'search') navigate('/search');
           if (view === 'profile') {
             if (isLoggedIn) {
