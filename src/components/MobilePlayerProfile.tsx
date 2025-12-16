@@ -56,10 +56,11 @@ export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = fals
       onProfileUpdate({
         name: editName,
         nickname: editNickname,
-        avatar: editAvatar,
+        avatar: avatarFile ?? editAvatar,
       });
     }
     setIsEditing(false);
+    setAvatarFile(null);
   };
 
   const handleCancel = () => {

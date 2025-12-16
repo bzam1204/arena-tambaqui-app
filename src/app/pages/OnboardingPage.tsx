@@ -17,7 +17,7 @@ export function OnboardingPage({ userId, onComplete }: Props) {
       nickname: data.nickname,
       name: data.name,
       cpf: data.cpf,
-      photo: data.photo ? URL.createObjectURL(data.photo) : undefined,
+      photo: data.photo,
     });
     onComplete(playerId);
     navigate('/mural/feed', { replace: true });

@@ -18,13 +18,25 @@ export class MockProfileGateway implements ProfileGateway {
     const playerId = this.playerGateway.upsertFromProfile(userId, {
       name: input.name,
       nickname: input.nickname,
-      avatar: input.photo,
+      avatar: this.toAvatar(input.photo),
     });
     this.onboarded.add(userId);
     return playerId;
   }
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-    this.playerGateway.upsertFromProfile(userId, input);
+    this.playerGateway.upsertFromProfile(userId, {
+      ...input,
+      avatar: this.toAvatar(input.avatar),
+    });
+  }
+
+  private toAvatar(photo?: File | string | null) {
+    if (!photo) return undefined;
+    if (typeof photo === 'string') return photo;
+    if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+      return URL.createObjectURL(photo);
+    }
+    return undefined;
   }
 }

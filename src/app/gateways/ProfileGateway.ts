@@ -2,13 +2,13 @@ export interface CompleteProfileInput {
   nickname: string;
   name: string;
   cpf: string;
-  photo?: string;
+  photo?: File | string | null;
 }
 
 export interface UpdateProfileInput {
   name: string;
   nickname: string;
-  avatar?: string;
+  avatar?: File | string | null;
 }
 
 export interface OnboardingStatus {
