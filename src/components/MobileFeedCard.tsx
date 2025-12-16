@@ -25,18 +25,16 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
 
   return (
     <div
-      className={`relative bg-[#141A26] border-l-4 ${borderColor} ${bgGlow} rounded-r-lg overflow-hidden ${
-        entry.isRetracted ? 'opacity-50' : ''
-      }`}
+      className={`relative bg-[#141A26] border-l-4 ${borderColor} ${bgGlow} rounded-r-lg overflow-hidden ${entry.isRetracted ? 'opacity-50' : ''
+        }`}
     >
       {entry.isRetracted && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div
-            className={`px-3 py-2 rotate-[-8deg] border bg-[#0B0E14]/85 font-mono-technical text-xs uppercase tracking-wide shadow-[0_0_10px_rgba(0,0,0,0.4)] ${
-              entry.type === 'report'
+            className={`px-3 py-2 rotate-[-8deg] border bg-[#0B0E14]/85 font-mono-technical text-xs uppercase tracking-wide shadow-[0_0_10px_rgba(0,0,0,0.4)] ${entry.type === 'report'
                 ? 'border-[#D4A536]/70 text-[#D4A536]'
                 : 'border-[#00F0FF]/70 text-[#00F0FF]'
-            }`}
+              }`}
           >
             [ DENÚNCIA RETRATADA / ANULADA ]
           </div>
@@ -66,40 +64,48 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
 
       {/* Content */}
       <div className="p-4">
-        {/* Target */}
-        <div
-          className="flex items-center gap-3 mb-3 cursor-pointer group"
-          onClick={() => onTargetClick(entry.targetId)}
-        >
-          <div className={`w-12 h-[52px] ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon-perfect p-[2px] transition-all group-hover:scale-105`}>
-            <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-              {entry.targetAvatar ? (
-                <img 
-                  src={entry.targetAvatar} 
-                  alt={entry.targetName} 
-                  className="w-full h-full object-cover clip-hexagon-perfect"
-                />
-              ) : (
-                <User className="w-6 h-6 text-[#7F94B0]" />
-              )}
+        <div className="relative">
+          {/* Target */}
+          <div
+            className="float-left mr-4 mb-3 cursor-pointer group"
+            onClick={() => onTargetClick(entry.targetId)}
+          >
+            <div className={`w-16 h-20 ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon-perfect p-[3px] transition-all group-hover:scale-105`}>
+              <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                {entry.targetAvatar ? (
+                  <img
+                    src={entry.targetAvatar}
+                    alt={entry.targetName}
+                    className="w-full h-full object-cover clip-hexagon-perfect"
+                  />
+                ) : (
+                  <User className="w-6 h-6 text-[#7F94B0]" />
+                )}
+              </div>
             </div>
           </div>
-          <div>
-            <p className="text-xs text-[#7F94B0] font-mono-technical uppercase mb-1">Alvo:</p>
-            <p className="group-hover:text-[#00F0FF] transition-colors">{entry.targetName}</p>
+
+          {/* Text flows around avatar */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onTargetClick(entry.targetId)}>
+              <p className="text-xs text-[#7F94B0] font-mono-technical uppercase">Alvo:</p>
+              <p className="group-hover:text-[#00F0FF] transition-colors break-words">{entry.targetName}</p>
+            </div>
+            <p className={`text-sm text-[#E6F1FF] ${entry.isRetracted ? 'line-through opacity-50' : ''}`}>
+              {entry.content}
+            </p>
           </div>
-        </div>
 
-        {/* Description */}
-        <p className={`text-sm text-[#E6F1FF] mb-3 ${entry.isRetracted ? 'line-through opacity-50' : ''}`}>
-          {entry.content}
-        </p>
-
-        {/* Footer */}
-        <div className="flex items-center gap-2 text-xs text-[#7F94B0] font-mono-technical">
-          <span>DATA: {entry.date}</span>
-          <span>//</span>
-          <span>HORA: {entry.time}</span>
+          {/* Footer */}
+          <div
+            className={`clear-both mt-3 flex items-center gap-2 text-xs font-mono-technical border-t pt-3 ${
+              isCyan ? 'text-[#00F0FF] border-[#00F0FF]/40' : 'text-[#D4A536] border-[#D4A536]/40'
+            }`}
+          >
+            <span>DATA: {entry.date}</span>
+            <span>//</span>
+            <span>HORA: {entry.time}</span>
+          </div>
         </div>
       </div>
     </div>
