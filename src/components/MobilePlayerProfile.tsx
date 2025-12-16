@@ -247,7 +247,7 @@ export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = fals
             player.history.map((entry) => (
               <div key={entry.id} className="relative">
                 <MobileFeedCard entry={entry} onTargetClick={onTargetClick} />
-                {isOwnProfile && !entry.isRetracted && onRetract && (
+                {isOwnProfile && entry.type === 'report' && !entry.isRetracted && onRetract && (
                   <div className="absolute top-2 right-2">
                     <button
                       onClick={() => onRetract(entry.id)}

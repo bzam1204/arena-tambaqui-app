@@ -83,6 +83,9 @@ export class SupabaseFeedGateway implements FeedGateway {
       .maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!data) throw new Error('Registro não encontrado ou não pertence ao autor');
+    if (data.type !== 'report') {
+      throw new Error('Apenas denúncias podem ser retratadas');
+    }
 
     const { error } = await this.supabase
       .from(this.table)

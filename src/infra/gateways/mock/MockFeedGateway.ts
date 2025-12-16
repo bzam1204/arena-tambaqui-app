@@ -29,15 +29,23 @@ export class MockFeedGateway implements FeedGateway {
   }
 
   async retract(entryId: string, submitterId: string): Promise<void> {
+    let blocked = false;
     this.feed = this.feed.map((f: any) => {
       if (f.id === entryId && f.submitterId === submitterId) {
-        if (f.type === 'report' && f.targetId) {
+        if (f.type !== 'report') {
+          blocked = true;
+          return f;
+        }
+        if (f.targetId) {
           this.decrementReport(f.targetId);
         }
         return { ...f, isRetracted: true };
       }
       return f;
     });
+    if (blocked) {
+      throw new Error('Apenas denúncias podem ser retratadas');
+    }
   }
 
   private decrementReport(targetId: string) {
