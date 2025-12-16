@@ -52,7 +52,11 @@ export function MyProfilePage({ userId, playerId }: Props) {
   return (
     <MobilePlayerProfile
       player={{ ...player, history }}
-      onTargetClick={() => {}}
+      onTargetClick={(targetId) => {
+        if (targetId === playerId) return;
+        window.history.pushState({}, '', `/player/${targetId}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }}
       isOwnProfile
       onProfileUpdate={(data) => updateProfile.mutate(data)}
       onRetract={(id) => retractMutation.mutate(id)}
