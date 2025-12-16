@@ -8,9 +8,10 @@ interface MobileHeaderProps {
   onBack?: () => void;
   isLoggedIn?: boolean;
   onLogin?: () => void;
+  onLogout?: () => void;
 }
 
-export function MobileHeader({ title, subtitle, showBack, onBack, isLoggedIn, onLogin }: MobileHeaderProps) {
+export function MobileHeader({ title, subtitle, showBack, onBack, isLoggedIn, onLogin, onLogout }: MobileHeaderProps) {
   return (
     <header className="bg-[#0B0E14]/95 backdrop-blur-sm px-4 py-4 border-b border-[#2D3A52]">
       {showBack ? (
@@ -26,11 +27,18 @@ export function MobileHeader({ title, subtitle, showBack, onBack, isLoggedIn, on
           <h1 className="text-xl tracking-widest text-[#E6F1FF]">
             ARENA TAMBAQUI
           </h1>
-          {!isLoggedIn && onLogin && (
-            <TacticalButton onClick={onLogin} variant="cyan">
-              [ ENTRAR ]
-            </TacticalButton>
-          )}
+          <div className="flex items-center gap-2">
+            {!isLoggedIn && onLogin && (
+              <TacticalButton onClick={onLogin} variant="cyan">
+                [ ENTRAR ]
+              </TacticalButton>
+            )}
+            {isLoggedIn && onLogout && (
+              <TacticalButton onClick={onLogout} variant="amber">
+                [ SAIR ]
+              </TacticalButton>
+            )}
+          </div>
         </div>
       )}
       

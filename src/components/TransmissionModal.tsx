@@ -18,9 +18,6 @@ interface TransmissionModalProps {
     targetId: string; 
     type: 'report' | 'praise'; 
     content: string;
-    submitterName: string;
-    submitterCPF: string;
-    submitterPhoto: File | null;
   }) => void;
   onSuccess: () => void;
 }
@@ -79,14 +76,11 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedTarget && reportType && content.trim() && submitterName.trim() && submitterCPF.trim() && submitterPhoto) {
+    if (selectedTarget && reportType && content.trim()) {
       onSubmit({
         targetId: selectedTarget.id,
         type: reportType,
         content: content.trim(),
-        submitterName: submitterName.trim(),
-        submitterCPF: submitterCPF.trim(),
-        submitterPhoto,
       });
       onSuccess();
       onClose();

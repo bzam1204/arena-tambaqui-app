@@ -13,31 +13,41 @@ import { AuthPage } from '@/app/pages/AuthPage';
 import { OnboardingPage } from '@/app/pages/OnboardingPage';
 
 export default function App() {
-  const { state, login, markOnboarded } = useSessionState();
+  const { state, login, markOnboarded, loading } = useSessionState();
 
   const router = useMemo(
     () =>
       createBrowserRouter([
         {
           path: '/',
-          element: <Navigate to="/mural/feed" replace />,
+          element:
+            state.userId && !state.onboarded ? <Navigate to="/onboarding" replace /> : <Navigate to="/mural/feed" replace />,
         },
         {
           path: '/auth',
-          element: <AuthPage onLogin={login} />,
+          element: loading ? null : state.userId ? (
+            state.isCompleteProfile ? <Navigate to="/mural/feed" replace /> : <Navigate to="/onboarding" replace />
+          ) : (
+            <AuthPage onLogin={login} />
+          ),
         },
         {
           path: '/onboarding',
-          element: state.userId ? (
-            <OnboardingPage
-              userId={state.userId}
-              onComplete={() => {
-                markOnboarded();
-              }}
-            />
-          ) : (
-            <Navigate to="/auth" replace />
-          ),
+          element:
+            loading ? null : state.userId ? (
+              state.isCompleteProfile ? (
+                <Navigate to="/mural/feed" replace />
+              ) : (
+                <OnboardingPage
+                  userId={state.userId}
+                  onComplete={() => {
+                    markOnboarded();
+                  }}
+                />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            ),
         },
         {
           element: <AppLayout isLoggedIn={Boolean(state.userId)} />,
@@ -53,13 +63,18 @@ export default function App() {
             { path: '/search', element: <SearchPageRoute /> },
             { path: '/player/:id', element: <PlayerProfilePage /> },
             {
-              element: <RequireAuth session={state} />,
-              children: [{ path: '/perfil', element: state.userId ? <MyProfilePage userId={state.userId} /> : <Navigate to="/auth" replace /> }],
+              element: <RequireAuth session={state} loading={loading} />,
+              children: [
+                {
+                  path: '/perfil',
+                  element: loading ? null : state.userId ? <MyProfilePage userId={state.userId} /> : <Navigate to="/auth" replace />,
+                },
+              ],
             },
           ],
         },
       ]),
-    [state, login, markOnboarded],
+    [state, login, markOnboarded, loading],
   );
 
   return <RouterProvider router={router} />;

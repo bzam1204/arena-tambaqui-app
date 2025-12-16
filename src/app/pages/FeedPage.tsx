@@ -34,9 +34,6 @@ export function FeedPage({ isLoggedIn }: Props) {
       targetId: data.targetId,
       type: data.type,
       content: data.content,
-      submitterName: data.submitterName,
-      submitterCPF: data.submitterCPF,
-      submitterPhoto: data.submitterPhoto,
     });
     const updatedFeed = await feedGateway.listFeed();
     setFeed(updatedFeed);

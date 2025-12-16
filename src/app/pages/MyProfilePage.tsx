@@ -15,7 +15,7 @@ export function MyProfilePage({ userId }: Props) {
 
   useEffect(() => {
     playerGateway.getPlayer(userId).then(setPlayer);
-  }, [playerGateway, userId]);
+  }, []);
 
   if (!player) return null;
   return (

@@ -10,7 +10,7 @@ export function RankingsPage() {
   const navigate = useNavigate();
   useEffect(() => {
     playerGateway.listPlayers().then(setPlayers);
-  }, [playerGateway]);
+  }, []);
   return (
     <div className="px-4 pb-6">
       <RankingSection

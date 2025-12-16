@@ -6,12 +6,25 @@ import { getSupabaseClient } from '@/infra/supabase/client';
 export class SupabaseAuthGateway implements AuthGateway {
   private readonly supabase = getSupabaseClient();
 
-  async login(): Promise<Session> {
-    // Placeholder: choose OAuth provider Google for now
-    const { data, error } = await this.supabase.auth.signInWithOAuth({ provider: 'google' });
+  async login(): Promise<Session | null> {
+    // If already signed in, return session
+    const existing = await this.supabase.auth.getSession();
+    if (existing.data.session?.user) {
+      return { userId: existing.data.session.user.id };
+    }
+
+    const redirectTo = `${window.location.origin}/onboarding`;
+    const { data, error } = await this.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
     if (error) throw error;
-    if (!data?.user) throw new Error('No user returned from Supabase auth');
-    return { userId: data.user.id };
+    // Supabase will redirect; resolve with placeholder so callers don't hang
+    if (data?.url) {
+      window.location.href = data.url;
+    }
+    // Session will be established after redirect; return placeholder for now
+    return null;
   }
 
   async logout(): Promise<void> {

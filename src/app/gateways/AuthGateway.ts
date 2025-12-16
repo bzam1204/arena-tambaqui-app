@@ -3,7 +3,7 @@ export interface Session {
 }
 
 export interface AuthGateway {
-  login(): Promise<Session>;
+  login(): Promise<Session | null>;
   logout(): Promise<void>;
   getSession(): Promise<Session | null>;
 }

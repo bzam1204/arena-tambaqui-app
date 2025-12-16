@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { MobileHeader } from '@/components/MobileHeader';
 import { BottomNav } from '@/components/BottomNav';
+import { useSession } from '@/app/context/session-context';
 
 type Props = {
   isLoggedIn: boolean;
@@ -10,6 +11,7 @@ type Props = {
 export function AppLayout({ isLoggedIn }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useSession();
   const isProfileRoute = location.pathname.startsWith('/player') || location.pathname === '/perfil';
   const isSearch = location.pathname.startsWith('/search');
   const title = isSearch ? 'Busca' : undefined;
@@ -29,7 +31,18 @@ export function AppLayout({ isLoggedIn }: Props) {
 
   return (
     <div className="min-h-screen bg-[#0B0E14] pb-20">
-      <MobileHeader showBack={isProfileRoute} onBack={() => window.history.back()} title={title} subtitle={subtitle} />
+      <MobileHeader
+        showBack={isProfileRoute}
+        onBack={() => window.history.back()}
+        title={title}
+        subtitle={subtitle}
+        isLoggedIn={isLoggedIn}
+        onLogin={() => navigate('/auth')}
+        onLogout={async () => {
+          await logout();
+          window.location.href = '/auth';
+        }}
+      />
       <main className="relative z-10">
         <Outlet />
       </main>
