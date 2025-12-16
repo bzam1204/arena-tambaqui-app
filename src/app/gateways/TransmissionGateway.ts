@@ -2,9 +2,7 @@ export interface CreateTransmissionInput {
   targetId: string;
   type: 'report' | 'praise';
   content: string;
-  submitterName: string;
-  submitterCPF: string;
-  submitterPhoto?: File | null;
+  submitterId: string; // player id (not user id)
 }
 
 export interface TransmissionGateway {

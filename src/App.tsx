@@ -40,8 +40,8 @@ export default function App() {
               ) : (
                 <OnboardingPage
                   userId={state.userId}
-                  onComplete={() => {
-                    markOnboarded();
+                  onComplete={(playerId) => {
+                    markOnboarded(playerId);
                   }}
                 />
               )
@@ -67,7 +67,15 @@ export default function App() {
               children: [
                 {
                   path: '/perfil',
-                  element: loading ? null : state.userId ? <MyProfilePage userId={state.userId} /> : <Navigate to="/auth" replace />,
+                  element: loading ? null : state.userId ? (
+                    state.playerId ? (
+                      <MyProfilePage userId={state.userId} playerId={state.playerId} />
+                    ) : (
+                      <Navigate to="/onboarding" replace />
+                    )
+                  ) : (
+                    <Navigate to="/auth" replace />
+                  ),
                 },
               ],
             },

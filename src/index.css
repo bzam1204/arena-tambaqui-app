@@ -387,6 +387,7 @@
 
   body:after {
     content: "";
+    opacity: 0;
     pointer-events: none;
     z-index: 9998;
     background: radial-gradient(circle, #0000 0%, #0b0e14b3 100%);

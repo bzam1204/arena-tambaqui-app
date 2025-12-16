@@ -1,52 +1,59 @@
 import { injectable } from 'tsyringe';
-import type { ProfileGateway, CompleteProfileInput, UpdateProfileInput } from '@/app/gateways/ProfileGateway';
+import type { ProfileGateway, CompleteProfileInput, UpdateProfileInput, OnboardingStatus } from '@/app/gateways/ProfileGateway';
 import { getSupabaseClient } from '@/infra/supabase/client';
 
 @injectable()
 export class SupabaseProfileGateway implements ProfileGateway {
   private readonly supabase = getSupabaseClient();
-  private readonly table = 'profiles';
+  private readonly usersTable = 'users';
   private readonly playersTable = 'players';
 
-  async isOnboarded(userId: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from(this.table)
-      .select('id')
-      .eq('id', userId)
-      .maybeSingle();
+  async isOnboarded(userId: string): Promise<OnboardingStatus> {
+    const { data, error } = await this.supabase.from(this.playersTable).select('id').eq('user_id', userId).maybeSingle();
     if (error) throw error;
-    return Boolean(data);
+    return { onboarded: Boolean(data?.id), playerId: data?.id ?? null };
   }
 
-  async completeProfile(userId: string, input: CompleteProfileInput): Promise<void> {
-    const { error } = await this.supabase.from(this.table).upsert({
+  async completeProfile(userId: string, input: CompleteProfileInput): Promise<string> {
+    const { error } = await this.supabase.from(this.usersTable).upsert({
       id: userId,
-      nickname: input.nickname,
-      name: input.name,
-      cpf: input.cpf, // NOTE: CPF stored; clarify exposure/retention policies.
+      full_name: input.name,
+      cpf: input.cpf,
       avatar: input.photo,
     });
     if (error) throw error;
 
     // Ensure player row exists with baseline reputation/stats
-    const { error: playerErr } = await this.supabase.from(this.playersTable).upsert({
-      id: userId,
-      name: input.name,
-      nickname: input.nickname,
-      avatar: input.photo,
-      praise_count: 0,
-      report_count: 0,
-      reputation: 6,
-    });
+    const { data: player, error: playerErr } = await this.supabase
+      .from(this.playersTable)
+      .upsert({
+        user_id: userId,
+        nickname: input.nickname,
+        praise_count: 0,
+        report_count: 0,
+        reputation: 6,
+      }, { onConflict: 'user_id' })
+      .select('id')
+      .maybeSingle();
     if (playerErr) throw playerErr;
+    if (!player?.id) {
+      const { data: existing, error: findErr } = await this.supabase
+        .from(this.playersTable)
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (findErr) throw findErr;
+      if (!existing?.id) throw new Error('Unable to create or locate player record');
+      return existing.id;
+    }
+    return player.id;
   }
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
     const { error } = await this.supabase
-      .from(this.table)
+      .from(this.usersTable)
       .update({
-        name: input.name,
-        nickname: input.nickname,
+        full_name: input.name,
         avatar: input.avatar,
       })
       .eq('id', userId);
@@ -55,11 +62,9 @@ export class SupabaseProfileGateway implements ProfileGateway {
     const { error: playerErr } = await this.supabase
       .from(this.playersTable)
       .update({
-        name: input.name,
         nickname: input.nickname,
-        avatar: input.avatar,
       })
-      .eq('id', userId);
+      .eq('user_id', userId);
     if (playerErr) throw playerErr;
   }
 }

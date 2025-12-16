@@ -9,13 +9,19 @@ export class SupabasePlayerGateway implements PlayerGateway {
   private readonly table = 'players';
 
   async getPlayer(id: string): Promise<Player | null> {
-    const { data, error } = await this.supabase.from(this.table).select('*').eq('id', id).maybeSingle();
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
+      .eq('id', id)
+      .maybeSingle();
     if (error) throw error;
     return data ? (this.mapPlayer(data) as Player) : null;
   }
 
   async listPlayers(): Promise<Player[]> {
-    const { data, error } = await this.supabase.from(this.table).select('*');
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)');
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
@@ -23,8 +29,8 @@ export class SupabasePlayerGateway implements PlayerGateway {
   async searchPlayers(term: string): Promise<Player[]> {
     const { data, error } = await this.supabase
       .from(this.table)
-      .select('*')
-      .or(`nickname.ilike.%${term}%,name.ilike.%${term}%`);
+      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
+      .or(`nickname.ilike.%${term}%,users.full_name.ilike.%${term}%`);
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
@@ -35,9 +41,9 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const reputation = calculateReputation({ elogios: praise, denuncias: reports });
     return {
       id: row.id,
-      name: row.name,
+      name: row.users?.full_name ?? row.nickname ?? '',
       nickname: row.nickname,
-      avatar: row.avatar,
+      avatar: row.users?.avatar ?? null,
       elogios: praise,
       denuncias: reports,
       praiseCount: praise,

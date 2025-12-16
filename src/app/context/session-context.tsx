@@ -5,6 +5,7 @@ import { Inject, TkAuthGateway, TkProfileGateway } from '@/infra/container';
 
 export type SessionState = {
   userId: string | null;
+  playerId: string | null;
   onboarded: boolean;
   isCompleteProfile: boolean;
 };
@@ -14,7 +15,7 @@ type SessionContextValue = {
   loading: boolean;
   login: () => Promise<Session | null>;
   logout: () => Promise<void>;
-  markOnboarded: () => void;
+  markOnboarded: (playerId?: string) => void;
   refresh: () => Promise<void>;
 };
 
@@ -26,6 +27,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const [state, setState] = useState<SessionState>({
     userId: null,
+    playerId: null,
     onboarded: false,
     isCompleteProfile: false,
   });
@@ -34,10 +36,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loadSession = async () => {
     const session = await auth.getSession();
     if (session?.userId) {
-      const onboarded = await profile.isOnboarded(session.userId);
-      setState({ userId: session.userId, onboarded, isCompleteProfile: onboarded });
+      const status = await profile.isOnboarded(session.userId);
+      setState({
+        userId: session.userId,
+        playerId: status.playerId,
+        onboarded: status.onboarded,
+        isCompleteProfile: status.onboarded,
+      });
     } else {
-      setState({ userId: null, onboarded: false, isCompleteProfile: false });
+      setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false });
     }
   };
 
@@ -48,18 +55,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const login = async () => {
     const s = await auth.login();
     if (!s) return null;
-    const onboarded = await profile.isOnboarded(s.userId);
-    setState({ userId: s.userId, onboarded, isCompleteProfile: onboarded });
+    const status = await profile.isOnboarded(s.userId);
+    setState({
+      userId: s.userId,
+      playerId: status.playerId,
+      onboarded: status.onboarded,
+      isCompleteProfile: status.onboarded,
+    });
     return s;
   };
 
   const logout = async () => {
     await auth.logout();
-    setState({ userId: null, onboarded: false, isCompleteProfile: false });
+    setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false });
   };
 
-  const markOnboarded = () => {
-    setState((prev) => (prev.userId ? { ...prev, onboarded: true, isCompleteProfile: true } : prev));
+  const markOnboarded = (playerId?: string) => {
+    setState((prev) =>
+      prev.userId
+        ? {
+            ...prev,
+            playerId: playerId ?? prev.playerId,
+            onboarded: true,
+            isCompleteProfile: true,
+          }
+        : prev,
+    );
   };
 
   const value: SessionContextValue = {

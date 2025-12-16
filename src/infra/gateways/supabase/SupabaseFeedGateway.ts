@@ -10,16 +10,37 @@ export class SupabaseFeedGateway implements FeedGateway {
   private readonly table = 'feed';
 
   async listFeed(): Promise<FeedEntry[]> {
-    const { data, error } = await this.supabase.from(this.table).select('*').order('created_at', { ascending: false });
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select(
+        `
+        id,
+        type,
+        content,
+        created_at,
+        is_retracted,
+        target_player_id,
+        target:players!feed_target_player_id_fkey(
+          id,
+          nickname,
+          users:users(
+            full_name,
+            avatar
+          )
+        )
+      `,
+      )
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map((row: any) => {
       const created = row.created_at ? new Date(row.created_at) : new Date();
+      const target = row.target ?? {};
       return {
         id: row.id,
         type: row.type,
-        targetId: row.target_id,
-        targetName: row.target_name,
-        targetAvatar: row.target_avatar,
+        targetId: row.target_player_id,
+        targetName: target.nickname ?? 'Jogador Desconhecido',
+        targetAvatar: target.users?.avatar ?? null,
         content: row.content,
         date: format(created, 'date'),
         time: format(created, 'time'),
@@ -32,10 +53,9 @@ export class SupabaseFeedGateway implements FeedGateway {
     const { error } = await this.supabase.from(this.table).insert({
       id: entry.id || crypto.randomUUID(),
       type: entry.type,
-      target_id: entry.targetId,
-      target_name: entry.targetName,
-      target_avatar: entry.targetAvatar,
+      target_player_id: entry.targetId,
       content: entry.content,
+      submitter_player_id: (entry as any).submitterId ?? null,
       created_at: new Date().toISOString(),
       is_retracted: entry.isRetracted ?? false,
     });

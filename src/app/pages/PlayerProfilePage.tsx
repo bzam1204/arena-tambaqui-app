@@ -12,7 +12,7 @@ export function PlayerProfilePage() {
     if (id) {
       playerGateway.getPlayer(id).then(setPlayer);
     }
-  }, [id, playerGateway]);
+  }, [id]);
   if (!player) return null;
   return <MobilePlayerProfile player={player} onTargetClick={() => {}} />;
 }

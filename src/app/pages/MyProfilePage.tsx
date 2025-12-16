@@ -6,16 +6,17 @@ import { Inject, TkPlayerGateway, TkProfileGateway } from '@/infra/container';
 
 type Props = {
   userId: string;
+  playerId: string;
 };
 
-export function MyProfilePage({ userId }: Props) {
+export function MyProfilePage({ userId, playerId }: Props) {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const profileGateway = Inject<ProfileGateway>(TkProfileGateway);
   const [player, setPlayer] = useState<Player | null>(null);
 
   useEffect(() => {
-    playerGateway.getPlayer(userId).then(setPlayer);
-  }, []);
+    playerGateway.getPlayer(playerId).then(setPlayer);
+  }, [playerId]);
 
   if (!player) return null;
   return (

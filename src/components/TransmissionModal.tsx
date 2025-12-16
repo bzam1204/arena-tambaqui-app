@@ -28,10 +28,6 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
   const [content, setContent] = useState('');
-  const [submitterName, setSubmitterName] = useState('');
-  const [submitterCPF, setSubmitterCPF] = useState('');
-  const [submitterPhoto, setSubmitterPhoto] = useState<File | null>(null);
-
   // Initialize with pre-selected player if provided
   useEffect(() => {
     if (isOpen && preSelectedPlayerId) {
@@ -51,9 +47,6 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
       setSelectedTarget(null);
       setReportType(null);
       setContent('');
-      setSubmitterName('');
-      setSubmitterCPF('');
-      setSubmitterPhoto(null);
     }
   }, [isOpen]);
 
@@ -87,7 +80,7 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
     }
   };
 
-  const canSubmit = selectedTarget && reportType && content.trim() && submitterName.trim() && submitterCPF.trim() && submitterPhoto;
+  const canSubmit = selectedTarget && reportType && content.trim();
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-0">

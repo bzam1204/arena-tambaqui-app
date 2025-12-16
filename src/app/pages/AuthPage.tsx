@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import type { Session } from '@/app/gateways/AuthGateway';
 import { MobileRegister } from '@/components/MobileRegister';
 
 type Props = {

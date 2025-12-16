@@ -11,9 +11,14 @@ export interface UpdateProfileInput {
   avatar?: string;
 }
 
+export interface OnboardingStatus {
+  onboarded: boolean;
+  playerId: string | null;
+}
+
 export interface ProfileGateway {
-  isOnboarded(userId: string): Promise<boolean>;
-  completeProfile(userId: string, input: CompleteProfileInput): Promise<void>;
+  isOnboarded(userId: string): Promise<OnboardingStatus>;
+  completeProfile(userId: string, input: CompleteProfileInput): Promise<string>;
   updateProfile(userId: string, input: UpdateProfileInput): Promise<void>;
 }
 

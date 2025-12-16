@@ -10,7 +10,7 @@ export function SearchPageRoute() {
   const navigate = useNavigate();
   useEffect(() => {
     playerGateway.listPlayers().then(setPlayers);
-  }, [playerGateway]);
+  }, []);
   return (
     <SearchPage
       players={players.map((p) => ({

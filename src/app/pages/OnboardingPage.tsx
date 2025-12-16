@@ -5,7 +5,7 @@ import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
 
 type Props = {
   userId: string;
-  onComplete: () => void;
+  onComplete: (playerId: string) => void;
 };
 
 export function OnboardingPage({ userId, onComplete }: Props) {
@@ -13,13 +13,13 @@ export function OnboardingPage({ userId, onComplete }: Props) {
   const profile = Inject<ProfileGateway>(TkProfileGateway);
 
   const handleComplete = async (data: { nickname: string; name: string; cpf: string; photo: File | null }) => {
-    await profile.completeProfile(userId, {
+    const playerId = await profile.completeProfile(userId, {
       nickname: data.nickname,
       name: data.name,
       cpf: data.cpf,
       photo: data.photo ? URL.createObjectURL(data.photo) : undefined,
     });
-    onComplete();
+    onComplete(playerId);
     navigate('/mural/feed', { replace: true });
   };
 

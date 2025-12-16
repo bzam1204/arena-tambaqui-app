@@ -46,4 +46,24 @@ export class MockPlayerGateway implements PlayerGateway {
       player.avatar = input.avatar;
     }
   }
+
+  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string }): string {
+    const existing = this.players[id];
+    const praiseCount = existing?.praiseCount ?? 0;
+    const reportCount = existing?.reportCount ?? 0;
+    const reputation = calculateReputation({ elogios: praiseCount, denuncias: reportCount });
+    this.players[id] = {
+      id,
+      name: input.name,
+      nickname: input.nickname,
+      avatar: input.avatar ?? existing?.avatar,
+      elogios: praiseCount,
+      denuncias: reportCount,
+      praiseCount,
+      reportCount,
+      reputation,
+      history: existing?.history ?? [],
+    };
+    return id;
+  }
 }

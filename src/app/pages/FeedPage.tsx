@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { MobileFeedCard } from '@/components/MobileFeedCard';
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
+import { useSession } from '@/app/context/session-context';
 import type { FeedEntry, Player } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
@@ -17,6 +18,7 @@ export function FeedPage({ isLoggedIn }: Props) {
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const txGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
+  const { state } = useSession();
 
   const [feed, setFeed] = useState<FeedEntry[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -30,10 +32,19 @@ export function FeedPage({ isLoggedIn }: Props) {
   }, []);
 
   const handleSubmit = async (data: any) => {
+    if (!state.userId) {
+      navigate('/auth');
+      return;
+    }
+    if (!state.playerId) {
+      navigate('/onboarding');
+      return;
+    }
     await txGateway.createTransmission({
       targetId: data.targetId,
       type: data.type,
       content: data.content,
+      submitterId: state.playerId,
     });
     const updatedFeed = await feedGateway.listFeed();
     setFeed(updatedFeed);
@@ -56,8 +67,8 @@ export function FeedPage({ isLoggedIn }: Props) {
 
       <button
         onClick={() => {
-          if (!isLoggedIn) {
-            navigate('/auth');
+          if (!isLoggedIn || !state.playerId) {
+            navigate(state.userId ? '/onboarding' : '/auth');
             return;
           }
           setIsModalOpen(true);
