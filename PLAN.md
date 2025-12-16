@@ -50,14 +50,14 @@ Reputation should be **derived**, not manually edited.
 
 ## Implementation Plan (steps)
 
-### 1) Confirm dependencies + approvals
+### 1) Confirm dependencies + approvals ok
 
 - Confirm and install: `react-router-dom`, `tsyringe`, `reflect-metadata`.
 - Confirm how we represent session state (mock now; Supabase auth later).
 
 Deliverable: dependencies installed and agreed constraints.
 
-### 2) Repo scaffolding
+### 2) Repo scaffolding ok
 
 - Add `.gitignore` (at least: `node_modules/`, `build/`, `.env*`, logs, OS files).
 - Add `env.example` with:
@@ -65,9 +65,9 @@ Deliverable: dependencies installed and agreed constraints.
   - `VITE_SUPABASE_ANON_KEY=`
   - (optional) `VITE_API_BASE_URL=` if we keep HTTP gateways too.
 
-Deliverable: clean repo + env template.
+Deliverable: clean erepo + env template.
 
-### 3) TypeScript + decorators support
+### 3) TypeScript + decorators support ok
 
 - Add `tsconfig.json` (paths alias `@/*`, `experimentalDecorators`, etc.).
 - Add `src/vite-env.d.ts` if missing.
@@ -77,7 +77,7 @@ Deliverable: clean repo + env template.
 
 Deliverable: DI-ready TypeScript build.
 
-### 4) DI container bootstrap (tsyringe)
+### 4) DI container bootstrap (tsyringe) ok
 
 - Create `src/infra/container.ts`:
   - tokens (symbols) for each gateway
@@ -87,7 +87,7 @@ Deliverable: DI-ready TypeScript build.
 
 Deliverable: a working DI container and registration pattern.
 
-### 5) Add routing + app layout
+### 5) Add routing + app layout ok
 
 - Add React Router and define route tree using the route map above.
 - Create a shared layout (header + bottom nav) and route guards.
@@ -95,7 +95,7 @@ Deliverable: a working DI container and registration pattern.
 
 Deliverable: app navigates via URLs and has guarded routes.
 
-### 6) Add domain rule module (reputation)
+### 6) Add domain rule module (reputation)ok
 
 - Create a small, testable function (e.g. `src/domain/reputation.ts`) implementing the formula.
 - Update ranking/search/profile displays to use derived reputation.

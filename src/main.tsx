@@ -1,7 +1,9 @@
+import './styles/globals.css'
+import 'reflect-metadata';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
+import '@/infra/container';
 
-  import { createRoot } from "react-dom/client";
-  import App from "./App.tsx";
-  import "./index.css";
+createRoot(document.getElementById('root')!).render(<App />);
 
-  createRoot(document.getElementById("root")!).render(<App />);
-  
