@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MobileFeedCard } from '@/components/MobileFeedCard';
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
-import type { FeedEntry, Player } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
@@ -19,36 +19,44 @@ export function FeedPage({ isLoggedIn }: Props) {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const txGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
   const { state } = useSession();
+  const queryClient = useQueryClient();
 
-  const [feed, setFeed] = useState<FeedEntry[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [preSelectedPlayerId, setPreSelectedPlayerId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    feedGateway.listFeed().then(setFeed);
-    playerGateway.listPlayers().then(setPlayers);
-  }, []);
+  const { data: feed = [] } = useQuery({
+    queryKey: ['feed'],
+    queryFn: () => feedGateway.listFeed(),
+  });
 
-  const handleSubmit = async (data: any) => {
-    if (!state.userId) {
-      navigate('/auth');
-      return;
-    }
-    if (!state.playerId) {
-      navigate('/onboarding');
-      return;
-    }
-    await txGateway.createTransmission({
-      targetId: data.targetId,
-      type: data.type,
-      content: data.content,
-      submitterId: state.playerId,
-    });
-    const updatedFeed = await feedGateway.listFeed();
-    setFeed(updatedFeed);
-  };
+  const { data: players = [] } = useQuery({
+    queryKey: ['players'],
+    queryFn: () => playerGateway.listPlayers(),
+  });
+
+  const createTransmission = useMutation({
+    mutationFn: async (data: { targetId: string; type: 'report' | 'praise'; content: string }) => {
+      if (!state.userId) {
+        navigate('/auth');
+        return;
+      }
+      if (!state.playerId) {
+        navigate('/onboarding');
+        return;
+      }
+      await txGateway.createTransmission({
+        targetId: data.targetId,
+        type: data.type,
+        content: data.content,
+        submitterId: state.playerId,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+      await queryClient.invalidateQueries({ queryKey: ['players'] });
+    },
+  });
 
   const handleTargetClick = (id: string) => {
     navigate(`/player/${id}`);
@@ -90,10 +98,8 @@ export function FeedPage({ isLoggedIn }: Props) {
           }),
         )}
         preSelectedPlayerId={preSelectedPlayerId}
-        onSubmit={handleSubmit}
+        onSubmit={(data) => createTransmission.mutate(data)}
         onSuccess={async () => {
-          const updatedFeed = await feedGateway.listFeed();
-          setFeed(updatedFeed);
           setIsModalOpen(false);
         }}
       />

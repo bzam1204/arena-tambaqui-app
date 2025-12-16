@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { SearchPage } from '@/components/SearchPage';
 import type { PlayerGateway, Player } from '@/app/gateways/PlayerGateway';
@@ -6,11 +6,11 @@ import { Inject, TkPlayerGateway } from '@/infra/container';
 
 export function SearchPageRoute() {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
-  const [players, setPlayers] = useState<Player[]>([]);
   const navigate = useNavigate();
-  useEffect(() => {
-    playerGateway.listPlayers().then(setPlayers);
-  }, []);
+  const { data: players = [] } = useQuery<Player[]>({
+    queryKey: ['players'],
+    queryFn: () => playerGateway.listPlayers(),
+  });
   return (
     <SearchPage
       players={players.map((p) => ({

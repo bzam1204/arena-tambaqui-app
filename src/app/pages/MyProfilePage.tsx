@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
@@ -14,31 +14,37 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const profileGateway = Inject<ProfileGateway>(TkProfileGateway);
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [history, setHistory] = useState<FeedEntry[]>([]);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const load = async () => {
-      const [p, feed] = await Promise.all([playerGateway.getPlayer(playerId), feedGateway.listBySubmitter(playerId)]);
-      if (p) {
-        setPlayer({ ...p, history: feed });
-        setHistory(feed);
-      }
-    };
-    load();
-  }, [playerId]);
+  const { data: player } = useQuery({
+    queryKey: ['player', playerId],
+    queryFn: () => playerGateway.getPlayer(playerId),
+    enabled: Boolean(playerId),
+  });
 
-  const handleRetract = async (entryId: string) => {
-    await feedGateway.retract(entryId, playerId);
-    const [updatedPlayer, updatedFeed] = await Promise.all([
-      playerGateway.getPlayer(playerId),
-      feedGateway.listBySubmitter(playerId),
-    ]);
-    if (updatedPlayer) {
-      setPlayer({ ...updatedPlayer, history: updatedFeed });
-    }
-    setHistory(updatedFeed);
-  };
+  const { data: history = [] } = useQuery<FeedEntry[]>({
+    queryKey: ['feed', 'submitter', playerId],
+    queryFn: () => feedGateway.listBySubmitter(playerId),
+    enabled: Boolean(playerId),
+  });
+
+  const retractMutation = useMutation({
+    mutationFn: (entryId: string) => feedGateway.retract(entryId, playerId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['feed', 'submitter', playerId] });
+      await queryClient.invalidateQueries({ queryKey: ['player', playerId] });
+      await queryClient.invalidateQueries({ queryKey: ['players'] });
+    },
+  });
+
+  const updateProfile = useMutation({
+    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null }) =>
+      profileGateway.updateProfile(userId, data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['player', playerId] });
+      await queryClient.invalidateQueries({ queryKey: ['players'] });
+    },
+  });
 
   if (!player) return null;
   return (
@@ -46,10 +52,8 @@ export function MyProfilePage({ userId, playerId }: Props) {
       player={{ ...player, history }}
       onTargetClick={() => {}}
       isOwnProfile
-      onProfileUpdate={(data) => {
-        profileGateway.updateProfile(userId, data);
-      }}
-      onRetract={handleRetract}
+      onProfileUpdate={(data) => updateProfile.mutate(data)}
+      onRetract={(id) => retractMutation.mutate(id)}
     />
   );
 }
