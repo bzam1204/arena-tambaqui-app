@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { User, AlertTriangle, Award } from 'lucide-react';
 
 export interface FeedEntry {
@@ -18,10 +19,13 @@ interface MobileFeedCardProps {
 }
 
 export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
+  const [expanded, setExpanded] = useState(false);
   const isCyan = entry.type === 'praise';
   const borderColor = isCyan ? 'border-l-[#00F0FF]' : 'border-l-[#D4A536]';
   const accentColor = isCyan ? 'text-[#00F0FF]' : 'text-[#D4A536]';
   const bgGlow = isCyan ? 'bg-[#00F0FF]/5' : 'bg-[#D4A536]/5';
+  const isLong = entry.content.length > 200;
+  const displayedContent = expanded || !isLong ? entry.content : `${entry.content.slice(0, 200)}…`;
 
   return (
     <div
@@ -70,7 +74,7 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
             className="float-left mr-4 mb-3 cursor-pointer group"
             onClick={() => onTargetClick(entry.targetId)}
           >
-            <div className={`w-16 h-20 ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon-perfect p-[3px] transition-all group-hover:scale-105`}>
+            <div className={`w-20 h-22 ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon-perfect p-[3px] transition-all group-hover:scale-105`}>
               <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                 {entry.targetAvatar ? (
                   <img
@@ -92,21 +96,29 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
               <p className="group-hover:text-[#00F0FF] transition-colors break-words">{entry.targetName}</p>
             </div>
             <p className={`text-sm text-[#E6F1FF] ${entry.isRetracted ? 'line-through opacity-50' : ''}`}>
-              {entry.content}
+              {displayedContent}
             </p>
+            {isLong && (
+              <button
+                className={`text-xs font-semibold underline-offset-2 hover:underline transition-colors ${isCyan ? 'text-[#00F0FF]' : 'text-[#D4A536]'}`}
+                onClick={() => setExpanded((prev) => !prev)}
+              >
+                {expanded ? 'Ler menos' : 'Ler mais'}
+              </button>
+            )}
           </div>
 
+          </div>
+          </div>
           {/* Footer */}
           <div
-            className={`clear-both mt-3 flex items-center gap-2 text-xs font-mono-technical border-t pt-3 ${
-              isCyan ? 'text-[#00F0FF] border-[#00F0FF]/40' : 'text-[#D4A536] border-[#D4A536]/40'
+            className={`clear-both mt-3 flex items-center gap-2 text-xs font-mono-technical border-t p-3 ${
+              isCyan ? ' border-[#00F0FF]/40' : ' border-[#D4A536]/40'
             }`}
           >
             <span>DATA: {entry.date}</span>
             <span>//</span>
             <span>HORA: {entry.time}</span>
-          </div>
-        </div>
       </div>
     </div>
   );
