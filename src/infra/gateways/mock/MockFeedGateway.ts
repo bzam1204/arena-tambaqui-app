@@ -15,6 +15,13 @@ export class MockFeedGateway implements FeedGateway {
     return [...this.feed];
   }
 
+  async listFeedPage(params: { page: number; pageSize?: number }): Promise<FeedEntry[]> {
+    const size = params.pageSize ?? 20;
+    const start = params.page * size;
+    const end = start + size;
+    return this.feed.slice(start, end);
+  }
+
   prepend(entry: FeedEntry) {
     this.feed = [{ ...entry }, ...this.feed];
     return Promise.resolve();

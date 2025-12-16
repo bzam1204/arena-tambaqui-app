@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MobileFeedCard } from '@/components/MobileFeedCard';
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
 import { Spinner } from '@/components/Spinner';
@@ -25,11 +25,21 @@ export function FeedPage({ isLoggedIn }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [preSelectedPlayerId, setPreSelectedPlayerId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const { data: feed = [], isLoading: feedLoading } = useQuery({
+  const {
+    data: feedPages,
+    isLoading: feedLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['feed'],
-    queryFn: () => feedGateway.listFeed(),
+    queryFn: ({ pageParam = 0 }) => feedGateway.listFeedPage({ page: pageParam, pageSize: 20 }),
+    getNextPageParam: (lastPage, allPages) => (lastPage.length < 20 ? undefined : allPages.length),
   });
+
+  const feed = feedPages?.pages.flatMap((p) => p) ?? [];
 
   const { data: players = [], isLoading: playersLoading } = useQuery({
     queryKey: ['players'],
@@ -58,6 +68,23 @@ export function FeedPage({ isLoggedIn }: Props) {
       await queryClient.invalidateQueries({ queryKey: ['players'] });
     },
   });
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        });
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleTargetClick = (id: string) => {
     navigate(`/player/${id}`);
@@ -106,6 +133,11 @@ export function FeedPage({ isLoggedIn }: Props) {
           setIsModalOpen(false);
         }}
       />
+      <div ref={sentinelRef} />
+      {isFetchingNextPage && <Spinner label="carregando mais" />}
+      {!hasNextPage && feed.length > 0 && (
+        <div className="py-4 text-center text-xs text-[#7F94B0] font-mono-technical">[ fim do mural ]</div>
+      )}
       {(playersLoading || feedLoading) && feed.length === 0 && <Spinner label="sincronizando dados" />}
     </div>
   );

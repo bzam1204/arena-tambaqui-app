@@ -44,7 +44,18 @@ export class SupabaseFeedGateway implements FeedGateway {
   }
 
   async listFeed(): Promise<FeedEntry[]> {
-    const { data, error } = await this.supabase.from(this.table).select(this.select).order('created_at', { ascending: false });
+    return this.listFeedPage({ page: 0, pageSize: 50 });
+  }
+
+  async listFeedPage(params: { page: number; pageSize?: number }): Promise<FeedEntry[]> {
+    const pageSize = params.pageSize ?? 20;
+    const from = params.page * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select(this.select)
+      .order('created_at', { ascending: false })
+      .range(from, to);
     if (error) throw error;
     return (data || []).map((row: any) => this.map(row));
   }
