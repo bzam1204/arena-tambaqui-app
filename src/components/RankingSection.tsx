@@ -37,13 +37,13 @@ export function RankingSection({ players, variant, onPlayerClick }: RankingSecti
 
               {/* Avatar */}
               <div className="relative">
-                <div className={`w-10 h-10 ${badgeColor} clip-hexagon p-[2px]`}>
-                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+                <div className={`w-10 h-11 ${badgeColor} clip-hexagon-perfect p-[2px]`}>
+                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                     {player.avatar ? (
                       <img 
                         src={player.avatar} 
                         alt={player.nickname} 
-                        className="w-full h-full object-cover clip-hexagon"
+                        className="w-full h-full object-cover clip-hexagon-perfect"
                       />
                     ) : (
                       <User className="w-5 h-5 text-[#7F94B0]" />

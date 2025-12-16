@@ -27,12 +27,12 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
 
       {/* Logo/Shield Icon */}
       <div className="relative mb-8">
-        <div className="w-24 h-24 bg-[#00F0FF] clip-hexagon p-[3px]">
-          <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+        <div className="w-24 h-[100px] bg-[#00F0FF] clip-hexagon-perfect p-[3px]">
+          <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
             <Shield className="w-12 h-12 text-[#00F0FF]" />
           </div>
         </div>
-        <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-20 clip-hexagon" />
+        <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-20 clip-hexagon-perfect" />
       </div>
 
       {/* Title */}
@@ -47,7 +47,7 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
       </div>
 
       {/* Main Card */}
-      <div className="w-full max-w-md bg-[#141A26] rounded-lg border border-[#2D3A52] p-8 relative overflow-hidden">
+      <div className="w-full max-w-md bg-[#141A26] rounded-lg border border-[#2D3A52] p-6 relative overflow-hidden">
         {/* Corner Accents */}
         <div className="absolute top-0 left-0 w-16 h-16 border-l-2 border-t-2 border-[#00F0FF]/30" />
         <div className="absolute top-0 right-0 w-16 h-16 border-r-2 border-t-2 border-[#00F0FF]/30" />
@@ -69,12 +69,12 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="w-full bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg p-4 hover:bg-[#00F0FF]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+            className="w-full bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg p-3 hover:bg-[#00F0FF]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
           >
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-nowrap items-center justify-center gap-2">
               <Chrome className="w-6 h-6 text-[#00F0FF]" />
-              <span className="text-[#00F0FF] font-mono-technical uppercase tracking-wider">
-                {isLoading ? '[ CONECTANDO... ]' : '[ ENTRAR COM GOOGLE ]'}
+              <span className="text-[#00F0FF]  text-sm text-nowrap font-mono-technical uppercase tracking-wider">
+                {isLoading ? '[ CONECTANDO... ]' : '[ENTRAR COM GOOGLE]'}
               </span>
             </div>
             

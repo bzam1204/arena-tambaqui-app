@@ -75,13 +75,13 @@ export function SearchPage({ players, onPlayerSelect }: SearchPageProps) {
               <div className="flex items-center gap-4">
                 {/* Avatar */}
                 <div className="relative">
-                  <div className={`w-14 h-14 ${reputationColor.replace('text-', 'bg-')} clip-hexagon p-[2px]`}>
-                    <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+                  <div className={`w-14 h-[60px] ${reputationColor.replace('text-', 'bg-')} clip-hexagon-perfect p-[2px]`}>
+                    <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                       {player.avatar ? (
                         <img 
                           src={player.avatar} 
                           alt={player.nickname} 
-                          className="w-full h-full object-cover clip-hexagon"
+                          className="w-full h-full object-cover clip-hexagon-perfect"
                         />
                       ) : (
                         <User className="w-7 h-7 text-[#7F94B0]" />

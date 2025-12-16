@@ -67,17 +67,17 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
       {/* Content */}
       <div className="p-4">
         {/* Target */}
-        <div 
+        <div
           className="flex items-center gap-3 mb-3 cursor-pointer group"
           onClick={() => onTargetClick(entry.targetId)}
         >
-          <div className={`w-12 h-12 ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon p-[2px] transition-all group-hover:scale-105`}>
-            <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+          <div className={`w-12 h-[52px] ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon-perfect p-[2px] transition-all group-hover:scale-105`}>
+            <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
               {entry.targetAvatar ? (
                 <img 
                   src={entry.targetAvatar} 
                   alt={entry.targetName} 
-                  className="w-full h-full object-cover clip-hexagon"
+                  className="w-full h-full object-cover clip-hexagon-perfect"
                 />
               ) : (
                 <User className="w-6 h-6 text-[#7F94B0]" />

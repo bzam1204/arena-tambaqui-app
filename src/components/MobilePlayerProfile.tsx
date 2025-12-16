@@ -161,7 +161,7 @@ export function MobilePlayerProfile({
               />
             </div>
           ) : (
-            <h2 className="text-4xl text-center mb-2 text-[#E6F1FF]">{player.nickname}</h2>
+            <h2 className="text-4xl break-words w-full max-w-full text-center mb-2 text-[#E6F1FF]">{player.nickname}</h2>
           )}
 
           {/* Full Name - Editable */}
@@ -260,10 +260,10 @@ export function MobilePlayerProfile({
           {/* Praises */}
           <div className='container-arrow'>
             <svg className='arrow-up blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
             </svg>
             <svg className='arrow-down blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
             </svg>
             <div className="clip-tactical-stats bg-[#2ad4e0] rounded-md p-[2px] text-center">
               <div className="clip-tactical-stats inner-shadow-blue bg-[#092c2e] rounded-md p-2 text-center">
@@ -274,10 +274,10 @@ export function MobilePlayerProfile({
           </div>
           <div className='container-arrow'>
             <svg className='arrow-up ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
             </svg>
             <svg className='arrow-down ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+              <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
             </svg>
             <div className="clip-tactical-stats bg-[#D4A536] rounded-md p-[2px] text-center">
               <div className="clip-tactical-stats  inner-shadow-ambar bg-[#2e2509] rounded-md p-2 text-center">

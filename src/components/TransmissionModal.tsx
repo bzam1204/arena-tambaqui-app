@@ -135,10 +135,10 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
                     onClick={() => handleSelectPlayer(player)}
                     className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
                   >
-                    <div className="w-10 h-10 bg-[#00F0FF] clip-hexagon p-[2px]">
-                      <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+                    <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                      <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                         {player.avatar ? (
-                          <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon" />
+                          <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
                         ) : (
                           <User className="w-5 h-5 text-[#7F94B0]" />
                         )}
@@ -158,10 +158,10 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
                 Operador Selecionado
               </label>
               <div className="bg-[#141A26] border border-[#00F0FF] rounded-lg p-3 flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#00F0FF] clip-hexagon p-[2px]">
-                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon flex items-center justify-center">
+                <div className="w-10 h-10 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                     {selectedTarget?.avatar ? (
-                      <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon" />
+                      <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
                     ) : (
                       <User className="w-5 h-5 text-[#7F94B0]" />
                     )}
@@ -197,10 +197,10 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
 
                 <div className='container-arrow'>
                   {reportType === 'report' && (<> <svg className='arrow-up ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                    <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
                     <svg className='arrow-down ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                      <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                     </svg></>
                   )}
                   <div className={`clip-tactical-stats ${reportType === 'report' ? 'bg-[#D4A536]  ' : 'text-[#7F94B0] '} rounded-md p-[2px] text-center`}>
@@ -216,10 +216,10 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
                 </div>
                 <div className='container-arrow'>
                   {reportType === 'praise' && (<> <svg className='arrow-up blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                    <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
                     <svg className='arrow-down blue-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                      <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                     </svg></>
                   )}
                   <div className={`clip-tactical-stats ${reportType === 'praise' ? 'bg-[#2ad4e0]  ' : 'text-[#7F94B0] '} rounded-md p-[2px] text-center`}>
