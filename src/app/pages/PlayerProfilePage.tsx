@@ -46,6 +46,11 @@ export function PlayerProfilePage() {
   });
 
   const history = historyPages?.pages.flatMap((p) => p) ?? [];
+  const { data: ranks } = useQuery({
+    queryKey: ['player', 'rank', id],
+    queryFn: () => (id ? playerGateway.getPlayerRank(id) : Promise.resolve({ prestige: null, shame: null })),
+    enabled: Boolean(id),
+  });
 
   useEffect(() => {
     const sentinel = document.getElementById('history-sentinel');
@@ -89,8 +94,15 @@ export function PlayerProfilePage() {
   return (
     <>
       <MobilePlayerProfile
-        player={{ ...player, history }}
-        onTargetClick={() => {}}
+        player={{ ...player, history, rankPrestige: ranks?.prestige ?? null, rankShame: ranks?.shame ?? null }}
+        onTargetClick={(targetId) => {
+          if (targetId === state.playerId) {
+            navigate('/perfil');
+          } else {
+            navigate(`/player/${targetId}`);
+          }
+        }}
+        onRankClick={() => navigate('/mural/rankings')}
         actionsAboveHistory={
           <div className="px-0">
             <button

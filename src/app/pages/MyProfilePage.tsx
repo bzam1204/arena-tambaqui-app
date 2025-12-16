@@ -29,6 +29,12 @@ export function MyProfilePage({ userId, playerId }: Props) {
     enabled: Boolean(playerId),
   });
 
+  const { data: ranks } = useQuery({
+    queryKey: ['player', 'rank', playerId],
+    queryFn: () => playerGateway.getPlayerRank(playerId),
+    enabled: Boolean(playerId),
+  });
+
   const retractMutation = useMutation({
     mutationFn: (entryId: string) => feedGateway.retract(entryId, playerId),
     onSuccess: async () => {
@@ -51,12 +57,13 @@ export function MyProfilePage({ userId, playerId }: Props) {
   if (!player) return null;
   return (
     <MobilePlayerProfile
-      player={{ ...player, history }}
+      player={{ ...player, history, rankPrestige: ranks?.prestige ?? null, rankShame: ranks?.shame ?? null }}
       onTargetClick={(targetId) => {
         if (targetId === playerId) return;
         window.history.pushState({}, '', `/player/${targetId}`);
         window.dispatchEvent(new PopStateEvent('popstate'));
       }}
+      onRankClick={() => window.history.pushState({}, '', '/mural/rankings')}
       isOwnProfile
       onProfileUpdate={(data) => updateProfile.mutate(data)}
       onRetract={(id) => retractMutation.mutate(id)}

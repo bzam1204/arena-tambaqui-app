@@ -11,6 +11,8 @@ export function RankingsPage() {
   const navigate = useNavigate();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [tab, setTab] = useState<'prestige' | 'shame'>('prestige');
+  const pageSize = 25;
 
   const {
     data,
@@ -19,9 +21,9 @@ export function RankingsPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['players', 'ranking'],
-    queryFn: ({ pageParam = 0 }) => playerGateway.listPlayersPaged({ page: pageParam as number, pageSize: 25 }),
-    getNextPageParam: (lastPage, allPages) => (lastPage.length < 25 ? undefined : allPages.length),
+    queryKey: ['players', 'ranking', tab],
+    queryFn: ({ pageParam = 0 }) => playerGateway.listPlayersPaged({ page: pageParam as number, pageSize, kind: tab }),
+    getNextPageParam: (lastPage, allPages) => (lastPage.length < pageSize ? undefined : allPages.length),
   });
 
   const players = data?.pages.flatMap((p) => p) ?? [];
@@ -54,15 +56,48 @@ export function RankingsPage() {
   if (isLoading && players.length === 0) return <Spinner fullScreen label="carregando ranking" />;
   return (
     <div className="px-4 pb-20">
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <button
+          onClick={() => setTab('prestige')}
+          className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+            tab === 'prestige'
+              ? 'border-[#00F0FF] bg-[#00F0FF]/20'
+              : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <span className={`font-mono-technical text-xs uppercase ${tab === 'prestige' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+              Prestígio
+            </span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setTab('shame')}
+          className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+            tab === 'shame'
+              ? 'border-[#D4A536] bg-[#D4A536]/20'
+              : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <span className={`font-mono-technical text-xs uppercase ${tab === 'shame' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
+              Vergonha
+            </span>
+          </div>
+        </button>
+      </div>
+
       <RankingSection
         players={players.map((p) => ({
           id: p.id,
           name: p.name,
           nickname: p.nickname,
           avatar: p.avatar,
-          elogios: p.elogios,
+          elogios: tab === 'prestige' ? p.elogios : p.denuncias,
           denuncias: p.denuncias,
         }))}
+        variant={tab}
         onPlayerClick={(id) => navigate(`/player/${id}`)}
       />
       <div ref={sentinelRef} />

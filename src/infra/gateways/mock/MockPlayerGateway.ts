@@ -16,8 +16,13 @@ export class MockPlayerGateway implements PlayerGateway {
     return Object.values(this.players).map((p) => ({ ...p }));
   }
 
-  async listPlayersPaged(params: { page: number; pageSize?: number }): Promise<Player[]> {
-    const arr = Object.values(this.players);
+  async listPlayersPaged(params: { page: number; pageSize?: number; kind?: 'prestige' | 'shame' }): Promise<Player[]> {
+    const arr = Object.values(this.players).sort((a, b) => {
+      if (params.kind === 'shame') {
+        return b.reportCount - a.reportCount;
+      }
+      return b.praiseCount - a.praiseCount;
+    });
     const size = params.pageSize ?? 20;
     const start = params.page * size;
     return arr.slice(start, start + size).map((p) => ({ ...p }));
@@ -72,5 +77,14 @@ export class MockPlayerGateway implements PlayerGateway {
       history: existing?.history ?? [],
     };
     return id;
+  }
+
+  async getPlayerRank(playerId: string): Promise<{ prestige: number | null; shame: number | null }> {
+    const arr = Object.values(this.players);
+    const player = this.players[playerId];
+    if (!player) return { prestige: null, shame: null };
+    const prestige = arr.filter((p) => p.praiseCount > player.praiseCount).length + 1;
+    const shame = arr.filter((p) => p.reportCount > player.reportCount).length + 1;
+    return { prestige, shame };
   }
 }

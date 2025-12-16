@@ -28,12 +28,13 @@ export class SupabasePlayerGateway implements PlayerGateway {
 
   async listPlayersPaged(params: { page: number; pageSize?: number }): Promise<Player[]> {
     const pageSize = params.pageSize ?? 20;
+    const sortField = params.kind === 'shame' ? 'report_count' : 'praise_count';
     const from = params.page * pageSize;
     const to = from + pageSize - 1;
     const { data, error } = await this.supabase
       .from(this.table)
       .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
-      .order('praise_count', { ascending: false })
+      .order(sortField, { ascending: false })
       .range(from, to);
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
@@ -63,6 +64,35 @@ export class SupabasePlayerGateway implements PlayerGateway {
       reportCount: reports,
       reputation,
       history: row.history ?? [],
+    };
+  }
+
+  async getPlayerRank(playerId: string): Promise<{ prestige: number | null; shame: number | null }> {
+    const { data: player, error } = await this.supabase
+      .from(this.table)
+      .select('praise_count,report_count')
+      .eq('id', playerId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!player) return { prestige: null, shame: null };
+    const praise = player.praise_count ?? 0;
+    const reports = player.report_count ?? 0;
+
+    const prestigeCount = await this.supabase
+      .from(this.table)
+      .select('id', { head: true, count: 'exact' })
+      .gt('praise_count', praise);
+    if (prestigeCount.error) throw prestigeCount.error;
+
+    const shameCount = await this.supabase
+      .from(this.table)
+      .select('id', { head: true, count: 'exact' })
+      .gt('report_count', reports);
+    if (shameCount.error) throw shameCount.error;
+
+    return {
+      prestige: typeof prestigeCount.count === 'number' ? prestigeCount.count + 1 : null,
+      shame: typeof shameCount.count === 'number' ? shameCount.count + 1 : null,
     };
   }
 }

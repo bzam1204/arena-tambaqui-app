@@ -12,6 +12,8 @@ export interface PlayerData {
   reportCount: number;
   praiseCount: number;
   history: FeedEntry[];
+  rankPrestige?: number | null;
+  rankShame?: number | null;
 }
 
 interface MobilePlayerProfileProps {
@@ -21,6 +23,7 @@ interface MobilePlayerProfileProps {
   onProfileUpdate?: (data: { name: string; nickname: string; avatar?: string }) => void;
   onRetract?: (entryId: string) => void;
   actionsAboveHistory?: React.ReactNode;
+  onRankClick?: () => void;
 }
 
 export function MobilePlayerProfile({
@@ -30,6 +33,7 @@ export function MobilePlayerProfile({
   onProfileUpdate,
   onRetract,
   actionsAboveHistory,
+  onRankClick,
 }: MobilePlayerProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(player.name);
@@ -160,7 +164,24 @@ export function MobilePlayerProfile({
               />
             </div>
           ) : (
-            <p className="text-sm text-[#7F94B0] font-mono-technical mb-3">{player.name}</p>
+            <div className="mb-3 space-y-1">
+              <p className="text-sm mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
+              {(player.rankPrestige || player.rankShame) && (
+                <button
+                  type="button"
+                  onClick={onRankClick}
+                  className="mx-auto flex items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF] bg-[#0B0E14] border border-[#2D3A52] rounded px-3 py-1 hover:border-[#00F0FF]/60"
+                >
+                  {player.rankPrestige ? (
+                    <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige} · Prestígio</span>
+                  ) : null}
+                  {player.rankPrestige && player.rankShame ? <span className="text-[#7F94B0]">/</span> : null}
+                  {player.rankShame ? (
+                    <span className="text-[#D4A536] font-semibold">#{player.rankShame} · Vergonha</span>
+                  ) : null}
+                </button>
+              )}
+            </div>
           )}
 
           {/* CPF - Disabled */}
@@ -221,11 +242,11 @@ export function MobilePlayerProfile({
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Reports */}
-          <div className="bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-lg p-4 text-center">
-            <div className="text-3xl text-[#D4A536] font-mono-technical mb-1">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Reports */}
+        <div className="bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-lg p-4 text-center">
+          <div className="text-3xl text-[#D4A536] font-mono-technical mb-1">
               {player.reportCount.toString().padStart(2, '0')}
             </div>
             <div className="text-xs text-[#7F94B0] uppercase font-mono-technical">
@@ -238,11 +259,11 @@ export function MobilePlayerProfile({
             <div className="text-3xl text-[#00F0FF] font-mono-technical mb-1">
               {player.praiseCount.toString().padStart(2, '0')}
             </div>
-            <div className="text-xs text-[#7F94B0] uppercase font-mono-technical">
-              Elogios<br/>Recebidos
-            </div>
+          <div className="text-xs text-[#7F94B0] uppercase font-mono-technical">
+            Elogios<br/>Recebidos
           </div>
         </div>
+      </div>
       </div>
 
       {/* History Section */}
