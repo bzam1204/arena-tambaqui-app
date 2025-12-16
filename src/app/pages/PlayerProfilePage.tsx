@@ -86,6 +86,7 @@ export function PlayerProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ['feed', 'target', id] });
       await queryClient.invalidateQueries({ queryKey: ['feed'] });
       await queryClient.invalidateQueries({ queryKey: ['players'] });
+      await queryClient.invalidateQueries({ queryKey: ['player', id] });
     },
   });
 
