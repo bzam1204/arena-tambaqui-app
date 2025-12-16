@@ -19,6 +19,12 @@ export function PlayerProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (id && state.playerId && id === state.playerId) {
+      navigate('/perfil', { replace: true });
+    }
+  }, [id, state.playerId, navigate]);
   const { data: player } = useQuery({
     queryKey: ['player', id],
     queryFn: () => (id ? playerGateway.getPlayer(id) : Promise.resolve(null)),
@@ -65,6 +71,9 @@ export function PlayerProfilePage() {
       if (!state.playerId) {
         navigate('/onboarding');
         return Promise.resolve();
+      }
+      if (data.targetId === state.playerId) {
+        return Promise.reject(new Error('Não é possível denunciar a si mesmo.'));
       }
       return txGateway.createTransmission({ ...data, submitterId: state.playerId });
     },

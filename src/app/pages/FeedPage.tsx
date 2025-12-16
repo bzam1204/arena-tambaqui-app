@@ -56,6 +56,9 @@ export function FeedPage({ isLoggedIn }: Props) {
         navigate('/onboarding');
         return;
       }
+      if (data.targetId === state.playerId) {
+        throw new Error('Não é possível denunciar a si mesmo.');
+      }
       await txGateway.createTransmission({
         targetId: data.targetId,
         type: data.type,
@@ -119,14 +122,16 @@ export function FeedPage({ isLoggedIn }: Props) {
       <TransmissionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        players={players.map(
-          (p): TransmissionPlayer => ({
-            id: p.id,
-            name: p.name,
-            nickname: p.nickname,
-            avatar: p.avatar,
-          }),
-        )}
+        players={players
+          .filter((p) => p.id !== state.playerId)
+          .map(
+            (p): TransmissionPlayer => ({
+              id: p.id,
+              name: p.name,
+              nickname: p.nickname,
+              avatar: p.avatar,
+            }),
+          )}
         preSelectedPlayerId={preSelectedPlayerId}
         onSubmit={(data) => createTransmission.mutate(data)}
         onSuccess={async () => {

@@ -11,6 +11,9 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
   private readonly playersTable = 'players';
 
   async createTransmission(input: CreateTransmissionInput): Promise<void> {
+    if (input.targetId === input.submitterId) {
+      throw new Error('Não é possível denunciar a si mesmo.');
+    }
     const player = await this.fetchPlayer(input.targetId);
     if (!player) {
       throw new Error('Target player not found');

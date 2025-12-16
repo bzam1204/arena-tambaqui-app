@@ -14,6 +14,9 @@ export class MockTransmissionGateway implements TransmissionGateway {
   ) {}
 
   async createTransmission(input: CreateTransmissionInput): Promise<void> {
+    if (input.targetId === input.submitterId) {
+      throw new Error('Não é possível denunciar a si mesmo.');
+    }
     const player = await this.playerGateway.getPlayer(input.targetId);
     const now = new Date();
     const feedEntry: FeedEntry = {
