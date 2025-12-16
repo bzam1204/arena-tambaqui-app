@@ -73,8 +73,19 @@ export class SupabaseFeedGateway implements FeedGateway {
     if (error) throw error;
   }
 
-  async listByTarget(playerId: string): Promise<FeedEntry[]> {
-    const { data, error } = await this.supabase.from(this.table).select(this.select).eq('target_player_id', playerId).order('created_at', { ascending: false });
+  async listByTarget(playerId: string, page = 0, pageSize = 50): Promise<FeedEntry[]> {
+    return this.listByTargetPaged(playerId, page, pageSize);
+  }
+
+  async listByTargetPaged(playerId: string, page: number, pageSize = 20): Promise<FeedEntry[]> {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select(this.select)
+      .eq('target_player_id', playerId)
+      .order('created_at', { ascending: false })
+      .range(from, to);
     if (error) throw error;
     return (data || []).map((row: any) => this.map(row));
   }

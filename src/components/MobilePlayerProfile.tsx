@@ -20,9 +20,17 @@ interface MobilePlayerProfileProps {
   isOwnProfile?: boolean;
   onProfileUpdate?: (data: { name: string; nickname: string; avatar?: string }) => void;
   onRetract?: (entryId: string) => void;
+  actionsAboveHistory?: React.ReactNode;
 }
 
-export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = false, onProfileUpdate, onRetract }: MobilePlayerProfileProps) {
+export function MobilePlayerProfile({
+  player,
+  onTargetClick,
+  isOwnProfile = false,
+  onProfileUpdate,
+  onRetract,
+  actionsAboveHistory,
+}: MobilePlayerProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(player.name);
   const [editNickname, setEditNickname] = useState(player.nickname);
@@ -239,6 +247,7 @@ export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = fals
 
       {/* History Section */}
       <div>
+        {actionsAboveHistory ? <div className="mb-4">{actionsAboveHistory}</div> : null}
         <h3 className="text-sm font-mono-technical tracking-wider mb-3 text-[#7F94B0] uppercase">
           Histórico Operacional
         </h3>

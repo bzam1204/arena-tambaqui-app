@@ -27,8 +27,14 @@ export class MockFeedGateway implements FeedGateway {
     return Promise.resolve();
   }
 
-  async listByTarget(playerId: string): Promise<FeedEntry[]> {
-    return this.feed.filter((f) => f.targetId === playerId).map((f) => ({ ...f }));
+  async listByTarget(playerId: string, page = 0, pageSize = 50): Promise<FeedEntry[]> {
+    return this.listByTargetPaged(playerId, page, pageSize);
+  }
+
+  async listByTargetPaged(playerId: string, page: number, pageSize = 20): Promise<FeedEntry[]> {
+    const filtered = this.feed.filter((f) => f.targetId === playerId);
+    const start = page * pageSize;
+    return filtered.slice(start, start + pageSize);
   }
 
   async listBySubmitter(playerId: string): Promise<FeedEntry[]> {
