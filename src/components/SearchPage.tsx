@@ -70,12 +70,12 @@ export function SearchPage({ players, onPlayerSelect }: SearchPageProps) {
             <button
               key={player.id}
               onClick={() => onPlayerSelect(player.id)}
-              className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg p-4 hover:border-[#00F0FF]/50 transition-all"
+              className="w-full clip-tactical-card bg-[#141A26] border-x-3 border-[#2D3A52] p-4 hover:border-[#00F0FF]/50 transition-all"
             >
               <div className="flex items-center gap-4">
                 {/* Avatar */}
                 <div className="relative">
-                  <div className={`w-14 h-[60px] ${reputationColor.replace('text-', 'bg-')} clip-hexagon-perfect p-[2px]`}>
+                  <div className={`w-22 h-24 ${reputationColor.replace('text-', 'bg-')} clip-hexagon-perfect p-[2px]`}>
                     <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                       {player.avatar ? (
                         <img 
@@ -92,7 +92,7 @@ export function SearchPage({ players, onPlayerSelect }: SearchPageProps) {
 
                 {/* Player Info */}
                 <div className="flex-1 text-left">
-                  <div className="text-base text-[#E6F1FF] mb-1">{player.nickname}</div>
+                  <div className="text-sm text-[#E6F1FF] mb-1 uppercase">{player.nickname}</div>
                   <div className="text-xs text-[#7F94B0] font-mono-technical mb-2">{player.name}</div>
                   
                   {/* Stats */}
