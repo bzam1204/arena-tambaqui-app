@@ -34,6 +34,6 @@ export class MockTransmissionGateway implements TransmissionGateway {
       this.playerGateway.updateStats(player.id, praise, reports);
     }
 
-    await this.feedGateway.prepend(feedEntry);
+    await this.feedGateway.prepend({ ...(feedEntry as any), submitterId: input.submitterId } as any);
   }
 }

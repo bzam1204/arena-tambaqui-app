@@ -19,9 +19,10 @@ interface MobilePlayerProfileProps {
   onTargetClick: (targetId: string) => void;
   isOwnProfile?: boolean;
   onProfileUpdate?: (data: { name: string; nickname: string; avatar?: string }) => void;
+  onRetract?: (entryId: string) => void;
 }
 
-export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = false, onProfileUpdate }: MobilePlayerProfileProps) {
+export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = false, onProfileUpdate, onRetract }: MobilePlayerProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(player.name);
   const [editNickname, setEditNickname] = useState(player.nickname);
@@ -243,7 +244,19 @@ export function MobilePlayerProfile({ player, onTargetClick, isOwnProfile = fals
         <div className="space-y-3">
           {player.history.length > 0 ? (
             player.history.map((entry) => (
-              <MobileFeedCard key={entry.id} entry={entry} onTargetClick={onTargetClick} />
+              <div key={entry.id} className="relative">
+                <MobileFeedCard entry={entry} onTargetClick={onTargetClick} />
+                {isOwnProfile && !entry.isRetracted && onRetract && (
+                  <div className="absolute top-2 right-2">
+                    <button
+                      onClick={() => onRetract(entry.id)}
+                      className="text-xs font-mono-technical text-[#FF6B00] hover:text-[#FF8C33] border border-[#FF6B00]/40 rounded px-2 py-1 bg-[#0B0E14]/80"
+                    >
+                      [ RETRATAR ]
+                    </button>
+                  </div>
+                )}
+              </div>
             ))
           ) : (
             <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-8 text-center">

@@ -2,6 +2,9 @@ import type { FeedEntry } from './PlayerGateway';
 
 export interface FeedGateway {
   listFeed(): Promise<FeedEntry[]>;
+  listByTarget(playerId: string): Promise<FeedEntry[]>;
+  listBySubmitter(playerId: string): Promise<FeedEntry[]>;
+  retract(entryId: string, submitterId: string): Promise<void>;
   prepend(entry: FeedEntry): Promise<void> | void;
 }
 
