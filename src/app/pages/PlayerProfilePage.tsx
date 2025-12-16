@@ -132,13 +132,13 @@ export function PlayerProfilePage() {
         players={
           player
             ? [
-                {
-                  id: player.id,
-                  name: player.name,
-                  nickname: player.nickname,
-                  avatar: player.avatar,
-                } as TransmissionPlayer,
-              ]
+              {
+                id: player.id,
+                name: player.name,
+                nickname: player.nickname,
+                avatar: player.avatar,
+              } as TransmissionPlayer,
+            ]
             : []
         }
         preSelectedPlayerId={player?.id ?? null}

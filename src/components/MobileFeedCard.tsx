@@ -24,7 +24,24 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
   const bgGlow = isCyan ? 'bg-[#00F0FF]/5' : 'bg-[#D4A536]/5';
 
   return (
-    <div className={`bg-[#141A26] border-l-4 ${borderColor} ${bgGlow} rounded-r-lg overflow-hidden`}>
+    <div
+      className={`relative bg-[#141A26] border-l-4 ${borderColor} ${bgGlow} rounded-r-lg overflow-hidden ${
+        entry.isRetracted ? 'opacity-50' : ''
+      }`}
+    >
+      {entry.isRetracted && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div
+            className={`px-3 py-2 rotate-[-8deg] border bg-[#0B0E14]/85 font-mono-technical text-xs uppercase tracking-wide shadow-[0_0_10px_rgba(0,0,0,0.4)] ${
+              entry.type === 'report'
+                ? 'border-[#D4A536]/70 text-[#D4A536]'
+                : 'border-[#00F0FF]/70 text-[#00F0FF]'
+            }`}
+          >
+            [ DENÚNCIA RETRATADA / ANULADA ]
+          </div>
+        </div>
+      )}
       {/* Header - Type */}
       <div className={`px-4 py-2 ${isCyan ? 'bg-[#00F0FF]/10' : 'bg-[#D4A536]/10'} flex items-center justify-between`}>
         <div className="flex items-center gap-2">
@@ -84,15 +101,6 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
           <span>//</span>
           <span>HORA: {entry.time}</span>
         </div>
-
-        {/* Retracted Badge */}
-        {entry.isRetracted && (
-          <div className="mt-3 px-3 py-2 bg-[#7F94B0]/10 border border-[#7F94B0]/30 rounded">
-            <p className="text-xs text-[#7F94B0] font-mono-technical text-center uppercase">
-              [ Denúncia Retratada / Anulada ]
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
