@@ -74,6 +74,7 @@ export function MobilePlayerProfile({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [cropping, setCropping] = useState(false);
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
   const openRecropFromCurrent = useCallback(async () => {
     if (!isEditing) return;
@@ -179,6 +180,7 @@ export function MobilePlayerProfile({
   }, [croppedAreaPixels, rawPhoto, rawPhotoPreview]);
 
   const handleConfirmCrop = useCallback(async () => {
+    setCropping(true);
     const cropped = await getCroppedPhoto();
     if (cropped) {
       if (editAvatar && editAvatar.startsWith('blob:')) URL.revokeObjectURL(editAvatar);
@@ -186,6 +188,7 @@ export function MobilePlayerProfile({
       setAvatarFile(cropped);
       setEditAvatar(url);
     }
+    setCropping(false);
     setCropperOpen(false);
     setRawPhoto(null);
     setRawPhotoPreview('');
@@ -496,9 +499,10 @@ export function MobilePlayerProfile({
             <button
               type="button"
               onClick={() => void handleConfirmCrop()}
-              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+              className={`px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all flex items-center justify-center ${cropping ? 'opacity-70 cursor-not-allowed' : ''}`}
+              disabled={cropping}
             >
-              [ CORTAR ]
+              {cropping ? <Spinner inline size="sm" label="cortando" /> : '[ CORTAR ]'}
             </button>
           </DialogFooter>
         </DialogContent>
