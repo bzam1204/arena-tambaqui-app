@@ -27,5 +27,5 @@ export function OnboardingPage({ userId, onComplete }: Props) {
     },
   });
 
-  return <ProfileCompletionStepper onComplete={(data) => mutation.mutate(data)} />;
+  return <ProfileCompletionStepper submitting={mutation.isPending} onComplete={(data) => mutation.mutate(data)} />;
 }

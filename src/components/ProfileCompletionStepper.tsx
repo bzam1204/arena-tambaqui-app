@@ -1,17 +1,32 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronRight, User, FileText, CreditCard, Check, Camera, Upload } from 'lucide-react';
+import { Cpf } from '@/domain/Cpf';
+import { Spinner } from './Spinner';
 
 interface ProfileCompletionStepperProps {
   onComplete: (data: { nickname: string; name: string; cpf: string; photo: File | null }) => void;
+  submitting?: boolean;
 }
 
-export function ProfileCompletionStepper({ onComplete }: ProfileCompletionStepperProps) {
+export function ProfileCompletionStepper({ onComplete, submitting = false }: ProfileCompletionStepperProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [nickname, setNickname] = useState('');
   const [name, setName] = useState('');
   const [cpf, setCpf] = useState('');
+  const [cpfError, setCpfError] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+
+  const cpfDigits = useMemo(() => cpf.replace(/\D/g, ''), [cpf]);
+
+  const isCpfValid = (value = cpfDigits) => {
+    try {
+      new Cpf(value);
+      return true;
+    } catch (err: unknown) {
+      return false;
+    }
+  };
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -24,6 +39,12 @@ export function ProfileCompletionStepper({ onComplete }: ProfileCompletionSteppe
   const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCPF(e.target.value);
     setCpf(formatted);
+    const digits = formatted.replace(/\D/g, '');
+    if (digits.length === 11) {
+      setCpfError(isCpfValid(digits) ? '' : 'CPF inválido');
+    } else {
+      setCpfError('');
+    }
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,15 +58,25 @@ export function ProfileCompletionStepper({ onComplete }: ProfileCompletionSteppe
   const canProceed = () => {
     if (currentStep === 1) return nickname.trim().length >= 3;
     if (currentStep === 2) return name.trim().length >= 3;
-    if (currentStep === 3) return cpf.replace(/\D/g, '').length === 11;
+    if (currentStep === 3) return cpfDigits.length === 11 && isCpfValid();
     if (currentStep === 4) return photo !== null;
     return false;
   };
 
   const handleNext = () => {
+    if (submitting) return;
     if (currentStep < 4) {
+      if (currentStep === 3 && !isCpfValid()) {
+        setCpfError('CPF inválido');
+        return;
+      }
       setCurrentStep(currentStep + 1);
     } else if (currentStep === 4 && canProceed()) {
+      if (!isCpfValid()) {
+        setCpfError('CPF inválido');
+        setCurrentStep(3);
+        return;
+      }
       onComplete({ nickname, name, cpf, photo });
     }
   };
@@ -206,9 +237,17 @@ export function ProfileCompletionStepper({ onComplete }: ProfileCompletionSteppe
                       onChange={handleCPFChange}
                       placeholder="000.000.000-00"
                       maxLength={14}
-                      className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                      className={`w-full bg-[#0B0E14] border rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:outline-none transition-colors ${
+                        cpfError
+                          ? 'border-[#D4A536] focus:border-[#D4A536]'
+                          : 'border-[#2D3A52] focus:border-[#00F0FF]'
+                      }`}
+                      aria-invalid={cpfError ? 'true' : 'false'}
                       autoFocus
                     />
+                    {cpfError ? (
+                      <p className="text-xs text-[#D4A536] font-mono-technical mt-2">{cpfError}</p>
+                    ) : null}
                     <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
                       Seus dados são criptografados e protegidos
                     </p>
@@ -313,11 +352,27 @@ export function ProfileCompletionStepper({ onComplete }: ProfileCompletionSteppe
             </button>
             <button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || submitting}
               className="px-6 py-4 text-nowrap bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-sm uppercase hover:bg-[#00F0FF]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:border-[#2D3A52] disabled:text-[#7F94B0] flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.3)]"
             >
-              {currentStep === 4 ? '[ FINALIZAR ]' : '[ AVANÇAR ]'}
-              <ChevronRight className="w-4 h-4" />
+              {currentStep === 4 ? (
+                submitting ? (
+                  <>
+                    <Spinner inline size="sm" />
+                    <span>[ FINALIZANDO... ]</span>
+                  </>
+                ) : (
+                  <>
+                    <span>[ FINALIZAR ]</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )
+              ) : (
+                <>
+                  <span>[ AVANÇAR ]</span>
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
         </div>
