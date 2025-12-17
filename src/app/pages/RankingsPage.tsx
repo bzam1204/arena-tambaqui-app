@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { RankingSection } from '@/components/RankingSection';
 import { Spinner } from '@/components/Spinner';
 import type { PlayerGateway, Player } from '@/app/gateways/PlayerGateway';
@@ -9,10 +9,17 @@ import { Inject, TkPlayerGateway } from '@/infra/container';
 export function RankingsPage() {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const navigate = useNavigate();
+  const { kind } = useParams();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [tab, setTab] = useState<'prestige' | 'shame'>('prestige');
+  const initial = kind === 'vergonha' ? 'shame' : 'prestige';
+  const [tab, setTab] = useState<'prestige' | 'shame'>(initial);
   const pageSize = 25;
+
+  useEffect(() => {
+    const next = kind === 'vergonha' ? 'shame' : 'prestige';
+    setTab(next);
+  }, [kind]);
 
   const {
     data,
@@ -53,12 +60,11 @@ export function RankingsPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  if (isLoading && players.length === 0) return <Spinner fullScreen label="carregando ranking" />;
   return (
     <div className="px-4 pb-20">
       <div className="grid grid-cols-2 gap-2 mb-4">
         <button
-          onClick={() => setTab('prestige')}
+          onClick={() => navigate('/mural/rankings/prestigio')}
           className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
             tab === 'prestige'
               ? 'border-[#00F0FF] bg-[#00F0FF]/20'
@@ -73,7 +79,7 @@ export function RankingsPage() {
         </button>
 
         <button
-          onClick={() => setTab('shame')}
+          onClick={() => navigate('/mural/rankings/vergonha')}
           className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
             tab === 'shame'
               ? 'border-[#D4A536] bg-[#D4A536]/20'
@@ -88,18 +94,24 @@ export function RankingsPage() {
         </button>
       </div>
 
-      <RankingSection
-        players={players.map((p) => ({
-          id: p.id,
-          name: p.name,
-          nickname: p.nickname,
-          avatar: p.avatar,
-          elogios: tab === 'prestige' ? p.elogios : p.denuncias,
-          denuncias: p.denuncias,
-        }))}
-        variant={tab}
-        onPlayerClick={(id) => navigate(`/player/${id}`)}
-      />
+      {isLoading && players.length === 0 ? (
+        <div className="py-10">
+          <Spinner label="carregando ranking" />
+        </div>
+      ) : (
+        <RankingSection
+          players={players.map((p) => ({
+            id: p.id,
+            name: p.name,
+            nickname: p.nickname,
+            avatar: p.avatar,
+            elogios: tab === 'prestige' ? p.elogios : p.denuncias,
+            denuncias: p.denuncias,
+          }))}
+          variant={tab}
+          onPlayerClick={(id) => navigate(`/player/${id}`)}
+        />
+      )}
       <div ref={sentinelRef} />
       {isFetchingNextPage && <Spinner label="carregando mais" />}
       {!hasNextPage && players.length > 0 && (

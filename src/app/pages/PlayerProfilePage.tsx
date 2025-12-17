@@ -109,7 +109,7 @@ export function PlayerProfilePage() {
             navigate(`/player/${targetId}`);
           }
         }}
-        onRankClick={() => navigate('/mural/rankings')}
+        onRankClick={(kind) => navigate(`/mural/rankings/${kind === 'prestige' ? 'prestigio' : 'vergonha'}`)}
         actionsAboveHistory={
           <div className="px-0">
             <button

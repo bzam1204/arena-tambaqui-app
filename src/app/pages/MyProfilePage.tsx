@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
@@ -16,6 +17,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const profileGateway = Inject<ProfileGateway>(TkProfileGateway);
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: player } = useQuery({
     queryKey: ['player', playerId],
@@ -63,7 +65,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
         window.history.pushState({}, '', `/player/${targetId}`);
         window.dispatchEvent(new PopStateEvent('popstate'));
       }}
-      onRankClick={() => window.history.pushState({}, '', '/mural/rankings')}
+      onRankClick={(kind) => navigate(`/mural/rankings/${kind === 'prestige' ? 'prestigio' : 'vergonha'}`)}
       isOwnProfile
       onProfileUpdate={(data) => updateProfile.mutate(data)}
       onRetract={(id) => retractMutation.mutate(id)}

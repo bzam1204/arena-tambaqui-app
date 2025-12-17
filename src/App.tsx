@@ -59,7 +59,8 @@ export default function App() {
               element: <MuralLayout />,
               children: [
                 { path: 'feed', element: <FeedPage isLoggedIn={Boolean(state.userId)} /> },
-                { path: 'rankings', element: <RankingsPage /> },
+                { path: 'rankings', element: <Navigate to="/mural/rankings/prestigio" replace /> },
+                { path: 'rankings/:kind', element: <RankingsPage /> },
               ],
             },
             { path: '/search', element: <SearchPageRoute /> },

@@ -23,7 +23,7 @@ interface MobilePlayerProfileProps {
   onProfileUpdate?: (data: { name: string; nickname: string; avatar?: string }) => void;
   onRetract?: (entryId: string) => void;
   actionsAboveHistory?: React.ReactNode;
-  onRankClick?: () => void;
+  onRankClick?: (kind: 'prestige' | 'shame') => void;
 }
 
 export function MobilePlayerProfile({
@@ -182,19 +182,30 @@ export function MobilePlayerProfile({
             <div className="mb-3 space-y-1">
               <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
               {(player.rankPrestige || player.rankShame) && (
-                <button
-                  type="button"
-                  onClick={onRankClick}
-                  className="mx-auto flex items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF] bg-[#0B0E14] border border-[#2D3A52] rounded px-3 py-1 hover:border-[#00F0FF]/60"
-                >
+                <div className="mx-auto flex items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
                   {player.rankPrestige ? (
-                    <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige} · Prestígio</span>
+                    <button
+                      type="button"
+                      onClick={() => onRankClick?.('prestige')}
+                      className="flex items-center gap-1 bg-[#0B0E14] border border-[#00F0FF]/60 rounded px-3 py-1 hover:border-[#00F0FF]"
+                    >
+                      <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige}</span>
+                      <span className="text-[#7F94B0]">·</span>
+                      <span className="text-[#00F0FF]">Prestígio</span>
+                    </button>
                   ) : null}
-                  {player.rankPrestige && player.rankShame ? <span className="text-[#7F94B0]">/</span> : null}
                   {player.rankShame ? (
-                    <span className="text-[#D4A536] font-semibold">#{player.rankShame} · Vergonha</span>
+                    <button
+                      type="button"
+                      onClick={() => onRankClick?.('shame')}
+                      className="flex items-center gap-1 bg-[#0B0E14] border border-[#D4A536]/60 rounded px-3 py-1 hover:border-[#D4A536]"
+                    >
+                      <span className="text-[#D4A536] font-semibold">#{player.rankShame}</span>
+                      <span className="text-[#7F94B0]">·</span>
+                      <span className="text-[#D4A536]">Vergonha</span>
+                    </button>
                   ) : null}
-                </button>
+                </div>
               )}
             </div>
           )}
