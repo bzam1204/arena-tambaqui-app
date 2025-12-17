@@ -1,5 +1,6 @@
 export interface Session {
   userId: string;
+  isAdmin?: boolean;
 }
 
 export interface AuthGateway {

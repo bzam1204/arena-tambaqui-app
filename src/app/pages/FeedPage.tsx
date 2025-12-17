@@ -31,6 +31,7 @@ export function FeedPage({ isLoggedIn }: Props) {
   const [playerSearchInput, setPlayerSearchInput] = useState('');
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [modalPage, setModalPage] = useState(1);
+  const [editingEntry, setEditingEntry] = useState<FeedEntry | null>(null);
   const navigate = useNavigate();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const minSearchChars = 0;
@@ -60,6 +61,7 @@ export function FeedPage({ isLoggedIn }: Props) {
     setPlayerSearchInput('');
     setPlayerSearchTerm('');
     setModalPage(1);
+    setEditingEntry(null);
   };
 
   const {
@@ -99,6 +101,18 @@ export function FeedPage({ isLoggedIn }: Props) {
       await queryClient.invalidateQueries({ queryKey: ['players'] });
     },
   });
+  const adminRetractAny = useMutation({
+    mutationFn: (entryId: string) => txGateway.adminRetract(entryId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+  });
+  const adminRemove = useMutation({
+    mutationFn: (entryId: string) => txGateway.adminRemove(entryId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+  });
+  const adminEdit = useMutation({
+    mutationFn: (payload: { id: string; content: string }) => txGateway.adminEdit(payload.id, payload.content),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+  });
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -130,7 +144,32 @@ export function FeedPage({ isLoggedIn }: Props) {
         {feedLoading ? (
           <Spinner label="carregando feed" />
         ) : (
-          feed.map((entry) => <MobileFeedCard key={entry.id} entry={entry} onTargetClick={handleTargetClick} />)
+          feed.map((entry) => (
+            <MobileFeedCard
+              key={entry.id}
+              entry={entry}
+              onTargetClick={handleTargetClick}
+              isAdmin={state.isAdmin}
+              onRetract={(id) =>
+                adminRetractAny.mutate(id, {
+                  onSuccess: async () => {
+                    await queryClient.invalidateQueries({ queryKey: ['feed'] });
+                  },
+                })
+              }
+              onRemove={(id) =>
+                adminRemove.mutate(id, {
+                  onSuccess: async () => {
+                    await queryClient.invalidateQueries({ queryKey: ['feed'] });
+                  },
+                })
+              }
+              onEdit={(id) => {
+                setEditingEntry(entry);
+                setIsModalOpen(true);
+              }}
+            />
+          ))
         )}
       </div>
 
@@ -166,12 +205,21 @@ export function FeedPage({ isLoggedIn }: Props) {
                 }),
               )}
             preSelectedPlayerId={preSelectedPlayerId}
-            onSubmit={(data) =>
-              createTransmission.mutate(data, {
-                onSuccess: closeModal,
-              })
-            }
-            submitting={createTransmission.isPending}
+            onSubmit={(data) => {
+              if (editingEntry) {
+                adminEdit.mutate(
+                  { id: editingEntry.id, content: data.content },
+                  {
+                    onSuccess: closeModal,
+                  },
+                );
+              } else {
+                createTransmission.mutate(data, {
+                  onSuccess: closeModal,
+                });
+              }
+            }}
+            submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
             searchTerm={playerSearchInput}
             onSearchTermChange={(term) => {
               setPlayerSearchInput(term);
@@ -183,6 +231,9 @@ export function FeedPage({ isLoggedIn }: Props) {
             pageSize={modalPageSize}
             total={totalPlayers}
             onPageChange={setModalPage}
+            lockedTargetId={editingEntry?.targetId ?? undefined}
+            lockedType={editingEntry?.type ?? undefined}
+            initialContent={editingEntry?.content ?? undefined}
           />
         </Suspense>
       ) : null}

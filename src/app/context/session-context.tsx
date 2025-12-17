@@ -8,6 +8,7 @@ export type SessionState = {
   playerId: string | null;
   onboarded: boolean;
   isCompleteProfile: boolean;
+  isAdmin: boolean;
 };
 
 type SessionContextValue = {
@@ -30,6 +31,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     playerId: null,
     onboarded: false,
     isCompleteProfile: false,
+    isAdmin: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -42,9 +44,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         playerId: status.playerId,
         onboarded: status.onboarded,
         isCompleteProfile: status.onboarded,
+        isAdmin: status.isAdmin,
       });
     } else {
-      setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false });
+      setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false, isAdmin: false });
     }
   };
 
@@ -61,13 +64,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       playerId: status.playerId,
       onboarded: status.onboarded,
       isCompleteProfile: status.onboarded,
+      isAdmin: status.isAdmin,
     });
     return s;
   };
 
   const logout = async () => {
     await auth.logout();
-    setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false });
+    setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false, isAdmin: false });
   };
 
   const markOnboarded = (playerId?: string) => {

@@ -29,6 +29,9 @@ interface TransmissionModalProps {
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
+  lockedTargetId?: string | null;
+  lockedType?: 'report' | 'praise';
+  initialContent?: string;
 }
 
 export function TransmissionModal({
@@ -46,6 +49,9 @@ export function TransmissionModal({
   pageSize,
   total,
   onPageChange,
+  lockedTargetId,
+  lockedType,
+  initialContent,
 }: TransmissionModalProps) {
   const [step, setStep] = useState<'select' | 'type' | 'details'>('select');
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
@@ -53,16 +59,29 @@ export function TransmissionModal({
   const [content, setContent] = useState('');
   const canSearch = searchTerm.trim().length >= minChars;
   const [, startTransition] = useTransition();
-  // Initialize with pre-selected player if provided
+  // Initialize with pre-selected/locked player if provided
   useEffect(() => {
-    if (isOpen && preSelectedPlayerId) {
-      const player = players.find(p => p.id === preSelectedPlayerId);
+    if (isOpen && (preSelectedPlayerId || lockedTargetId)) {
+      const targetId = lockedTargetId || preSelectedPlayerId;
+      const player = players.find((p) => p.id === targetId);
       if (player) {
         setSelectedTarget(player);
-        setStep('type');
+        setStep(lockedType ? 'details' : 'type');
       }
     }
-  }, [isOpen, preSelectedPlayerId, players]);
+  }, [isOpen, preSelectedPlayerId, lockedTargetId, players, lockedType]);
+
+  // Initialize type/content when locked or provided
+  useEffect(() => {
+    if (!isOpen) return;
+    if (lockedType) {
+      setReportType(lockedType);
+      setStep('details');
+    }
+    if (typeof initialContent === 'string') {
+      setContent(initialContent);
+    }
+  }, [isOpen, lockedType, initialContent]);
 
   // Reset on close
   useEffect(() => {
@@ -77,11 +96,13 @@ export function TransmissionModal({
   if (!isOpen) return null;
 
   const handleSelectPlayer = (player: TransmissionPlayer) => {
+    if (lockedTargetId) return;
     setSelectedTarget(player);
     setStep('type');
   };
 
   const handleSelectType = (type: 'report' | 'praise') => {
+    if (lockedType) return;
     if (reportType === type && step === 'details') return;
     startTransition(() => {
       setReportType(type);
@@ -142,13 +163,31 @@ export function TransmissionModal({
                   type="text"
                   value={searchTerm}
                   onChange={(e) => onSearchTermChange(e.target.value)}
+                  disabled={Boolean(lockedTargetId)}
                   placeholder="Buscar..."
                   className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg pl-10 pr-4 py-2 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
                 />
               </div>
 
               {/* Player List */}
-              {canSearch ? (
+              {lockedTargetId && selectedTarget ? (
+                <div className="bg-[#141A26] border border-[#00F0FF] rounded-lg p-3 flex items-center gap-3">
+                  <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                    <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                      {selectedTarget.avatar ? (
+                        <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
+                      ) : (
+                        <User className="w-5 h-5 text-[#7F94B0]" />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-[#E6F1FF]">{selectedTarget.nickname}</div>
+                    <div className="text-xs text-[#7F94B0] font-mono-technical">{selectedTarget.name}</div>
+                  </div>
+                  <div className="ml-auto text-xs text-[#7F94B0] font-mono-technical">Alvo bloqueado</div>
+                </div>
+              ) : canSearch ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {isLoading
                     ? <Spinner />
@@ -257,7 +296,7 @@ export function TransmissionModal({
                   )}
                   <div className={`clip-tactical-stats ${reportType === 'report' ? 'bg-[#D4A536]  ' : 'text-[#7F94B0] '} rounded-md p-[2px] text-center`}>
                     <div className={`clip-tactical-stats transition-all ${reportType === 'report' ? 'inner-shadow-ambar bg-[#2e2819]!' : 'text-[#7F94B0] bg-[#141A26]'} rounded-md p-2 flex flex-col items-center justify-center h-20 text-center`}>
-                      <button type="button" onClick={() => handleSelectType('report')}>
+                      <button type="button" onClick={() => handleSelectType('report')} disabled={Boolean(lockedType)}>
                         <div className={`flex items-center justify-center gap-2 mb-2  ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
                           [<AlertTriangle className={`w-5 h-5 ${reportType === 'report' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`} />]
                         </div>
@@ -276,7 +315,7 @@ export function TransmissionModal({
                   )}
                   <div className={`clip-tactical-stats ${reportType === 'praise' ? 'bg-[#2ad4e0]  ' : 'text-[#7F94B0] '} rounded-md p-[2px] text-center`}>
                     <div className={`clip-tactical-stats transition-all ${reportType === 'praise' ? 'inner-shadow-blue bg-[#153b42]!' : 'text-[#7F94B0] bg-[#141A26]'} rounded-md p-2 flex flex-col items-center justify-center h-20 text-center`}>
-                      <button type="button" onClick={() => handleSelectType('praise')}>
+                      <button type="button" onClick={() => handleSelectType('praise')} disabled={Boolean(lockedType)}>
                         <div className={`flex items-center justify-center gap-2 mb-2  ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
                           [<Award className={`w-5 h-5 ${reportType === 'praise' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`} />]
                         </div>

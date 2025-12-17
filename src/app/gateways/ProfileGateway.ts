@@ -14,6 +14,7 @@ export interface UpdateProfileInput {
 export interface OnboardingStatus {
   onboarded: boolean;
   playerId: string | null;
+  isAdmin: boolean;
 }
 
 export interface ProfileGateway {

@@ -138,4 +138,45 @@ export class SupabaseFeedGateway implements FeedGateway {
       }
     }
   }
+
+  async adminRetract(entryId: string): Promise<void> {
+    const { data, error: fetchErr } = await this.supabase
+      .from(this.table)
+      .select('id,type,target_player_id,is_retracted')
+      .eq('id', entryId)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!data) throw new Error('Registro não encontrado');
+    if (data.is_retracted) return;
+    const { error } = await this.supabase.from(this.table).update({ is_retracted: true }).eq('id', entryId);
+    if (error) throw error;
+    if (data.type === 'report' && data.target_player_id) {
+      const { data: player, error: playerErr } = await this.supabase
+        .from('players')
+        .select('id,praise_count,report_count')
+        .eq('id', data.target_player_id)
+        .maybeSingle();
+      if (playerErr) throw playerErr;
+      if (player) {
+        const newReports = Math.max(0, (player.report_count ?? 0) - 1);
+        const newPraise = player.praise_count ?? 0;
+        const newReputation = calculateReputation({ elogios: newPraise, denuncias: newReports });
+        const { error: updateErr } = await this.supabase
+          .from('players')
+          .update({ report_count: newReports, reputation: newReputation })
+          .eq('id', data.target_player_id);
+        if (updateErr) throw updateErr;
+      }
+    }
+  }
+
+  async adminEdit(entryId: string, content: string): Promise<void> {
+    const { error } = await this.supabase.from(this.table).update({ content }).eq('id', entryId);
+    if (error) throw error;
+  }
+
+  async adminRemove(entryId: string): Promise<void> {
+    const { error } = await this.supabase.from(this.table).delete().eq('id', entryId);
+    if (error) throw error;
+  }
 }

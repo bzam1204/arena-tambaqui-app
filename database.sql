@@ -12,6 +12,7 @@ create table if not exists users (
   id uuid primary key,
   full_name text not null,
   avatar text,
+  is_admin boolean,
   cpf text not null unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

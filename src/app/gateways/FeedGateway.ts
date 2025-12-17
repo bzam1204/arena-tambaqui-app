@@ -7,6 +7,9 @@ export interface FeedGateway {
   listByTargetPaged(playerId: string, page: number, pageSize?: number): Promise<FeedEntry[]>;
   listBySubmitter(playerId: string): Promise<FeedEntry[]>;
   retract(entryId: string, submitterId: string): Promise<void>;
+  adminRetract(entryId: string): Promise<void>;
+  adminEdit(entryId: string, content: string): Promise<void>;
+  adminRemove(entryId: string): Promise<void>;
   prepend(entry: FeedEntry): Promise<void> | void;
 }
 

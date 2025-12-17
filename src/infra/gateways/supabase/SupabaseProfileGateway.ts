@@ -10,9 +10,11 @@ export class SupabaseProfileGateway implements ProfileGateway {
   private readonly avatarBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'avatars';
 
   async isOnboarded(userId: string): Promise<OnboardingStatus> {
-    const { data, error } = await this.supabase.from(this.playersTable).select('id').eq('user_id', userId).maybeSingle();
+    const { data: player, error } = await this.supabase.from(this.playersTable).select('id').eq('user_id', userId).maybeSingle();
     if (error) throw error;
-    return { onboarded: Boolean(data?.id), playerId: data?.id ?? null };
+    const { data: userRow, error: userErr } = await this.supabase.from(this.usersTable).select('is_admin').eq('id', userId).maybeSingle();
+    if (userErr) throw userErr;
+    return { onboarded: Boolean(player?.id), playerId: player?.id ?? null, isAdmin: Boolean(userRow?.is_admin) };
   }
 
   async completeProfile(userId: string, input: CompleteProfileInput): Promise<string> {

@@ -61,6 +61,24 @@ export class MockFeedGateway implements FeedGateway {
     }
   }
 
+  async adminRetract(entryId: string): Promise<void> {
+    this.feed = this.feed.map((f: any) => {
+      if (f.id === entryId && f.type === 'report') {
+        if (f.targetId) this.decrementReport(f.targetId);
+        return { ...f, isRetracted: true };
+      }
+      return f;
+    });
+  }
+
+  async adminEdit(entryId: string, content: string): Promise<void> {
+    this.feed = this.feed.map((f: any) => (f.id === entryId ? { ...f, content } : f));
+  }
+
+  async adminRemove(entryId: string): Promise<void> {
+    this.feed = this.feed.filter((f) => f.id !== entryId);
+  }
+
   private decrementReport(targetId: string) {
     const player = (this.playerGateway as any).players?.[targetId];
     if (!player) return;
