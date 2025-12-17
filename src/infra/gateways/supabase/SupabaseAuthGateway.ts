@@ -9,10 +9,7 @@ export class SupabaseAuthGateway implements AuthGateway {
   async login(): Promise<Session | null> {
     // If already signed in, return session
     const existing = await this.supabase.auth.getSession();
-    if (existing.data.session?.user) {
-      return { userId: existing.data.session.user.id };
-    }
-
+    if (existing.data.session?.user) return { userId: existing.data.session.user.id };
     const redirectBase = (import.meta.env.VITE_AUTH_REDIRECT_URL || window.location.origin).replace(/\/$/, '');
     const redirectTo = `${redirectBase}/onboarding`;
     const { data, error } = await this.supabase.auth.signInWithOAuth({
@@ -21,9 +18,7 @@ export class SupabaseAuthGateway implements AuthGateway {
     });
     if (error) throw error;
     // Supabase will redirect; resolve with placeholder so callers don't hang
-    if (data?.url) {
-      window.location.href = data.url;
-    }
+    if (data?.url) window.location.href = data.url;
     // Session will be established after redirect; return placeholder for now
     return null;
   }

@@ -1,16 +1,18 @@
-import { useMemo } from 'react';
+import { Suspense, lazy, useMemo } from 'react';
 import { RouterProvider, createBrowserRouter, Navigate } from 'react-router-dom';
 import { useSessionState } from '@/app/hooks/use-session';
+import { Spinner } from '@/components/Spinner';
 import { RequireAuth } from '@/app/routes/RequireAuth';
-import { AppLayout } from '@/app/layouts/AppLayout';
-import { MuralLayout } from '@/app/layouts/MuralLayout';
-import { FeedPage } from '@/app/pages/FeedPage';
-import { RankingsPage } from '@/app/pages/RankingsPage';
-import { SearchPageRoute } from '@/app/pages/SearchPageRoute';
-import { PlayerProfilePage } from '@/app/pages/PlayerProfilePage';
-import { MyProfilePage } from '@/app/pages/MyProfilePage';
-import { AuthPage } from '@/app/pages/AuthPage';
-import { OnboardingPage } from '@/app/pages/OnboardingPage';
+
+const AppLayout = lazy(() => import('@/app/layouts/AppLayout').then((m) => ({ default: m.AppLayout })));
+const MuralLayout = lazy(() => import('@/app/layouts/MuralLayout').then((m) => ({ default: m.MuralLayout })));
+const FeedPage = lazy(() => import('@/app/pages/FeedPage').then((m) => ({ default: m.FeedPage })));
+const RankingsPage = lazy(() => import('@/app/pages/RankingsPage').then((m) => ({ default: m.RankingsPage })));
+const SearchPageRoute = lazy(() => import('@/app/pages/SearchPageRoute').then((m) => ({ default: m.SearchPageRoute })));
+const PlayerProfilePage = lazy(() => import('@/app/pages/PlayerProfilePage').then((m) => ({ default: m.PlayerProfilePage })));
+const MyProfilePage = lazy(() => import('@/app/pages/MyProfilePage').then((m) => ({ default: m.MyProfilePage })));
+const AuthPage = lazy(() => import('@/app/pages/AuthPage').then((m) => ({ default: m.AuthPage })));
+const OnboardingPage = lazy(() => import('@/app/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
 
 export default function App() {
   const { state, login, markOnboarded, loading } = useSessionState();
@@ -85,5 +87,9 @@ export default function App() {
     [state, login, markOnboarded, loading],
   );
 
-  return <RouterProvider router={router} />;
+  return (
+    <Suspense fallback={<Spinner fullScreen label="carregando interface" />}>
+      <RouterProvider router={router} />
+    </Suspense>
+  );
 }

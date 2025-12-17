@@ -1,15 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MobileFeedCard } from '@/components/MobileFeedCard';
-import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
 import { Spinner } from '@/components/Spinner';
+import type { TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
 import { Inject, TkFeedGateway, TkPlayerGateway, TkTransmissionGateway } from '@/infra/container';
+
+const TransmissionModal = lazy(() =>
+  import('@/components/TransmissionModal').then((m) => ({ default: m.TransmissionModal })),
+);
 
 type Props = {
   isLoggedIn: boolean;
@@ -44,6 +48,7 @@ export function FeedPage({ isLoggedIn }: Props) {
   const { data: players = [], isLoading: playersLoading } = useQuery({
     queryKey: ['players'],
     queryFn: () => playerGateway.listPlayers(),
+    enabled: isModalOpen,
   });
 
   const createTransmission = useMutation({
@@ -119,25 +124,29 @@ export function FeedPage({ isLoggedIn }: Props) {
         <Plus className="w-6 h-6 text-[#0B0E14]" />
       </button>
 
-      <TransmissionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        players={players
-          .filter((p) => p.id !== state.playerId)
-          .map(
-            (p): TransmissionPlayer => ({
-              id: p.id,
-              name: p.name,
-              nickname: p.nickname,
-              avatar: p.avatar,
-            }),
-          )}
-        preSelectedPlayerId={preSelectedPlayerId}
-        onSubmit={(data) => createTransmission.mutate(data)}
-        onSuccess={async () => {
-          setIsModalOpen(false);
-        }}
-      />
+      {isModalOpen ? (
+        <Suspense fallback={<Spinner label="carregando interface" />}>
+          <TransmissionModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            players={players
+              .filter((p) => p.id !== state.playerId)
+              .map(
+                (p): TransmissionPlayer => ({
+                  id: p.id,
+                  name: p.name,
+                  nickname: p.nickname,
+                  avatar: p.avatar,
+                }),
+              )}
+            preSelectedPlayerId={preSelectedPlayerId}
+            onSubmit={(data) => createTransmission.mutate(data)}
+            onSuccess={async () => {
+              setIsModalOpen(false);
+            }}
+          />
+        </Suspense>
+      ) : null}
       <div ref={sentinelRef} />
       {isFetchingNextPage && <Spinner label="carregando mais" />}
       {!hasNextPage && feed.length > 0 && (
