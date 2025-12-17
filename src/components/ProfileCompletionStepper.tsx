@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronRight, User, FileText, CreditCard, Check, Camera, Upload } from 'lucide-react';
+import Cropper, { type Area } from 'react-easy-crop';
+import 'react-easy-crop/react-easy-crop.css';
 import { Cpf } from '@/domain/Cpf';
 import { Spinner } from './Spinner';
+import { Slider } from './ui/slider';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface ProfileCompletionStepperProps {
   onComplete: (data: { nickname: string; name: string; cpf: string; photo: File | null }) => void;
@@ -16,6 +20,14 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   const [cpfError, setCpfError] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [rawPhoto, setRawPhoto] = useState<File | null>(null);
+  const [rawPhotoPreview, setRawPhotoPreview] = useState<string>('');
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropping, setCropping] = useState(false);
+  const hexClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
 
   const cpfDigits = useMemo(() => cpf.replace(/\D/g, ''), [cpf]);
 
@@ -47,11 +59,27 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
     }
   };
 
+  const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
+    };
+  }, [photoPreview, rawPhotoPreview]);
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      setRawPhoto(file);
+      setRawPhotoPreview(previewUrl);
+      setCropperOpen(true);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
     }
   };
 
@@ -63,7 +91,48 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
     return false;
   };
 
-  const handleNext = () => {
+  const getCroppedPhoto = useCallback(async (): Promise<File | null> => {
+    const sourceFile = rawPhoto ?? photo;
+    const sourcePreview = rawPhotoPreview || photoPreview;
+    if (!croppedAreaPixels || !sourcePreview || !sourceFile) return sourceFile ?? null;
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = sourcePreview;
+    });
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return photo;
+
+    canvas.width = croppedAreaPixels.width;
+    canvas.height = croppedAreaPixels.height;
+
+    context.drawImage(
+      image,
+      croppedAreaPixels.x,
+      croppedAreaPixels.y,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+      0,
+      0,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) return resolve(photo);
+        const baseName = sourceFile?.name ? sourceFile.name.replace(/\.[^.]+$/, '') : 'avatar';
+        const file = new File([blob], `${baseName}-cropped.jpeg`, { type: 'image/jpeg' });
+        resolve(file);
+      }, 'image/jpeg');
+    });
+  }, [croppedAreaPixels, photo, photoPreview, rawPhoto, rawPhotoPreview]);
+
+  const handleNext = async () => {
     if (submitting) return;
     if (currentStep < 4) {
       if (currentStep === 3 && !isCpfValid()) {
@@ -77,9 +146,25 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
         setCurrentStep(3);
         return;
       }
-      onComplete({ nickname, name, cpf, photo });
+      const finalPhoto = await getCroppedPhoto();
+      onComplete({ nickname, name, cpf, photo: finalPhoto ?? photo });
     }
   };
+
+  const handleConfirmCrop = useCallback(async () => {
+    setCropping(true);
+    const cropped = await getCroppedPhoto();
+    if (cropped) {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      const url = URL.createObjectURL(cropped);
+      setPhoto(cropped);
+      setPhotoPreview(url);
+    }
+    setCropping(false);
+    setCropperOpen(false);
+    setRawPhoto(null);
+    setRawPhotoPreview('');
+  }, [getCroppedPhoto, photoPreview]);
 
   const steps = [
     { number: 1, title: 'Codinome', icon: User, field: 'nickname' },
@@ -89,301 +174,384 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   ];
 
   return (
-    <section className="min-h-screen w-screen bg-[#0B0E14] flex flex-col items-center ">
-      <div className="flex-1 flex flex-col px-6 py-8 items-center ">
-        {/* Scanlines Effect */}
-        <div className="fixed inset-0 pointer-events-none opacity-[0.03]">
-          <div className="h-full w-full" style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, #00F0FF 2px, #00F0FF 4px)'
-          }} />
-        </div>
+    <>
+      <section
+        className="relative min-h-screen w-full bg-[#0B0E14] flex flex-col items-center"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <div className="flex-1 flex flex-col px-6 py-8 items-center w-full">
+          {/* Scanlines Effect */}
+          <div className="fixed inset-0 pointer-events-none opacity-[0.03]">
+            <div className="h-full w-full" style={{
+              backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, #00F0FF 2px, #00F0FF 4px)'
+            }} />
+          </div>
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-xl text-[#E6F1FF] mb-2 text-center">
-            [ COMPLETAR PERFIL ]
-          </h1>
-          <p className="text-xs text-[#7F94B0] font-mono-technical text-center uppercase">
-            Configure seu dossiê operacional
-          </p>
-        </div>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-xl text-[#E6F1FF] mb-2 text-center">
+              [ COMPLETAR PERFIL ]
+            </h1>
+            <p className="text-xs text-[#7F94B0] font-mono-technical text-center uppercase">
+              Configure seu dossiê operacional
+            </p>
+          </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2 mb-12 ">
-          {steps.map((step, index) => (
-            <div key={step.number} className="flex items-center">
-              <div className="flex flex-col items-center ">
-                <div
-                  className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${currentStep > step.number
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center gap-2 mb-12 ">
+            {steps.map((step, index) => (
+              <div key={step.number} className="flex items-center">
+                <div className="flex flex-col items-center ">
+                  <div
+                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${currentStep > step.number
                       ? 'bg-[#00F0FF] border-[#00F0FF] text-[#0B0E14]'
                       : currentStep === step.number
                         ? 'bg-[#00F0FF]/20 border-[#00F0FF] text-[#00F0FF] shadow-[0_0_20px_rgba(0,240,255,0.4)]'
                         : 'bg-[#141A26] border-[#2D3A52] text-[#7F94B0]'
-                    }`}
-                >
-                  {currentStep > step.number ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    <span className="text-sm font-mono-technical">{step.number}</span>
-                  )}
+                      }`}
+                  >
+                    {currentStep > step.number ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      <span className="text-sm font-mono-technical">{step.number}</span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-mono-technical mt-1 ${currentStep >= step.number ? 'text-[#00F0FF]' : 'text-[#7F94B0]'
+                    }`}>
+                    {step.title}
+                  </span>
                 </div>
-                <span className={`text-[10px] font-mono-technical mt-1 ${currentStep >= step.number ? 'text-[#00F0FF]' : 'text-[#7F94B0]'
-                  }`}>
-                  {step.title}
-                </span>
+                {index < steps.length - 1 && (
+                  <div className={`w-8 h-[2px] mx-2 mb-5 ${currentStep > step.number ? 'bg-[#00F0FF]' : 'bg-[#2D3A52]'
+                    }`} />
+                )}
               </div>
-              {index < steps.length - 1 && (
-                <div className={`w-8 h-[2px] mx-2 mb-5 ${currentStep > step.number ? 'bg-[#00F0FF]' : 'bg-[#2D3A52]'
-                  }`} />
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Main Card */}
-        <div className="flex-1 flex flex-col">
-          <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-8 mb-6 relative overflow-hidden">
-            {/* Corner Accents */}
-            <div className="absolute top-0 left-0 w-12 h-12 border-l-2 border-t-2 border-[#00F0FF]/30" />
-            <div className="absolute top-0 right-0 w-12 h-12 border-r-2 border-t-2 border-[#00F0FF]/30" />
-            <div className="absolute bottom-0 left-0 w-12 h-12 border-l-2 border-b-2 border-[#00F0FF]/30" />
-            <div className="absolute bottom-0 right-0 w-12 h-12 border-r-2 border-b-2 border-[#00F0FF]/30" />
+          {/* Main Card */}
+          <div className="flex-1 flex flex-col">
+            <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-8 mb-6 relative overflow-hidden">
+              {/* Corner Accents */}
+              <div className="absolute top-0 left-0 w-12 h-12 border-l-2 border-t-2 border-[#00F0FF]/30" />
+              <div className="absolute top-0 right-0 w-12 h-12 border-r-2 border-t-2 border-[#00F0FF]/30" />
+              <div className="absolute bottom-0 left-0 w-12 h-12 border-l-2 border-b-2 border-[#00F0FF]/30" />
+              <div className="absolute bottom-0 right-0 w-12 h-12 border-r-2 border-b-2 border-[#00F0FF]/30" />
 
-            <div className="relative z-10">
-              {/* Step 1: Nickname */}
-              {currentStep === 1 && (
-                <div className="space-y-6">
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
-                      <User className="w-8 h-8 text-[#00F0FF]" />
+              <div className="relative z-10">
+                {/* Step 1: Nickname */}
+                {currentStep === 1 && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
+                        <User className="w-8 h-8 text-[#00F0FF]" />
+                      </div>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">Codinome Operacional</h2>
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Como você é conhecido no campo de batalha?
+                      </p>
                     </div>
-                    <h2 className="text-lg text-[#E6F1FF] mb-2">Codinome Operacional</h2>
-                    <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                      Como você é conhecido no campo de batalha?
-                    </p>
-                  </div>
 
-                  <div>
-                    <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
-                      Seu Codinome
-                    </label>
-                    <input
-                      type="text"
-                      value={nickname}
-                      onChange={(e) => setNickname(e.target.value)}
-                      placeholder='Ex: Carlos "Raptor" Silva'
-                      className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                      autoFocus
-                    />
-                    <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
-                      Mínimo 3 caracteres
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Full Name */}
-              {currentStep === 2 && (
-                <div className="space-y-6">
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
-                      <FileText className="w-8 h-8 text-[#00F0FF]" />
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
+                        Seu Codinome
+                      </label>
+                      <input
+                        type="text"
+                        value={nickname}
+                        onChange={(e) => setNickname(e.target.value)}
+                        placeholder='Ex: Carlos "Raptor" Silva'
+                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        autoFocus
+                      />
+                      <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
+                        Mínimo 3 caracteres
+                      </p>
                     </div>
-                    <h2 className="text-lg text-[#E6F1FF] mb-2">Nome Completo</h2>
-                    <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                      Seu nome real para identificação oficial
-                    </p>
                   </div>
+                )}
 
-                  <div>
-                    <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
-                      Nome Completo
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Ex: Carlos Roberto Silva"
-                      className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                      autoFocus
-                    />
-                    <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
-                      Nome completo como no documento
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: CPF */}
-              {currentStep === 3 && (
-                <div className="space-y-6">
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
-                      <CreditCard className="w-8 h-8 text-[#00F0FF]" />
+                {/* Step 2: Full Name */}
+                {currentStep === 2 && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
+                        <FileText className="w-8 h-8 text-[#00F0FF]" />
+                      </div>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">Nome Completo</h2>
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Seu nome real para identificação oficial
+                      </p>
                     </div>
-                    <h2 className="text-lg text-[#E6F1FF] mb-2">CPF</h2>
-                    <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                      Documento para verificação de identidade
-                    </p>
-                  </div>
 
-                  <div>
-                    <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
-                      Número do CPF
-                    </label>
-                    <input
-                      type="text"
-                      value={cpf}
-                      onChange={handleCPFChange}
-                      placeholder="000.000.000-00"
-                      maxLength={14}
-                      className={`w-full bg-[#0B0E14] border rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:outline-none transition-colors ${
-                        cpfError
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
+                        Nome Completo
+                      </label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ex: Carlos Roberto Silva"
+                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        autoFocus
+                      />
+                      <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
+                        Nome completo como no documento
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: CPF */}
+                {currentStep === 3 && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
+                        <CreditCard className="w-8 h-8 text-[#00F0FF]" />
+                      </div>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">CPF</h2>
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Documento para verificação de identidade
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
+                        Número do CPF
+                      </label>
+                      <input
+                        type="text"
+                        value={cpf}
+                        onChange={handleCPFChange}
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                        className={`w-full bg-[#0B0E14] border rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:outline-none transition-colors ${cpfError
                           ? 'border-[#D4A536] focus:border-[#D4A536]'
                           : 'border-[#2D3A52] focus:border-[#00F0FF]'
-                      }`}
-                      aria-invalid={cpfError ? 'true' : 'false'}
-                      autoFocus
-                    />
-                    {cpfError ? (
-                      <p className="text-xs text-[#D4A536] font-mono-technical mt-2">{cpfError}</p>
-                    ) : null}
-                    <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
-                      Seus dados são criptografados e protegidos
-                    </p>
-                  </div>
-
-                  {/* Privacy Notice */}
-                  <div className="bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-lg p-4 mt-4">
-                    <p className="text-xs text-[#D4A536] font-mono-technical leading-relaxed">
-                      ⚠ AVISO: O CPF é necessário para verificação de identidade e não será exibido publicamente.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Photo */}
-              {currentStep === 4 && (
-                <div className="space-y-6">
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
-                      <Camera className="w-8 h-8 text-[#00F0FF]" />
-                    </div>
-                    <h2 className="text-lg text-[#E6F1FF] mb-2">Foto do Rosto</h2>
-                    <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                      Foto clara do seu rosto para identificação
-                    </p>
-                  </div>
-
-                  {/* Photo Preview or Upload Area */}
-                  {photoPreview ? (
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <div className="w-48 h-52 mx-auto bg-[#00F0FF] clip-hexagon-perfect p-[3px]">
-                          <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect overflow-hidden">
-                            <img
-                              src={photoPreview}
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        </div>
-                        <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-10 clip-hexagon-perfect mx-auto w-48" />
-                      </div>
-
-                      <div className="text-center">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all cursor-pointer">
-                          <Upload className="w-4 h-4" />
-                          [ ALTERAR FOTO ]
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handlePhotoChange}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ) : (
-                    <label className="block cursor-pointer">
-                      <div className="border-2 border-dashed border-[#2D3A52] rounded-lg p-8 hover:border-[#00F0FF]/50 transition-all bg-[#0B0E14]/50">
-                        <div className="flex flex-col items-center gap-4">
-                          <div className="w-20 h-20 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center">
-                            <Upload className="w-10 h-10 text-[#00F0FF]" />
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm text-[#E6F1FF] font-mono-technical mb-1">
-                              [ SELECIONAR FOTO ]
-                            </p>
-                            <p className="text-xs text-[#7F94B0] font-mono-technical">
-                              Toque para escolher uma imagem
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                        className="hidden"
+                          }`}
+                        aria-invalid={cpfError ? 'true' : 'false'}
+                        autoFocus
                       />
-                    </label>
-                  )}
+                      {cpfError ? (
+                        <p className="text-xs text-[#D4A536] font-mono-technical mt-2">{cpfError}</p>
+                      ) : null}
+                      <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
+                        Seus dados são criptografados e protegidos
+                      </p>
+                    </div>
 
-                  {/* Info Notice */}
-                  <div className="bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg p-4 mt-4">
-                    <p className="text-xs text-[#00F0FF] font-mono-technical leading-relaxed">
-                      ℹ DICA: Use uma foto clara e recente do seu rosto. Essa foto será usada no seu perfil operacional.
-                    </p>
+                    {/* Privacy Notice */}
+                    <div className="bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-lg p-4 mt-4">
+                      <p className="text-xs text-[#D4A536] font-mono-technical leading-relaxed">
+                        ⚠ AVISO: O CPF é necessário para verificação de identidade e não será exibido publicamente.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Step 4: Photo */}
+                {currentStep === 4 && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
+                        <Camera className="w-8 h-8 text-[#00F0FF]" />
+                      </div>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">Foto do Rosto</h2>
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Foto clara do seu rosto para identificação
+                      </p>
+                    </div>
+
+                    {/* Photo Preview or Upload Area */}
+                    {photoPreview ? (
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <div className="w-48 h-52 mx-auto bg-[#00F0FF] clip-hexagon-perfect p-[3px]">
+                            <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect overflow-hidden">
+                              <img
+                                src={photoPreview}
+                                alt="Preview"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
+                          <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-10 clip-hexagon-perfect mx-auto w-48" />
+                        </div>
+
+                        <div className="text-center flex items-center justify-center">
+                          <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all cursor-pointer">
+                            <Upload className="w-4 h-4" />
+                            [ ALTERAR FOTO ]
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePhotoChange}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="block cursor-pointer">
+                        <div className="border-2 border-dashed border-[#2D3A52] rounded-lg p-8 hover:border-[#00F0FF]/50 transition-all bg-[#0B0E14]/50">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="w-20 h-20 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center">
+                              <Upload className="w-10 h-10 text-[#00F0FF]" />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm text-[#E6F1FF] font-mono-technical mb-1">
+                                [ SELECIONAR FOTO ]
+                              </p>
+                              <p className="text-xs text-[#7F94B0] font-mono-technical">
+                                Toque para escolher uma imagem
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+
+                    {/* Info Notice */}
+                    <div className="bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg p-4 mt-4">
+                      <p className="text-xs text-[#00F0FF] font-mono-technical leading-relaxed">
+                        ℹ DICA: Use uma foto clara e recente do seu rosto. Essa foto será usada no seu perfil operacional.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
+                disabled={currentStep === 1}
+                className="px-6 py-4 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-sm uppercase hover:bg-[#1A2332] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                [ VOLTAR ]
+              </button>
+              <button
+                onClick={() => void handleNext()}
+                disabled={!canProceed() || submitting}
+                className="px-4 text-center py-4 text-nowrap bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-sm uppercase hover:bg-[#00F0FF]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:border-[#2D3A52] disabled:text-[#7F94B0] flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+              >
+                {currentStep === 4 ? (
+                  submitting
+                    ? <Spinner inline size="sm" />
+                    : '[ FINALIZAR ]'
+                ) : (
+                  <>
+                    <span>[ AVANÇAR ]</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-              disabled={currentStep === 1}
-              className="px-6 py-4 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-sm uppercase hover:bg-[#1A2332] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              [ VOLTAR ]
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!canProceed() || submitting}
-              className="px-6 py-4 text-nowrap bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-sm uppercase hover:bg-[#00F0FF]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:border-[#2D3A52] disabled:text-[#7F94B0] flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.3)]"
-            >
-              {currentStep === 4 ? (
-                submitting ? (
-                  <>
-                    <Spinner inline size="sm" />
-                    <span>[ FINALIZANDO... ]</span>
-                  </>
-                ) : (
-                  <>
-                    <span>[ FINALIZAR ]</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </>
-                )
-              ) : (
-                <>
-                  <span>[ AVANÇAR ]</span>
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+          {/* Step Info */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-[#7F94B0] font-mono-technical">
+              PASSO {currentStep} DE 4 // {Math.round((currentStep / 4) * 100)}% COMPLETO
+            </p>
           </div>
         </div>
+      </section>
 
-        {/* Step Info */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-[#7F94B0] font-mono-technical">
-            PASSO {currentStep} DE 4 // {Math.round((currentStep / 4) * 100)}% COMPLETO
-          </p>
-        </div>
-      </div>
-    </section>
+      <Dialog
+        open={cropperOpen}
+        onOpenChange={(open) => {
+          setCropperOpen(open);
+          if (!open) {
+            setRawPhoto(null);
+            setRawPhotoPreview('');
+          }
+        }}
+      >
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
+              [ RECORTAR FOTO ]
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="relative h-[360px] w-full rounded-xl overflow-hidden border border-[#2D3A52] bg-[#0B0E14]">
+              <Cropper
+                image={rawPhotoPreview || photoPreview}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="rect"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                objectFit="cover"
+                cropAreaStyle={{
+                  clipPath: hexClipPath,
+                  border: '2px solid #00F0FF',
+                  boxShadow: '0 0 0 9999px rgba(11,14,20,0.85)',
+                  background: 'rgba(0,240,255,0.06)',
+                }}
+              />
+              <div className="pointer-events-none absolute inset-6 clip-hexagon-perfect border border-[#00F0FF]/30" />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#7F94B0] font-mono-technical uppercase">Zoom</span>
+              <div className="flex-1">
+                <Slider
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  value={[zoom]}
+                  onValueChange={(values) => setZoom(values[0] ?? 1)}
+                />
+              </div>
+              <span className="text-xs text-[#7F94B0] font-mono-technical w-10 text-right">{zoom.toFixed(1)}x</span>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-2 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setCropperOpen(false);
+                setRawPhoto(null);
+                setRawPhotoPreview('');
+              }}
+              className="px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+              disabled={cropping}
+            >
+              [ CANCELAR ]
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmCrop()}
+              className={`px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all disabled:opacity-50 flex items-center justify-center ${cropping ? 'gap-2' : ''}`}
+              disabled={cropping}
+            >
+              {cropping ? (
+                <>
+                  <Spinner inline size="sm" />
+                  <span>[ CORTANDO... ]</span>
+                </>
+              ) : (
+                <span>[ CORTAR ]</span>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -16,10 +16,17 @@
 
   * {}
 
+  html, body, #root {
+    min-height: 100vh;
+    height: auto;
+    overflow-y: visible;
+  }
+
   body {
     @apply bg-[#0B0E14] text-[#E6F1FF];
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     position: relative;
+    overscroll-behavior: contain;
   }
 
   /* Scanline effect overlay */
