@@ -20,7 +20,7 @@ interface TransmissionModalProps {
     type: 'report' | 'praise';
     content: string;
   }) => void;
-  onSuccess: () => void;
+  submitting?: boolean;
   searchTerm: string;
   onSearchTermChange: (term: string) => void;
   isLoading?: boolean;
@@ -37,7 +37,7 @@ export function TransmissionModal({
   players,
   preSelectedPlayerId,
   onSubmit,
-  onSuccess,
+  submitting = false,
   searchTerm,
   onSearchTermChange,
   isLoading,
@@ -91,18 +91,16 @@ export function TransmissionModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedTarget && reportType && content.trim()) {
+    if (selectedTarget && reportType && content.trim() && !submitting) {
       onSubmit({
         targetId: selectedTarget.id,
         type: reportType,
         content: content.trim(),
       });
-      onSuccess();
-      onClose();
     }
   };
 
-  const canSubmit = selectedTarget && reportType && content.trim();
+  const canSubmit = selectedTarget && reportType && content.trim() && !submitting;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-0">
@@ -249,9 +247,6 @@ export function TransmissionModal({
                 Tipo de Transmissão
               </label>
               <div className="grid grid-cols-2 gap-3">
-
-
-
                 <div className='container-arrow'>
                   {reportType === 'report' && (<> <svg className='arrow-up ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
@@ -319,8 +314,13 @@ export function TransmissionModal({
                 variant="amber"
                 fullWidth
                 disabled={!canSubmit}
+                leftIcon={
+                  submitting ? (
+                    <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
+                  ) : undefined
+                }
               >
-                [ TRANSMITIR REGISTRO ]
+                {submitting ? '[ TRANSMITINDO... ]' : '[ TRANSMITIR REGISTRO ]'}
               </TacticalButton>
             </form>
           )}

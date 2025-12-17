@@ -5,6 +5,7 @@ interface TacticalButtonProps {
   type?: 'button' | 'submit';
   fullWidth?: boolean;
   disabled?: boolean;
+  leftIcon?: React.ReactNode;
 }
 
 export function TacticalButton({ 
@@ -13,9 +14,10 @@ export function TacticalButton({
   onClick, 
   type = 'button',
   fullWidth = false,
-  disabled = false
+  disabled = false,
+  leftIcon,
 }: TacticalButtonProps) {
-  const baseClasses = "clip-tactical font-mono-technical uppercase tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseClasses = "clip-tactical font-mono-technical uppercase tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2";
   
   const variantClasses = {
     cyan: "bg-[#00F0FF15] border border-[#00F0FF] text-[#00F0FF] glow-cyan hover:bg-[#00F0FF30] hover:glow-cyan-intense",
@@ -29,6 +31,7 @@ export function TacticalButton({
       disabled={disabled}
       className={`${baseClasses} ${variantClasses[variant]} ${fullWidth ? 'w-full' : ''} px-6 py-3`}
     >
+      {leftIcon ? <span className="flex items-center">{leftIcon}</span> : null}
       {children}
     </button>
   );

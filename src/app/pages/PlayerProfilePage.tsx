@@ -98,6 +98,10 @@ export function PlayerProfilePage() {
 
   if (!player && history.length === 0) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setPlayerSearchTerm('');
+  };
   return (
     <>
       <MobilePlayerProfile
@@ -136,10 +140,7 @@ export function PlayerProfilePage() {
       {isFetchingNextPage && <Spinner label="carregando histórico" />}
       <TransmissionModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setPlayerSearchTerm('');
-        }}
+        onClose={closeModal}
         players={
           player
             ? [
@@ -153,11 +154,12 @@ export function PlayerProfilePage() {
             : []
         }
         preSelectedPlayerId={player?.id ?? null}
-        onSubmit={(data) => createTransmission.mutate(data)}
-        onSuccess={() => {
-          setIsModalOpen(false);
-          setPlayerSearchTerm('');
-        }}
+        onSubmit={(data) =>
+          createTransmission.mutate(data, {
+            onSuccess: closeModal,
+          })
+        }
+        submitting={createTransmission.isPending}
         searchTerm={playerSearchTerm}
         onSearchTermChange={setPlayerSearchTerm}
         isLoading={false}

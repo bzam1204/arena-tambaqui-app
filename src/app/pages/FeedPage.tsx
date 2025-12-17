@@ -55,6 +55,13 @@ export function FeedPage({ isLoggedIn }: Props) {
 
   const feed = feedPages?.pages.flatMap((p) => p) ?? [];
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setPlayerSearchInput('');
+    setPlayerSearchTerm('');
+    setModalPage(1);
+  };
+
   const {
     data: modalPlayersResult,
     isLoading: playersLoading,
@@ -133,9 +140,7 @@ export function FeedPage({ isLoggedIn }: Props) {
             navigate(state.userId ? '/onboarding' : '/auth');
             return;
           }
-          setPlayerSearchInput('');
-          setPlayerSearchTerm('');
-          setModalPage(1);
+          closeModal();
           setIsModalOpen(true);
         }}
         className="fixed bottom-24 right-6 w-14 h-14 bg-[#D4A536] rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,165,54,0.6)] hover:shadow-[0_0_30px_rgba(212,165,54,0.8)] transition-all z-40 hover:scale-110"
@@ -148,10 +153,7 @@ export function FeedPage({ isLoggedIn }: Props) {
           <TransmissionModal
             isOpen={isModalOpen}
             onClose={() => {
-              setIsModalOpen(false);
-              setPlayerSearchInput('');
-              setPlayerSearchTerm('');
-              setModalPage(1);
+              closeModal();
             }}
             players={players
               .filter((p) => p.id !== state.playerId)
@@ -164,13 +166,12 @@ export function FeedPage({ isLoggedIn }: Props) {
                 }),
               )}
             preSelectedPlayerId={preSelectedPlayerId}
-            onSubmit={(data) => createTransmission.mutate(data)}
-            onSuccess={async () => {
-              setIsModalOpen(false);
-              setPlayerSearchInput('');
-              setPlayerSearchTerm('');
-              setModalPage(1);
-            }}
+            onSubmit={(data) =>
+              createTransmission.mutate(data, {
+                onSuccess: closeModal,
+              })
+            }
+            submitting={createTransmission.isPending}
             searchTerm={playerSearchInput}
             onSearchTermChange={(term) => {
               setPlayerSearchInput(term);
