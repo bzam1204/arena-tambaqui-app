@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Lock, AlertTriangle, Award, Search, User } from 'lucide-react';
 import { TacticalButton } from './TacticalButton';
+import { Spinner } from './Spinner';
 
 export interface TransmissionPlayer {
   id: string;
@@ -147,62 +148,62 @@ export function TransmissionModal({
               {/* Player List */}
               {canSearch ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {isLoading ? (
-                    <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Buscando operadores...</div>
-                  ) : players.length ? (
-                    players.map((player) => (
-                      <button
-                        key={player.id}
-                        onClick={() => handleSelectPlayer(player)}
-                        className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
-                      >
-                        <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                          <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                            {player.avatar ? (
-                              <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                            ) : (
-                              <User className="w-5 h-5 text-[#7F94B0]" />
-                            )}
+                  {isLoading
+                    ? <Spinner />
+                    : players.length ? (
+                      players.map((player) => (
+                        <button
+                          key={player.id}
+                          onClick={() => handleSelectPlayer(player)}
+                          className="w-full  clip-tactical-card bg-[#141A26] border-x-3 border-[#2D3A52] p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
+                        >
+                          <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                            <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                              {player.avatar ? (
+                                <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
+                              ) : (
+                                <User className="w-5 h-5 text-[#7F94B0]" />
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
-                          <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Nenhum operador encontrado</div>
+                          <div>
+                            <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
+                            <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Nenhum operador encontrado</div>
+                    )}
+                </div>
+              ) : (
+                <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
+                  Digite ao menos {minChars} caracteres para buscar
+                </div>
               )}
-            </div>
-          ) : (
-            <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
-              Digite ao menos {minChars} caracteres para buscar
-            </div>
-          )}
 
-          {/* Pagination */}
-          {canSearch && total > pageSize ? (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button
-                onClick={() => onPageChange(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
-              >
-                {'<'}
-              </button>
-              <span className="text-xs font-mono-technical text-[#7F94B0]">
-                {page} / {Math.max(1, Math.ceil(total / pageSize))}
-              </span>
-              <button
-                onClick={() => onPageChange(Math.min(Math.max(1, Math.ceil(total / pageSize)), page + 1))}
-                disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
-                className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
-              >
-                {'>'}
-              </button>
-            </div>
-          ) : null}
+              {/* Pagination */}
+              {canSearch && total > pageSize ? (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <button
+                    onClick={() => onPageChange(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+                  >
+                    {'<'}
+                  </button>
+                  <span className="text-xs font-mono-technical text-[#7F94B0]">
+                    {page} / {Math.max(1, Math.ceil(total / pageSize))}
+                  </span>
+                  <button
+                    onClick={() => onPageChange(Math.min(Math.max(1, Math.ceil(total / pageSize)), page + 1))}
+                    disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
+                    className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+                  >
+                    {'>'}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div>
@@ -210,7 +211,7 @@ export function TransmissionModal({
                 Operador Selecionado
               </label>
               <div className="bg-[#141A26] border border-[#00F0FF] rounded-lg p-3 flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
                   <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                     {selectedTarget?.avatar ? (
                       <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
