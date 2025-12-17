@@ -9,6 +9,7 @@ import { Inject, TkPlayerGateway, TkFeedGateway, TkTransmissionGateway } from '@
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
+import { TacticalButton } from '@/components/TacticalButton';
 
 export function PlayerProfilePage() {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
@@ -128,6 +129,7 @@ export function PlayerProfilePage() {
 
   if (!player && history.length === 0) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;
+  const isSubmitting = editingEntry ? adminEdit.isPending : createTransmission.isPending;
   return (
     <>
       <MobilePlayerProfile
@@ -151,7 +153,10 @@ export function PlayerProfilePage() {
         }}
         actionsAboveHistory={
           <div className="px-0">
-            <button
+            <TacticalButton
+              variant="amber"
+              fullWidth
+              disabled={isSubmitting}
               onClick={() => {
                 if (!state.userId) {
                   navigate('/auth');
@@ -164,10 +169,14 @@ export function PlayerProfilePage() {
                 setPlayerSearchTerm(player?.nickname ?? '');
                 setIsModalOpen(true);
               }}
-              className="w-full bg-[#D4A536] text-[#0B0E14] font-mono-technical uppercase py-3 rounded-lg shadow-[0_0_20px_rgba(212,165,54,0.5)]"
+              leftIcon={
+                isSubmitting ? (
+                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
+                ) : undefined
+              }
             >
-              [ REPORTAR JOGADOR ]
-            </button>
+              {isSubmitting ? '[ TRANSMITINDO... ]' : '[ REPORTAR JOGADOR ]'}
+            </TacticalButton>
           </div>
         }
       />
@@ -179,8 +188,8 @@ export function PlayerProfilePage() {
         players={
           player
             ? [
-            {
-              id: player.id,
+              {
+                id: player.id,
                 name: player.name,
                 nickname: player.nickname,
                 avatar: player.avatar,
@@ -192,14 +201,14 @@ export function PlayerProfilePage() {
         onSubmit={(data) =>
           editingEntry
             ? adminEdit.mutate(
-                { id: editingEntry.id, content: data.content },
-                {
-                  onSuccess: closeModal,
-                },
-              )
-            : createTransmission.mutate(data, {
+              { id: editingEntry.id, content: data.content },
+              {
                 onSuccess: closeModal,
-              })
+              },
+            )
+            : createTransmission.mutate(data, {
+              onSuccess: closeModal,
+            })
         }
         submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
         searchTerm={playerSearchTerm}
@@ -209,21 +218,21 @@ export function PlayerProfilePage() {
         page={1}
         pageSize={1}
         total={1}
-        onPageChange={() => {}}
+        onPageChange={() => { }}
         lockedTarget={
           editingEntry
             ? {
-                id: editingEntry.targetId,
-                name: editingEntry.targetName,
-                nickname: editingEntry.targetName,
-                avatar: editingEntry.targetAvatar,
-              }
+              id: editingEntry.targetId,
+              name: editingEntry.targetName,
+              nickname: editingEntry.targetName,
+              avatar: editingEntry.targetAvatar,
+            }
             : {
-                id: player.id,
-                name: player.name,
-                nickname: player.nickname,
-                avatar: player.avatar,
-              }
+              id: player.id,
+              name: player.name,
+              nickname: player.nickname,
+              avatar: player.avatar,
+            }
         }
         lockedTargetId={editingEntry?.targetId ?? player?.id ?? undefined}
         lockedType={editingEntry?.type}

@@ -63,9 +63,11 @@ export function TransmissionModal({
   const [content, setContent] = useState('');
   const canSearch = !lockedTargetId && searchTerm.trim().length >= minChars;
   const [, startTransition] = useTransition();
-  // Initialize with pre-selected/locked player if provided
+  const isVisible = isOpen || submitting; // keep mounted while submitting to show loading state
+  // Initialize with pre-selected/locked player if provided (only when entering modal)
   useEffect(() => {
     if (!isOpen) return;
+    if (step !== 'select') return;
     if (lockedTarget) {
       setSelectedTarget(lockedTarget);
       setStep(lockedType ? 'details' : 'type');
@@ -77,7 +79,7 @@ export function TransmissionModal({
       if (player) setSelectedTarget(player);
       setStep(lockedType ? 'details' : 'type');
     }
-  }, [isOpen, preSelectedPlayerId, lockedTargetId, lockedTarget, players, lockedType]);
+  }, [isOpen, preSelectedPlayerId, lockedTargetId, lockedTarget, players, lockedType, step]);
 
   // Initialize type/content when locked or provided
   useEffect(() => {
@@ -91,17 +93,17 @@ export function TransmissionModal({
     }
   }, [isOpen, lockedType, initialContent]);
 
-  // Reset on close
+  // Reset on close (but keep state while submitting to show loading)
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen && !submitting) {
       setStep('select');
       setSelectedTarget(null);
       setReportType(null);
       setContent('');
     }
-  }, [isOpen]);
+  }, [isOpen, submitting]);
 
-  if (!isOpen) return null;
+  if (!isVisible) return null;
 
   const handleSelectPlayer = (player: TransmissionPlayer) => {
     if (lockedTargetId) return;
@@ -140,7 +142,11 @@ export function TransmissionModal({
             [ Nova Transmissão ]
           </h2>
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (submitting) return;
+              onClose();
+            }}
+            disabled={submitting}
             className="text-[#7F94B0] hover:text-[#E6F1FF] transition-colors"
           >
             <X className="w-5 h-5" />
