@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MobileFeedCard } from '@/components/MobileFeedCard';
 import { Spinner } from '@/components/Spinner';
+import { QueryErrorCard } from '@/components/QueryErrorCard';
 import type { TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
@@ -49,6 +50,9 @@ export function FeedPage({ isLoggedIn }: Props) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isError: feedIsError,
+    error: feedError,
+    refetch: refetchFeed,
   } = useInfiniteQuery({
     queryKey: ['feed'],
     queryFn: ({ pageParam = 0 }) => feedGateway.listFeedPage({ page: pageParam, pageSize: 20 }),
@@ -70,6 +74,9 @@ export function FeedPage({ isLoggedIn }: Props) {
     data: modalPlayersResult,
     isLoading: playersLoading,
     isFetching: playersFetching,
+    isError: playersIsError,
+    error: playersError,
+    refetch: refetchPlayers,
   } = useQuery({
     queryKey: ['players-search', playerSearchTerm, modalPage],
     queryFn: () => playerGateway.searchPlayersPaged({ term: playerSearchTerm, page: modalPage - 1, pageSize: modalPageSize }),
@@ -137,6 +144,24 @@ export function FeedPage({ isLoggedIn }: Props) {
     navigate(`/player/${id}`);
   };
 
+  if (feedIsError) {
+    return (
+      <div className="p-6">
+        <QueryErrorCard
+          message={(feedError as Error)?.message || 'Falha ao carregar feed.'}
+          action={
+            <button
+              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+              onClick={() => void refetchFeed()}
+            >
+              [ TENTAR NOVAMENTE ]
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-0">
       <div className="px-4 pb-6 space-y-4">
@@ -193,63 +218,79 @@ export function FeedPage({ isLoggedIn }: Props) {
 
       {isModalOpen ? (
         <Suspense fallback={<Spinner label="carregando interface" />}>
-          <TransmissionModal
-            isOpen={isModalOpen}
-            onClose={() => {
-              closeModal();
-            }}
-            players={players
-              .filter((p) => p.id !== state.playerId)
-              .map(
-                (p): TransmissionPlayer => ({
-                  id: p.id,
-                  name: p.name,
-                  nickname: p.nickname,
-                  avatar: p.avatar,
-                }),
-              )}
-            preSelectedPlayerId={preSelectedPlayerId}
-            onSubmit={(data) => {
-              if (editingEntry) {
-                adminEdit.mutate(
-                  { id: editingEntry.id, content: data.content },
-                  {
+          {playersIsError ? (
+            <div className="p-4">
+              <QueryErrorCard
+                message={(playersError as Error)?.message || 'Falha ao carregar operadores.'}
+                action={
+                  <button
+                    className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+                    onClick={() => void refetchPlayers()}
+                  >
+                    [ TENTAR NOVAMENTE ]
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            <TransmissionModal
+              isOpen={isModalOpen}
+              onClose={() => {
+                closeModal();
+              }}
+              players={players
+                .filter((p) => p.id !== state.playerId)
+                .map(
+                  (p): TransmissionPlayer => ({
+                    id: p.id,
+                    name: p.name,
+                    nickname: p.nickname,
+                    avatar: p.avatar,
+                  }),
+                )}
+              preSelectedPlayerId={preSelectedPlayerId}
+              onSubmit={(data) => {
+                if (editingEntry) {
+                  adminEdit.mutate(
+                    { id: editingEntry.id, content: data.content },
+                    {
+                      onSuccess: closeModal,
+                    },
+                  );
+                } else {
+                  createTransmission.mutate(data, {
                     onSuccess: closeModal,
-                  },
-                );
-              } else {
-                createTransmission.mutate(data, {
-                  onSuccess: closeModal,
-                });
+                  });
+                }
+              }}
+              submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
+              searchTerm={playerSearchInput}
+              onSearchTermChange={(term) => {
+                setPlayerSearchInput(term);
+                setModalPage(1);
+              }}
+              isLoading={(playersLoading || playersFetching) && playerSearchTerm.trim().length >= minSearchChars}
+              minChars={minSearchChars}
+              page={modalPage}
+              pageSize={modalPageSize}
+              total={totalPlayers}
+              onPageChange={setModalPage}
+              lockedTargetId={editingEntry?.targetId ?? undefined}
+              lockedTarget={
+                editingEntry
+                  ? {
+                      id: editingEntry.targetId,
+                      name: editingEntry.targetName,
+                      nickname: editingEntry.targetName,
+                      avatar: editingEntry.targetAvatar,
+                    }
+                  : undefined
               }
-            }}
-            submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
-            searchTerm={playerSearchInput}
-            onSearchTermChange={(term) => {
-              setPlayerSearchInput(term);
-              setModalPage(1);
-            }}
-            isLoading={(playersLoading || playersFetching) && playerSearchTerm.trim().length >= minSearchChars}
-            minChars={minSearchChars}
-            page={modalPage}
-            pageSize={modalPageSize}
-            total={totalPlayers}
-            onPageChange={setModalPage}
-            lockedTargetId={editingEntry?.targetId ?? undefined}
-            lockedTarget={
-              editingEntry
-                ? {
-                    id: editingEntry.targetId,
-                    name: editingEntry.targetName,
-                    nickname: editingEntry.targetName,
-                    avatar: editingEntry.targetAvatar,
-                  }
-                : undefined
-            }
-            lockedType={editingEntry?.type ?? undefined}
-            initialContent={editingEntry?.content ?? undefined}
-            prefillLoading={prefillLoading}
-          />
+              lockedType={editingEntry?.type ?? undefined}
+              initialContent={editingEntry?.content ?? undefined}
+              prefillLoading={prefillLoading}
+            />
+          )}
         </Suspense>
       ) : null}
       <div ref={sentinelRef} />

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { toast } from 'sonner@2.0.3';
 
 type Props = {
   children: ReactNode;
@@ -18,6 +19,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error', error, errorInfo);
+    toast.error(error.message || 'Erro inesperado.');
   }
 
   handleRetry = () => {

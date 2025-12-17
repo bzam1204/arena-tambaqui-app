@@ -6,8 +6,10 @@ import App from './App';
 import './index.css';
 import '@/infra/container';
 import { SessionProvider } from '@/app/context/session-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner@2.0.3';
 
 const ReactQueryDevtools =
   import.meta.env.DEV
@@ -15,11 +17,26 @@ const ReactQueryDevtools =
     : () => null;
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Falha ao carregar dados.';
+      toast.error(message);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Falha ao enviar dados.';
+      toast.error(message);
+    },
+  }),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
       staleTime: 30_000,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });
@@ -31,6 +48,7 @@ createRoot(document.getElementById('root')!).render(
         <App />
       </SessionProvider>
     </ErrorBoundary>
+    <Toaster richColors />
     {import.meta.env.DEV ? (
       <Suspense fallback={null}>
         <ReactQueryDevtools initialIsOpen={false} />

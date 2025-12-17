@@ -7,6 +7,7 @@ import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGate
 import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import { Inject, TkPlayerGateway, TkProfileGateway, TkFeedGateway } from '@/infra/container';
+import { QueryErrorCard } from '@/components/QueryErrorCard';
 
 type Props = {
   userId: string;
@@ -21,19 +22,34 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const [retractingId, setRetractingId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const { data: player } = useQuery({
+  const {
+    data: player,
+    error: playerError,
+    isError: playerIsError,
+    refetch: refetchPlayer,
+  } = useQuery({
     queryKey: ['player', playerId],
     queryFn: () => playerGateway.getPlayer(playerId),
     enabled: Boolean(playerId),
   });
 
-  const { data: history = [] } = useQuery<FeedEntry[]>({
+  const {
+    data: history = [],
+    error: historyError,
+    isError: historyIsError,
+    refetch: refetchHistory,
+  } = useQuery<FeedEntry[]>({
     queryKey: ['feed', 'submitter', playerId],
     queryFn: () => feedGateway.listBySubmitter(playerId),
     enabled: Boolean(playerId),
   });
 
-  const { data: ranks } = useQuery({
+  const {
+    data: ranks,
+    error: ranksError,
+    isError: ranksIsError,
+    refetch: refetchRanks,
+  } = useQuery({
     queryKey: ['player', 'rank', playerId],
     queryFn: () => playerGateway.getPlayerRank(playerId),
     enabled: Boolean(playerId),
@@ -57,6 +73,33 @@ export function MyProfilePage({ userId, playerId }: Props) {
       await queryClient.invalidateQueries({ queryKey: ['players'] });
     },
   });
+
+  if (playerIsError || historyIsError || ranksIsError) {
+    return (
+      <div className="p-6">
+        <QueryErrorCard
+          message={
+            (playerError as Error)?.message ||
+            (historyError as Error)?.message ||
+            (ranksError as Error)?.message ||
+            'Falha ao carregar perfil.'
+          }
+          action={
+            <button
+              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+              onClick={() => {
+                void refetchPlayer();
+                void refetchHistory();
+                void refetchRanks();
+              }}
+            >
+              [ TENTAR NOVAMENTE ]
+            </button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (!player) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;

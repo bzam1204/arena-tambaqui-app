@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
+import { QueryErrorCard } from '@/components/QueryErrorCard';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import { Inject, TkPlayerGateway, TkFeedGateway, TkTransmissionGateway } from '@/infra/container';
@@ -29,7 +30,12 @@ export function PlayerProfilePage() {
       navigate('/perfil', { replace: true });
     }
   }, [id, state.playerId, navigate]);
-  const { data: player } = useQuery({
+  const {
+    data: player,
+    error: playerError,
+    isError: playerIsError,
+    refetch: refetchPlayer,
+  } = useQuery({
     queryKey: ['player', id],
     queryFn: () => (id ? playerGateway.getPlayer(id) : Promise.resolve(null)),
     enabled: Boolean(id),
@@ -41,6 +47,9 @@ export function PlayerProfilePage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isError: historyIsError,
+    error: historyError,
+    refetch: refetchHistory,
   } = useInfiniteQuery({
     queryKey: ['feed', 'target', id],
     queryFn: ({ pageParam = 0 }) =>
@@ -50,7 +59,12 @@ export function PlayerProfilePage() {
   });
 
   const history = historyPages?.pages.flatMap((p) => p) ?? [];
-  const { data: ranks } = useQuery({
+  const {
+    data: ranks,
+    error: ranksError,
+    isError: ranksIsError,
+    refetch: refetchRanks,
+  } = useQuery({
     queryKey: ['player', 'rank', id],
     queryFn: () => (id ? playerGateway.getPlayerRank(id) : Promise.resolve({ prestige: null, shame: null })),
     enabled: Boolean(id),
@@ -126,6 +140,33 @@ export function PlayerProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ['feed', 'target', id] });
     },
   });
+
+  if (playerIsError || historyIsError || ranksIsError) {
+    return (
+      <div className="p-6">
+        <QueryErrorCard
+          message={
+            (playerError as Error)?.message ||
+            (historyError as Error)?.message ||
+            (ranksError as Error)?.message ||
+            'Falha ao carregar perfil.'
+          }
+          action={
+            <button
+              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+              onClick={() => {
+                void refetchPlayer();
+                void refetchHistory();
+                void refetchRanks();
+              }}
+            >
+              [ TENTAR NOVAMENTE ]
+            </button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (!player && history.length === 0) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;

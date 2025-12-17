@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { SearchPage } from '@/components/SearchPage';
 import { Spinner } from '@/components/Spinner';
+import { QueryErrorCard } from '@/components/QueryErrorCard';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import { Inject, TkPlayerGateway } from '@/infra/container';
 import { useSession } from '@/app/context/session-context';
@@ -22,13 +23,31 @@ export function SearchPageRoute() {
     return () => clearTimeout(id);
   }, [searchTermInput]);
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['players-search', debouncedTerm, page],
     queryFn: () => playerGateway.searchPlayersPaged({ term: debouncedTerm, page: page - 1, pageSize }),
   });
 
   const players = data?.players ?? [];
   const total = data?.total ?? 0;
+
+  if (isError) {
+    return (
+      <div className="p-6">
+        <QueryErrorCard
+          message={(error as Error)?.message || 'Falha ao buscar operadores.'}
+          action={
+            <button
+              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+              onClick={() => void refetch()}
+            >
+              [ TENTAR NOVAMENTE ]
+            </button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (!data && isFetching) return <Spinner label="carregando busca" />;
   return (
