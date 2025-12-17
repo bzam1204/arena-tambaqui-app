@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { User, AlertTriangle, Award, MoreHorizontal } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TacticalButton } from './TacticalButton';
 
 export interface FeedEntry {
   id: string;
@@ -19,23 +22,14 @@ interface MobileFeedCardProps {
   isAdmin?: boolean;
   onRetract?: (id: string) => void;
   onRemove?: (id: string) => void;
-  onEdit?: (id: string) => void;
+  onEdit?: (entry: FeedEntry) => void;
 }
 
 export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRemove, onEdit }: MobileFeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'retract' | 'remove' | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [menuOpen]);
   const isCyan = entry.type === 'praise';
   const borderColor = isCyan ? 'border-[#00F0FF]' : 'border-[#D4A536]';
   const accentColor = isCyan ? 'text-[#00F0FF]' : 'text-[#D4A536]';
@@ -45,33 +39,6 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
 
   return (
     <>
-    {isAdmin ? (
-        <div className="clear-both mt-3 flex items-center gap-2 text-xs font-mono-technical  p-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit?.(entry.id)}
-              className="px-2 py-1 rounded bg-[#141A26] border border-[#2D3A52] text-[#E6F1FF] hover:border-[#00F0FF] transition-colors"
-            >
-              Editar
-            </button>
-            {!entry.isRetracted && (
-              <button
-                onClick={() => onRetract?.(entry.id)}
-                className="px-2 py-1 rounded bg-[#D4A536]/15 border border-[#D4A536] text-[#D4A536] hover:bg-[#D4A536]/25 transition-colors"
-              >
-                Retratar
-              </button>
-            )}
-            <button
-              onClick={() => onRemove?.(entry.id)}
-              className="px-2 py-1 rounded bg-[#FF6B00]/15 border border-[#FF6B00] text-[#FF6B00] hover:bg-[#FF6B00]/25 transition-colors"
-            >
-              Remover
-            </button>
-          </div>
-        </div>
-
-      ) : null}
       <div className={`clip-tactical-card relative z-30 bg-[#141A26] border-x-4  overflow-hidden ${borderColor} ${bgGlow} ${entry.isRetracted ? 'opacity-75' : ''}`}>
         {entry.isRetracted && (
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -107,31 +74,35 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
         <div className="flex items-center gap-5">
           <span className="text-xs text-[#7F94B0] font-mono-technical">Agente Anônimo</span>
           {isAdmin ? (
-            <div className="relative w-6 h-6" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen((p) => !p)}
-                className='hover:bg-[#0B0E14]/60 text-[#7F94B0]'
+            <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+              <PopoverTrigger asChild>
+                <button className="hover:bg-[#0B0E14]/60 text-[#7F94B0] rounded p-1">
+                  <MoreHorizontal className={`w-6 h-6 ${isCyan ? 'text-[#00F0FF]' : 'text-[#D4A536]'}`} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-40 bg-[#0B0E14] border border-[#2D3A52] shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-md p-1"
+                align="end"
               >
-                <MoreHorizontal className={`w-6 h-6 ${isCyan ? 'text-[#00F0FF]' : 'text-[#D4A536]'}`} />
-              </button>
-              {menuOpen ? (
-                <div className="absolute right-0 mt-2 w-36 bg-[#0B0E14] border border-[#2D3A52] rounded shadow-lg z-50">
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onEdit?.(entry.id);
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-[#E6F1FF] hover:bg-[#141A26]"
-                  >
-                    Editar
-                  </button>
+                <div ref={menuRef} className="flex flex-col gap-1">
                   {!entry.isRetracted ? (
                     <button
                       onClick={() => {
                         setMenuOpen(false);
-                        if (window.confirm('Confirmar retratação desta transmissão?')) onRetract?.(entry.id);
+                        onEdit?.(entry);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs text-[#D4A536] hover:bg-[#141A26]"
+                      className="w-full text-left px-3 py-2 text-xs text-[#E6F1FF] hover:bg-[#141A26] rounded"
+                    >
+                      Editar
+                    </button>
+                  ) : null}
+                  {!entry.isRetracted ? (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setConfirmAction('retract');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs text-[#D4A536] hover:bg-[#141A26] rounded"
                     >
                       Retratar
                     </button>
@@ -139,15 +110,15 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      if (window.confirm('Remover definitivamente esta transmissão?')) onRemove?.(entry.id);
+                      setConfirmAction('remove');
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-[#FF6B00] hover:bg-[#141A26]"
+                    className="w-full text-left px-3 py-2 text-xs text-[#FF6B00] hover:bg-[#141A26] rounded"
                   >
                     Remover
                   </button>
                 </div>
-              ) : null}
-            </div>
+              </PopoverContent>
+            </Popover>
           ) : null}
         </div>
       </div>
@@ -179,7 +150,7 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
             <div className="space-y-2">
               <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onTargetClick(entry.targetId)}>
                 <p className="text-xs text-[#7F94B0] font-mono-technical uppercase">Alvo:</p>
-                <p className="group-hover:text-[#00F0FF] transition-colors text-xs break-words uppercase">{entry.targetName}</p>
+                <p className="group-hover:text-[#00F0FF] transition-colors text-xs wrap-break-word uppercase">{entry.targetName}</p>
               </div>
               <p className={`text-sm text-[#E6F1FF] ${entry.isRetracted ? 'line-through opacity-50' : ''}`}>
                 {displayedContent}
@@ -197,12 +168,40 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
           </div>
         </div>
         {/* Footer */}
-        <div className={`clear-both mt-3 flex items-center gap-2 text-xs font-mono-technical border-t  p-3 ${isCyan ? ' border-[#00F0FF]/40' : ' border-[#D4A536]/40'}`}>
-          <span>DATA: {entry.date}</span>
-          <span>//</span>
-          <span>HORA: {entry.time}</span>
-        </div>
+      <div className={`clear-both mt-3 flex items-center gap-2 text-xs font-mono-technical border-t  p-3 ${isCyan ? ' border-[#00F0FF]/40' : ' border-[#D4A536]/40'}`}>
+        <span>DATA: {entry.date}</span>
+        <span>//</span>
+        <span>HORA: {entry.time}</span>
       </div>
+    </div>
+
+      <Dialog open={Boolean(confirmAction)} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">
+              {confirmAction === 'retract' ? 'Retratar transmissão?' : 'Remover transmissão?'}
+            </DialogTitle>
+            <DialogDescription className="text-[#7F94B0]">
+              Essa ação é irreversível. Confirme para continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-end gap-3">
+            <TacticalButton variant="cyan" onClick={() => setConfirmAction(null)}>
+              Cancelar
+            </TacticalButton>
+            <TacticalButton
+              variant="amber"
+              onClick={() => {
+                if (confirmAction === 'retract') onRetract?.(entry.id);
+                if (confirmAction === 'remove') onRemove?.(entry.id);
+                setConfirmAction(null);
+              }}
+            >
+              Confirmar
+            </TacticalButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

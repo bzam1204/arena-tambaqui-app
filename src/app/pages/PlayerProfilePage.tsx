@@ -20,6 +20,8 @@ export function PlayerProfilePage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
+  const [editingEntry, setEditingEntry] = useState<FeedEntry | null>(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
 
   useEffect(() => {
     if (id && state.playerId && id === state.playerId) {
@@ -52,6 +54,10 @@ export function PlayerProfilePage() {
     queryFn: () => (id ? playerGateway.getPlayerRank(id) : Promise.resolve({ prestige: null, shame: null })),
     enabled: Boolean(id),
   });
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setPlayerSearchTerm('');
+  };
 
   // Reset scroll when opening a player profile
   useEffect(() => {
@@ -96,12 +102,32 @@ export function PlayerProfilePage() {
     },
   });
 
+  const adminRetract = useMutation({
+    mutationFn: (entryId: string) => feedGateway.adminRetract(entryId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+      await queryClient.invalidateQueries({ queryKey: ['feed', 'target', id] });
+    },
+  });
+
+  const adminRemove = useMutation({
+    mutationFn: (entryId: string) => feedGateway.adminRemove(entryId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+      await queryClient.invalidateQueries({ queryKey: ['feed', 'target', id] });
+    },
+  });
+
+  const adminEdit = useMutation({
+    mutationFn: (payload: { id: string; content: string }) => feedGateway.adminEdit(payload.id, payload.content),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+      await queryClient.invalidateQueries({ queryKey: ['feed', 'target', id] });
+    },
+  });
+
   if (!player && history.length === 0) return <Spinner fullScreen label="carregando perfil" />;
   if (!player) return null;
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setPlayerSearchTerm('');
-  };
   return (
     <>
       <MobilePlayerProfile
@@ -114,6 +140,15 @@ export function PlayerProfilePage() {
           }
         }}
         onRankClick={(kind) => navigate(`/mural/rankings/${kind === 'prestige' ? 'prestigio' : 'vergonha'}`)}
+        isAdmin={state.isAdmin}
+        onAdminRetract={(entryId) => adminRetract.mutate(entryId)}
+        onAdminRemove={(entryId) => adminRemove.mutate(entryId)}
+        onAdminEdit={(entry) => {
+          setPrefillLoading(true);
+          setEditingEntry(entry);
+          setIsModalOpen(true);
+          setTimeout(() => setPrefillLoading(false), 100);
+        }}
         actionsAboveHistory={
           <div className="px-0">
             <button
@@ -144,8 +179,8 @@ export function PlayerProfilePage() {
         players={
           player
             ? [
-              {
-                id: player.id,
+            {
+              id: player.id,
                 name: player.name,
                 nickname: player.nickname,
                 avatar: player.avatar,
@@ -155,11 +190,18 @@ export function PlayerProfilePage() {
         }
         preSelectedPlayerId={player?.id ?? null}
         onSubmit={(data) =>
-          createTransmission.mutate(data, {
-            onSuccess: closeModal,
-          })
+          editingEntry
+            ? adminEdit.mutate(
+                { id: editingEntry.id, content: data.content },
+                {
+                  onSuccess: closeModal,
+                },
+              )
+            : createTransmission.mutate(data, {
+                onSuccess: closeModal,
+              })
         }
-        submitting={createTransmission.isPending}
+        submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
         searchTerm={playerSearchTerm}
         onSearchTermChange={setPlayerSearchTerm}
         isLoading={false}
@@ -168,6 +210,25 @@ export function PlayerProfilePage() {
         pageSize={1}
         total={1}
         onPageChange={() => {}}
+        lockedTarget={
+          editingEntry
+            ? {
+                id: editingEntry.targetId,
+                name: editingEntry.targetName,
+                nickname: editingEntry.targetName,
+                avatar: editingEntry.targetAvatar,
+              }
+            : {
+                id: player.id,
+                name: player.name,
+                nickname: player.nickname,
+                avatar: player.avatar,
+              }
+        }
+        lockedTargetId={editingEntry?.targetId ?? player?.id ?? undefined}
+        lockedType={editingEntry?.type}
+        initialContent={editingEntry?.content}
+        prefillLoading={prefillLoading}
       />
     </>
   );

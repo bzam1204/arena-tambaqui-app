@@ -30,8 +30,10 @@ interface TransmissionModalProps {
   total: number;
   onPageChange: (page: number) => void;
   lockedTargetId?: string | null;
+  lockedTarget?: TransmissionPlayer | null;
   lockedType?: 'report' | 'praise';
   initialContent?: string;
+  prefillLoading?: boolean;
 }
 
 export function TransmissionModal({
@@ -50,26 +52,32 @@ export function TransmissionModal({
   total,
   onPageChange,
   lockedTargetId,
+  lockedTarget,
   lockedType,
   initialContent,
+  prefillLoading = false,
 }: TransmissionModalProps) {
   const [step, setStep] = useState<'select' | 'type' | 'details'>('select');
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
   const [content, setContent] = useState('');
-  const canSearch = searchTerm.trim().length >= minChars;
+  const canSearch = !lockedTargetId && searchTerm.trim().length >= minChars;
   const [, startTransition] = useTransition();
   // Initialize with pre-selected/locked player if provided
   useEffect(() => {
-    if (isOpen && (preSelectedPlayerId || lockedTargetId)) {
+    if (!isOpen) return;
+    if (lockedTarget) {
+      setSelectedTarget(lockedTarget);
+      setStep(lockedType ? 'details' : 'type');
+      return;
+    }
+    if (preSelectedPlayerId || lockedTargetId) {
       const targetId = lockedTargetId || preSelectedPlayerId;
       const player = players.find((p) => p.id === targetId);
-      if (player) {
-        setSelectedTarget(player);
-        setStep(lockedType ? 'details' : 'type');
-      }
+      if (player) setSelectedTarget(player);
+      setStep(lockedType ? 'details' : 'type');
     }
-  }, [isOpen, preSelectedPlayerId, lockedTargetId, players, lockedType]);
+  }, [isOpen, preSelectedPlayerId, lockedTargetId, lockedTarget, players, lockedType]);
 
   // Initialize type/content when locked or provided
   useEffect(() => {
@@ -140,7 +148,12 @@ export function TransmissionModal({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 relative">
+          {prefillLoading ? (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0B0E14]/80">
+              <Spinner />
+            </div>
+          ) : null}
           {/* Security Notice */}
           <div className="bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg p-3 flex items-start gap-3">
             <Lock className="w-4 h-4 text-[#00F0FF] flex-shrink-0 mt-0.5" />
@@ -165,14 +178,15 @@ export function TransmissionModal({
                   onChange={(e) => onSearchTermChange(e.target.value)}
                   disabled={Boolean(lockedTargetId)}
                   placeholder="Buscar..."
-                  className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg pl-10 pr-4 py-2 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                  className={`w-full border rounded-lg pl-10 pr-4 py-2 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors ${lockedTargetId ? 'bg-[#111827] border-[#2D3A52]/50 text-[#7F94B0]' : 'bg-[#141A26] border-[#2D3A52]'
+                    }`}
                 />
               </div>
 
               {/* Player List */}
               {lockedTargetId && selectedTarget ? (
-                <div className="bg-[#141A26] border border-[#00F0FF] rounded-lg p-3 flex items-center gap-3">
-                  <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                <div className="bg-[#0F1729] border border-[#2D3A52] rounded-lg p-3 flex items-center gap-3 opacity-80">
+                  <div className="w-10 h-11 bg-[#2D3A52] clip-hexagon-perfect p-[2px]">
                     <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
                       {selectedTarget.avatar ? (
                         <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
@@ -181,11 +195,11 @@ export function TransmissionModal({
                       )}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-sm text-[#E6F1FF]">{selectedTarget.nickname}</div>
-                    <div className="text-xs text-[#7F94B0] font-mono-technical">{selectedTarget.name}</div>
+                  <div className="flex-1">
+                    <div className="text-sm text-[#9CA3AF]">{selectedTarget.nickname}</div>
+                    <div className="text-xs text-[#6B7280] font-mono-technical">{selectedTarget.name}</div>
                   </div>
-                  <div className="ml-auto text-xs text-[#7F94B0] font-mono-technical">Alvo bloqueado</div>
+                  <div className="ml-auto text-xs text-[#6B7280] font-mono-technical">Alvo bloqueado</div>
                 </div>
               ) : canSearch ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -265,16 +279,18 @@ export function TransmissionModal({
                   <div className="text-sm text-[#E6F1FF]">{selectedTarget?.nickname}</div>
                   <div className="text-xs text-[#7F94B0] font-mono-technical">{selectedTarget?.name}</div>
                 </div>
-                <button
-                  onClick={() => {
-                    setSelectedTarget(null);
-                    setStep('select');
-                    setReportType(null);
-                  }}
-                  className="text-[#FF6B00] hover:text-[#FF6B00]/80 font-mono-technical text-xs"
-                >
-                  [ TROCAR ]
-                </button>
+                {!lockedTarget && !lockedTargetId && (
+                  <button
+                    onClick={() => {
+                      setSelectedTarget(null);
+                      setStep('select');
+                      setReportType(null);
+                    }}
+                    className="text-[#FF6B00] hover:text-[#FF6B00]/80 font-mono-technical text-xs"
+                  >
+                    [ TROCAR ]
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -285,7 +301,7 @@ export function TransmissionModal({
               <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                 Tipo de Transmissão
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid grid-cols-2 gap-3 ${lockedType ? 'opacity-60' : ''}`}>
                 <div className='container-arrow'>
                   {reportType === 'report' && (<> <svg className='arrow-up ambar-arrow' width="24" height="23" viewBox="0 0 24 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2.41422 22H22.4142V2L2.41422 22Z" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />

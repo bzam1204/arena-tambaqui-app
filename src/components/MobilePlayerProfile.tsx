@@ -24,6 +24,10 @@ interface MobilePlayerProfileProps {
   onRetract?: (entryId: string) => void;
   actionsAboveHistory?: React.ReactNode;
   onRankClick?: (kind: 'prestige' | 'shame') => void;
+  isAdmin?: boolean;
+  onAdminEdit?: (entry: FeedEntry) => void;
+  onAdminRetract?: (id: string) => void;
+  onAdminRemove?: (id: string) => void;
 }
 
 export function MobilePlayerProfile({
@@ -34,6 +38,10 @@ export function MobilePlayerProfile({
   onRetract,
   actionsAboveHistory,
   onRankClick,
+  isAdmin = false,
+  onAdminEdit,
+  onAdminRetract,
+  onAdminRemove,
 }: MobilePlayerProfileProps) {
   const hexToRgba = (hex: string, alpha: number) => {
     const clean = hex.replace('#', '');
@@ -314,7 +322,14 @@ export function MobilePlayerProfile({
           {player.history.length > 0 ? (
             player.history.map((entry) => (
               <div key={entry.id} className="relative">
-                <MobileFeedCard entry={entry} onTargetClick={onTargetClick} />
+                <MobileFeedCard
+                  entry={entry}
+                  onTargetClick={onTargetClick}
+                  isAdmin={isAdmin}
+                  onEdit={onAdminEdit ? () => onAdminEdit(entry) : undefined}
+                  onRetract={onAdminRetract}
+                  onRemove={onAdminRemove}
+                />
                 {isOwnProfile && entry.type === 'report' && !entry.isRetracted && onRetract && (
                   <div className="absolute z-50 top-2 right-2">
                     <button

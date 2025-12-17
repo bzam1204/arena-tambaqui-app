@@ -32,6 +32,7 @@ export function FeedPage({ isLoggedIn }: Props) {
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [modalPage, setModalPage] = useState(1);
   const [editingEntry, setEditingEntry] = useState<FeedEntry | null>(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
   const navigate = useNavigate();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const minSearchChars = 0;
@@ -62,6 +63,7 @@ export function FeedPage({ isLoggedIn }: Props) {
     setPlayerSearchTerm('');
     setModalPage(1);
     setEditingEntry(null);
+    setPrefillLoading(false);
   };
 
   const {
@@ -102,15 +104,15 @@ export function FeedPage({ isLoggedIn }: Props) {
     },
   });
   const adminRetractAny = useMutation({
-    mutationFn: (entryId: string) => txGateway.adminRetract(entryId),
+    mutationFn: (entryId: string) => feedGateway.adminRetract(entryId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
   });
   const adminRemove = useMutation({
-    mutationFn: (entryId: string) => txGateway.adminRemove(entryId),
+    mutationFn: (entryId: string) => feedGateway.adminRemove(entryId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
   });
   const adminEdit = useMutation({
-    mutationFn: (payload: { id: string; content: string }) => txGateway.adminEdit(payload.id, payload.content),
+    mutationFn: (payload: { id: string; content: string }) => feedGateway.adminEdit(payload.id, payload.content),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
   });
 
@@ -164,9 +166,11 @@ export function FeedPage({ isLoggedIn }: Props) {
                   },
                 })
               }
-              onEdit={(id) => {
+              onEdit={(entry) => {
+                setPrefillLoading(true);
                 setEditingEntry(entry);
                 setIsModalOpen(true);
+                setTimeout(() => setPrefillLoading(false), 150);
               }}
             />
           ))
@@ -232,8 +236,19 @@ export function FeedPage({ isLoggedIn }: Props) {
             total={totalPlayers}
             onPageChange={setModalPage}
             lockedTargetId={editingEntry?.targetId ?? undefined}
+            lockedTarget={
+              editingEntry
+                ? {
+                    id: editingEntry.targetId,
+                    name: editingEntry.targetName,
+                    nickname: editingEntry.targetName,
+                    avatar: editingEntry.targetAvatar,
+                  }
+                : undefined
+            }
             lockedType={editingEntry?.type ?? undefined}
             initialContent={editingEntry?.content ?? undefined}
+            prefillLoading={prefillLoading}
           />
         </Suspense>
       ) : null}

@@ -27,12 +27,12 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
 
       {/* Logo/Shield Icon */}
       <div className="relative mb-8">
-        <div className="w-24 h-[100px] bg-[#00F0FF] clip-hexagon-perfect p-[3px]">
+        <div className="w-30 h-32 bg-[#00F0FF] clip-hexagon-perfect p-[3px]">
           <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-            <Shield className="w-12 h-12 text-[#00F0FF]" />
+            <img src="./android-chrome-512x512.png" alt="arena tambaqui logo" />
           </div>
         </div>
-        <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-20 clip-hexagon-perfect" />
+        {/* <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-5 clip-hexagon-perfect" /> */}
       </div>
 
       {/* Title */}
@@ -40,7 +40,7 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
         <h1 className="text-3xl mb-2 text-[#E6F1FF] tracking-wider">
           ARENA TAMBAQUI
         </h1>
-        <div className="h-[2px] w-32 mx-auto bg-gradient-to-r from-transparent via-[#00F0FF] to-transparent mb-4" />
+        <div className="h-[2px] w-32 mx-auto bg-linear-to-r from-transparent via-[#00F0FF] to-transparent mb-4" />
         <p className="text-sm text-[#7F94B0] font-mono-technical uppercase">
           Protocolo Sombra // v2.0
         </p>
