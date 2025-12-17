@@ -7,11 +7,17 @@ import { calculateReputation } from '@/domain/reputation';
 export class SupabasePlayerGateway implements PlayerGateway {
   private readonly supabase = getSupabaseClient();
   private readonly table = 'players';
+  private readonly selectColumns =
+    'id,nickname,praise_count,report_count,reputation,history, users:users!inner(full_name,avatar)';
+  private escapeIlike(term: string) {
+    // Escape Postgres ilike wildcards and delimiters used by PostgREST OR clause
+    return term.replace(/[%_,]/g, (c) => `\\${c}`);
+  }
 
   async getPlayer(id: string): Promise<Player | null> {
     const { data, error } = await this.supabase
       .from(this.table)
-      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
+      .select(this.selectColumns)
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
@@ -21,7 +27,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
   async listPlayers(): Promise<Player[]> {
     const { data, error } = await this.supabase
       .from(this.table)
-      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)');
+      .select(this.selectColumns);
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
@@ -33,7 +39,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const to = from + pageSize - 1;
     const { data, error } = await this.supabase
       .from(this.table)
-      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
+      .select(this.selectColumns)
       .order(sortField, { ascending: false })
       .range(from, to);
     if (error) throw error;
@@ -41,12 +47,34 @@ export class SupabasePlayerGateway implements PlayerGateway {
   }
 
   async searchPlayers(term: string): Promise<Player[]> {
+    const pattern = `%${this.escapeIlike(term)}%`;
     const { data, error } = await this.supabase
       .from(this.table)
-      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
-      .or(`nickname.ilike.%${term}%,users.full_name.ilike.%${term}%`);
+      .select(this.selectColumns)
+      .or(`nickname.ilike.${pattern},users(full_name.ilike.${pattern})`);
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
+  }
+
+  async searchPlayersPaged(params: { term: string; page: number; pageSize: number }): Promise<{ players: Player[]; total: number }> {
+    const from = params.page * params.pageSize;
+    const to = from + params.pageSize - 1;
+    const term = params.term?.trim() ?? '';
+    const query = this.supabase
+    .from('player_search_view') // Query the view instead
+    .select(this.selectColumns, { count: 'exact' })
+      .order('nickname', { ascending: true })
+      .range(from, to);
+    if (term) {
+      const pattern = `%${this.escapeIlike(term)}%`;
+      query.or(`nickname.ilike.${pattern},full_name.ilike.${pattern}`);
+    }
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return {
+      players: (data || []).map((row) => this.mapPlayer(row) as Player),
+      total: typeof count === 'number' ? count : data?.length ?? 0,
+    };
   }
 
   private mapPlayer(row: any): Player {

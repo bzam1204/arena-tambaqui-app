@@ -39,6 +39,16 @@ export class MockPlayerGateway implements PlayerGateway {
       .map((p) => ({ ...p }));
   }
 
+  async searchPlayersPaged(params: { term: string; page: number; pageSize: number }): Promise<{ players: Player[]; total: number }> {
+    const lower = params.term.toLowerCase();
+    const filtered = Object.values(this.players).filter(
+      (p) => !params.term || p.nickname.toLowerCase().includes(lower) || p.name.toLowerCase().includes(lower),
+    );
+    const start = params.page * params.pageSize;
+    const slice = filtered.slice(start, start + params.pageSize).map((p) => ({ ...p }));
+    return { players: slice, total: filtered.length };
+  }
+
   updateStats(id: string, praiseCount: number, reportCount: number) {
     const player = this.players[id];
     if (!player) return;

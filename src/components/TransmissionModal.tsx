@@ -20,14 +20,37 @@ interface TransmissionModalProps {
     content: string;
   }) => void;
   onSuccess: () => void;
+  searchTerm: string;
+  onSearchTermChange: (term: string) => void;
+  isLoading?: boolean;
+  minChars?: number;
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
 }
 
-export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerId, onSubmit, onSuccess }: TransmissionModalProps) {
+export function TransmissionModal({
+  isOpen,
+  onClose,
+  players,
+  preSelectedPlayerId,
+  onSubmit,
+  onSuccess,
+  searchTerm,
+  onSearchTermChange,
+  isLoading,
+  minChars = 2,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+}: TransmissionModalProps) {
   const [step, setStep] = useState<'select' | 'type' | 'details'>('select');
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
   const [content, setContent] = useState('');
+  const canSearch = searchTerm.trim().length >= minChars;
   // Initialize with pre-selected player if provided
   useEffect(() => {
     if (isOpen && preSelectedPlayerId) {
@@ -43,7 +66,6 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
   useEffect(() => {
     if (!isOpen) {
       setStep('select');
-      setSearchTerm('');
       setSelectedTarget(null);
       setReportType(null);
       setContent('');
@@ -51,11 +73,6 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const filteredPlayers = players.filter(p =>
-    p.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleSelectPlayer = (player: TransmissionPlayer) => {
     setSelectedTarget(player);
@@ -121,36 +138,71 @@ export function TransmissionModal({ isOpen, onClose, players, preSelectedPlayerI
                 <input
                   type="text"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => onSearchTermChange(e.target.value)}
                   placeholder="Buscar..."
                   className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg pl-10 pr-4 py-2 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
                 />
               </div>
 
               {/* Player List */}
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {filteredPlayers.map((player) => (
-                  <button
-                    key={player.id}
-                    onClick={() => handleSelectPlayer(player)}
-                    className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
-                  >
-                    <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                      <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                        {player.avatar ? (
-                          <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                        ) : (
-                          <User className="w-5 h-5 text-[#7F94B0]" />
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
-                      <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {canSearch ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {isLoading ? (
+                    <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Buscando operadores...</div>
+                  ) : players.length ? (
+                    players.map((player) => (
+                      <button
+                        key={player.id}
+                        onClick={() => handleSelectPlayer(player)}
+                        className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
+                      >
+                        <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                          <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                            {player.avatar ? (
+                              <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
+                            ) : (
+                              <User className="w-5 h-5 text-[#7F94B0]" />
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
+                          <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Nenhum operador encontrado</div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
+              Digite ao menos {minChars} caracteres para buscar
+            </div>
+          )}
+
+          {/* Pagination */}
+          {canSearch && total > pageSize ? (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => onPageChange(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+              >
+                {'<'}
+              </button>
+              <span className="text-xs font-mono-technical text-[#7F94B0]">
+                {page} / {Math.max(1, Math.ceil(total / pageSize))}
+              </span>
+              <button
+                onClick={() => onPageChange(Math.min(Math.max(1, Math.ceil(total / pageSize)), page + 1))}
+                disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
+                className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+              >
+                {'>'}
+              </button>
+            </div>
+          ) : null}
             </div>
           ) : (
             <div>

@@ -28,6 +28,7 @@ export interface PlayerGateway {
   listPlayers(): Promise<Player[]>;
   listPlayersPaged(params: { page: number; pageSize?: number; kind?: 'prestige' | 'shame' }): Promise<Player[]>;
   searchPlayers(term: string): Promise<Player[]>;
+  searchPlayersPaged(params: { term: string; page: number; pageSize: number }): Promise<{ players: Player[]; total: number }>;
   getPlayerRank(playerId: string): Promise<{ prestige: number | null; shame: number | null }>;
 }
 

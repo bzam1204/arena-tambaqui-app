@@ -28,8 +28,18 @@ export function FeedPage({ isLoggedIn }: Props) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [preSelectedPlayerId, setPreSelectedPlayerId] = useState<string | null>(null);
+  const [playerSearchInput, setPlayerSearchInput] = useState('');
+  const [playerSearchTerm, setPlayerSearchTerm] = useState('');
+  const [modalPage, setModalPage] = useState(1);
   const navigate = useNavigate();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const minSearchChars = 0;
+  const modalPageSize = 20;
+
+  useEffect(() => {
+    const id = setTimeout(() => setPlayerSearchTerm(playerSearchInput), 250);
+    return () => clearTimeout(id);
+  }, [playerSearchInput]);
 
   const {
     data: feedPages,
@@ -45,11 +55,17 @@ export function FeedPage({ isLoggedIn }: Props) {
 
   const feed = feedPages?.pages.flatMap((p) => p) ?? [];
 
-  const { data: players = [], isLoading: playersLoading } = useQuery({
-    queryKey: ['players'],
-    queryFn: () => playerGateway.listPlayers(),
-    enabled: isModalOpen,
+  const {
+    data: modalPlayersResult,
+    isLoading: playersLoading,
+    isFetching: playersFetching,
+  } = useQuery({
+    queryKey: ['players-search', playerSearchTerm, modalPage],
+    queryFn: () => playerGateway.searchPlayersPaged({ term: playerSearchTerm, page: modalPage - 1, pageSize: modalPageSize }),
+    enabled: isModalOpen && playerSearchTerm.trim().length >= minSearchChars,
   });
+  const players = modalPlayersResult?.players ?? [];
+  const totalPlayers = modalPlayersResult?.total ?? 0;
 
   const createTransmission = useMutation({
     mutationFn: async (data: { targetId: string; type: 'report' | 'praise'; content: string }) => {
@@ -117,6 +133,9 @@ export function FeedPage({ isLoggedIn }: Props) {
             navigate(state.userId ? '/onboarding' : '/auth');
             return;
           }
+          setPlayerSearchInput('');
+          setPlayerSearchTerm('');
+          setModalPage(1);
           setIsModalOpen(true);
         }}
         className="fixed bottom-24 right-6 w-14 h-14 bg-[#D4A536] rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,165,54,0.6)] hover:shadow-[0_0_30px_rgba(212,165,54,0.8)] transition-all z-40 hover:scale-110"
@@ -128,7 +147,12 @@ export function FeedPage({ isLoggedIn }: Props) {
         <Suspense fallback={<Spinner label="carregando interface" />}>
           <TransmissionModal
             isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
+            onClose={() => {
+              setIsModalOpen(false);
+              setPlayerSearchInput('');
+              setPlayerSearchTerm('');
+              setModalPage(1);
+            }}
             players={players
               .filter((p) => p.id !== state.playerId)
               .map(
@@ -143,7 +167,21 @@ export function FeedPage({ isLoggedIn }: Props) {
             onSubmit={(data) => createTransmission.mutate(data)}
             onSuccess={async () => {
               setIsModalOpen(false);
+              setPlayerSearchInput('');
+              setPlayerSearchTerm('');
+              setModalPage(1);
             }}
+            searchTerm={playerSearchInput}
+            onSearchTermChange={(term) => {
+              setPlayerSearchInput(term);
+              setModalPage(1);
+            }}
+            isLoading={(playersLoading || playersFetching) && playerSearchTerm.trim().length >= minSearchChars}
+            minChars={minSearchChars}
+            page={modalPage}
+            pageSize={modalPageSize}
+            total={totalPlayers}
+            onPageChange={setModalPage}
           />
         </Suspense>
       ) : null}

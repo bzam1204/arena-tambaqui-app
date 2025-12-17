@@ -19,6 +19,7 @@ export function PlayerProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [playerSearchTerm, setPlayerSearchTerm] = useState('');
 
   useEffect(() => {
     if (id && state.playerId && id === state.playerId) {
@@ -121,6 +122,7 @@ export function PlayerProfilePage() {
                   navigate('/onboarding');
                   return;
                 }
+                setPlayerSearchTerm(player?.nickname ?? '');
                 setIsModalOpen(true);
               }}
               className="w-full bg-[#D4A536] text-[#0B0E14] font-mono-technical uppercase py-3 rounded-lg shadow-[0_0_20px_rgba(212,165,54,0.5)]"
@@ -134,7 +136,10 @@ export function PlayerProfilePage() {
       {isFetchingNextPage && <Spinner label="carregando histórico" />}
       <TransmissionModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setPlayerSearchTerm('');
+        }}
         players={
           player
             ? [
@@ -149,7 +154,18 @@ export function PlayerProfilePage() {
         }
         preSelectedPlayerId={player?.id ?? null}
         onSubmit={(data) => createTransmission.mutate(data)}
-        onSuccess={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          setPlayerSearchTerm('');
+        }}
+        searchTerm={playerSearchTerm}
+        onSearchTermChange={setPlayerSearchTerm}
+        isLoading={false}
+        minChars={0}
+        page={1}
+        pageSize={1}
+        total={1}
+        onPageChange={() => {}}
       />
     </>
   );
