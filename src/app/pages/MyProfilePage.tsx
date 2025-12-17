@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
@@ -16,6 +17,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const profileGateway = Inject<ProfileGateway>(TkProfileGateway);
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const queryClient = useQueryClient();
+  const [retractingId, setRetractingId] = useState<string | null>(null);
 
   const { data: player } = useQuery({
     queryKey: ['player', playerId],
@@ -36,7 +38,9 @@ export function MyProfilePage({ userId, playerId }: Props) {
   });
   const retractMutation = useMutation({
     mutationFn: (entryId: string) => feedGateway.retract(entryId, playerId),
-    onSuccess: async () => {
+    onMutate: (entryId) => setRetractingId(entryId),
+    onSettled: async () => {
+      setRetractingId(null);
       await queryClient.invalidateQueries({ queryKey: ['feed', 'submitter', playerId] });
       await queryClient.invalidateQueries({ queryKey: ['player', playerId] });
       await queryClient.invalidateQueries({ queryKey: ['players'] });
@@ -66,6 +70,8 @@ export function MyProfilePage({ userId, playerId }: Props) {
       onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
       isSaving={updateProfile.isPending}
       onRetract={(id) => retractMutation.mutate(id)}
+      isRetracting={retractMutation.isPending}
+      retractingId={retractingId}
     />
   );
 }

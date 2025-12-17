@@ -28,6 +28,8 @@ interface MobilePlayerProfileProps {
   onProfileUpdate?: (data: { name: string; nickname: string; avatar?: File | string | null }) => Promise<unknown> | void;
   isSaving?: boolean;
   onRetract?: (entryId: string) => void;
+  isRetracting?: boolean;
+  retractingId?: string | null;
   actionsAboveHistory?: React.ReactNode;
   onRankClick?: (kind: 'prestige' | 'shame') => void;
   isAdmin?: boolean;
@@ -42,6 +44,8 @@ export function MobilePlayerProfile({
   isOwnProfile = false,
   onProfileUpdate,
   onRetract,
+  isRetracting = false,
+  retractingId = null,
   actionsAboveHistory,
   onRankClick,
   isAdmin = false,
@@ -70,6 +74,7 @@ export function MobilePlayerProfile({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
@@ -190,7 +195,8 @@ export function MobilePlayerProfile({
   };
 
   return (
-    <div className="p-6 !pt-10 space-y-6">
+    <>
+      <div className="p-6 !pt-10 space-y-6">
       {/* Player Card */}
       <div>
         {/* Edit Button (Top Right) */}
@@ -482,10 +488,15 @@ export function MobilePlayerProfile({
                 {isOwnProfile && entry.type === 'report' && !entry.isRetracted && onRetract && (
                   <div className="absolute z-50 top-2 right-2">
                     <button
-                      onClick={() => onRetract(entry.id)}
-                      className="text-xs font-mono-technical text-[#FF6B00] hover:text-[#FF8C33] border border-[#FF6B00]/40 rounded px-2 py-1 bg-[#0B0E14]/80"
+                      onClick={() => setConfirmRetractId(entry.id)}
+                      disabled={isRetracting}
+                      className="text-xs font-mono-technical text-[#FF6B00] hover:text-[#FF8C33] border border-[#FF6B00]/40 rounded px-2 py-1 bg-[#0B0E14]/80 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      [ RETRATAR ]
+                      {isRetracting && retractingId === entry.id ? (
+                        <Spinner inline size="sm" label="retratando" />
+                      ) : (
+                        '[ RETRATAR ]'
+                      )}
                     </button>
                   </div>
                 )}
@@ -499,5 +510,36 @@ export function MobilePlayerProfile({
         </div>
       </div>
     </div>
+
+      <Dialog open={Boolean(confirmRetractId)} onOpenChange={(open) => !open && setConfirmRetractId(null)}>
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">
+              Retratar transmissão?
+            </DialogTitle>
+            <DialogDescription className="text-[#7F94B0]">
+              Essa ação removerá seu relato. Confirme para continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-end gap-3">
+            <TacticalButton variant="cyan" onClick={() => setConfirmRetractId(null)} disabled={isRetracting}>
+              Cancelar
+            </TacticalButton>
+            <TacticalButton
+              variant="amber"
+              disabled={isRetracting}
+              onClick={() => {
+                if (confirmRetractId && onRetract) {
+                  onRetract(confirmRetractId);
+                }
+                setConfirmRetractId(null);
+              }}
+            >
+              {isRetracting ? <Spinner inline size="sm" label="retratando" /> : 'Confirmar'}
+            </TacticalButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
