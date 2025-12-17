@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, User, FileText, CreditCard, Check, Camera, Upload } from 'lucide-react';
 import Cropper, { type Area } from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
@@ -10,14 +10,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 interface ProfileCompletionStepperProps {
   onComplete: (data: { nickname: string; name: string; cpf: string; photo: File | null }) => void;
   submitting?: boolean;
+  onCheckCpfExists?: (cpf: string) => Promise<boolean>;
 }
 
-export function ProfileCompletionStepper({ onComplete, submitting = false }: ProfileCompletionStepperProps) {
+export function ProfileCompletionStepper({ onComplete, submitting = false, onCheckCpfExists }: ProfileCompletionStepperProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [nickname, setNickname] = useState('');
   const [name, setName] = useState('');
   const [cpf, setCpf] = useState('');
   const [cpfError, setCpfError] = useState('');
+  const [cpfExistsError, setCpfExistsError] = useState('');
+  const [checkingCpf, setCheckingCpf] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [sourcePhoto, setSourcePhoto] = useState<File | null>(null);
@@ -45,6 +48,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   };
 
   const cpfDigits = useMemo(() => cpf.replace(/\D/g, ''), [cpf]);
+  const cpfCheckSeq = useRef(0);
 
   const isCpfValid = (value = cpfDigits) => {
     try {
@@ -72,7 +76,34 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
     } else {
       setCpfError('');
     }
+    setCpfExistsError('');
   };
+
+  useEffect(() => {
+    if (!onCheckCpfExists) return;
+    if (cpfDigits.length !== 11 || cpfError || !isCpfValid(cpfDigits)) {
+      setCpfExistsError('');
+      setCheckingCpf(false);
+      return;
+    }
+    const seq = ++cpfCheckSeq.current;
+    setCheckingCpf(true);
+    const timer = setTimeout(() => {
+      onCheckCpfExists(cpfDigits)
+        .then((exists) => {
+          if (seq !== cpfCheckSeq.current) return;
+          setCpfExistsError(exists ? 'CPF já cadastrado' : '');
+        })
+        .catch(() => {
+          if (seq !== cpfCheckSeq.current) return;
+          setCpfExistsError('Falha ao verificar CPF');
+        })
+        .finally(() => {
+          if (seq === cpfCheckSeq.current) setCheckingCpf(false);
+        });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [cpfDigits, cpfError, onCheckCpfExists]);
 
   const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
     setCroppedAreaPixels(areaPixels);
@@ -117,7 +148,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   const canProceed = () => {
     if (currentStep === 1) return nickname.trim().length >= 3;
     if (currentStep === 2) return name.trim().length >= 3;
-    if (currentStep === 3) return cpfDigits.length === 11 && isCpfValid();
+    if (currentStep === 3) return cpfDigits.length === 11 && isCpfValid() && !cpfError && !cpfExistsError && !checkingCpf;
     if (currentStep === 4) return photo !== null;
     return false;
   };
@@ -166,7 +197,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   const handleNext = async () => {
     if (submitting) return;
     if (currentStep < 4) {
-      if (currentStep === 3 && !isCpfValid()) {
+      if (currentStep === 3 && (!isCpfValid() || cpfError || cpfExistsError || checkingCpf)) {
         setCpfError('CPF inválido');
         return;
       }
@@ -357,15 +388,20 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
                         onChange={handleCPFChange}
                         placeholder="000.000.000-00"
                         maxLength={14}
-                        className={`w-full bg-[#0B0E14] border rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:outline-none transition-colors ${cpfError
+                        className={`w-full bg-[#0B0E14] border rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:outline-none transition-colors ${cpfError || cpfExistsError
                           ? 'border-[#D4A536] focus:border-[#D4A536]'
                           : 'border-[#2D3A52] focus:border-[#00F0FF]'
                           }`}
-                        aria-invalid={cpfError ? 'true' : 'false'}
+                        aria-invalid={cpfError || cpfExistsError ? 'true' : 'false'}
                         autoFocus
                       />
-                      {cpfError ? (
-                        <p className="text-xs text-[#D4A536] font-mono-technical mt-2">{cpfError}</p>
+                      {cpfError || cpfExistsError ? (
+                        <p className="text-xs text-[#D4A536] font-mono-technical mt-2">
+                          {cpfError || cpfExistsError}
+                        </p>
+                      ) : null}
+                      {checkingCpf ? (
+                        <p className="text-xs text-[#7F94B0] font-mono-technical mt-2">Validando CPF...</p>
                       ) : null}
                       <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
                         Seus dados são criptografados e protegidos

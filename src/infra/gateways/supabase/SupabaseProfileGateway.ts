@@ -9,6 +9,17 @@ export class SupabaseProfileGateway implements ProfileGateway {
   private readonly playersTable = 'players';
   private readonly avatarBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'avatars';
 
+  async checkCpfExists(cpf: string): Promise<boolean> {
+    const { data, error } = await this.supabase
+      .from(this.usersTable)
+      .select('id')
+      .eq('cpf', cpf)
+      .limit(1)
+      .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    return Boolean(data?.id);
+  }
+
   async isOnboarded(userId: string): Promise<OnboardingStatus> {
     const { data: player, error } = await this.supabase.from(this.playersTable).select('id').eq('user_id', userId).maybeSingle();
     if (error) throw error;
@@ -18,6 +29,18 @@ export class SupabaseProfileGateway implements ProfileGateway {
   }
 
   async completeProfile(userId: string, input: CompleteProfileInput): Promise<string> {
+    const { data: existingCpf, error: cpfError } = await this.supabase
+      .from(this.usersTable)
+      .select('id')
+      .eq('cpf', input.cpf)
+      .neq('id', userId)
+      .limit(1)
+      .maybeSingle();
+    if (cpfError && cpfError.code !== 'PGRST116') throw cpfError;
+    if (existingCpf?.id) {
+      throw new Error('CPF já cadastrado.');
+    }
+
     const avatarUrl = input.photo ? await this.uploadAvatar(userId, input.photo) : undefined;
     const { error } = await this.supabase.from(this.usersTable).upsert({
       id: userId,

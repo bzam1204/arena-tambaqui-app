@@ -15,6 +15,13 @@ begin
   if to_regclass('public.users') is not null then
     execute 'truncate table public.users restart identity cascade';
   end if;
+  if to_regclass('public.users') is not null then
+    perform 1 from pg_constraint where conname = 'users_cpf_key';
+    if found then
+      execute 'alter table public.users drop constraint users_cpf_key';
+    end if;
+    execute 'alter table public.users add constraint users_cpf_key unique (cpf)';
+  end if;
 end$$;
 
 -- Insert users and players

@@ -19,6 +19,7 @@ export interface OnboardingStatus {
 
 export interface ProfileGateway {
   isOnboarded(userId: string): Promise<OnboardingStatus>;
+  checkCpfExists(cpf: string): Promise<boolean>;
   completeProfile(userId: string, input: CompleteProfileInput): Promise<string>;
   updateProfile(userId: string, input: UpdateProfileInput): Promise<void>;
 }
