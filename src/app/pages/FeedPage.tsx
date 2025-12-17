@@ -143,7 +143,7 @@ export function FeedPage({ isLoggedIn }: Props) {
         <h2 className="text-sm font-mono-technical tracking-wider uppercase text-[#7F94B0] mb-4">
           Registro Global
         </h2>
-        {feedLoading ? (
+        {feedLoading || playersLoading ? (
           <Spinner label="carregando feed" />
         ) : (
           feed.map((entry) => (
@@ -257,7 +257,6 @@ export function FeedPage({ isLoggedIn }: Props) {
       {!hasNextPage && feed.length > 0 && (
         <div className="py-4 text-center text-xs text-[#7F94B0] font-mono-technical">[ fim do mural ]</div>
       )}
-      {(playersLoading || feedLoading) && feed.length === 0 && <Spinner label="sincronizando dados" />}
     </div>
   );
 }

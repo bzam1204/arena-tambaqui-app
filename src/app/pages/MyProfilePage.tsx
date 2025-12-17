@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
@@ -18,6 +19,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const queryClient = useQueryClient();
   const [retractingId, setRetractingId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const { data: player } = useQuery({
     queryKey: ['player', playerId],
@@ -63,9 +65,9 @@ export function MyProfilePage({ userId, playerId }: Props) {
       player={{ ...player, history, rankPrestige: ranks?.prestige ?? null, rankShame: ranks?.shame ?? null }}
       onTargetClick={(targetId) => {
         if (targetId === playerId) return;
-        window.history.pushState({}, '', `/player/${targetId}`);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        navigate(`/player/${targetId}`);
       }}
+      onRankClick={(kind) => navigate(`/mural/rankings/${kind === 'prestige' ? 'prestigio' : 'vergonha'}`)}
       isOwnProfile
       onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
       isSaving={updateProfile.isPending}

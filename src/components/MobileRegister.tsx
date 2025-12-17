@@ -10,10 +10,7 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
 
   const handleGoogleSignIn = () => {
     setIsLoading(true);
-    // Simulate Google OAuth delay
-    setTimeout(() => {
-      onGoogleSignIn();
-    }, 1500);
+    onGoogleSignIn();
   };
 
   return (
@@ -77,12 +74,12 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
                 {isLoading ? '[ CONECTANDO... ]' : '[ENTRAR COM GOOGLE]'}
               </span>
             </div>
-            
+
             {/* Glow Effect */}
             {!isLoading && (
               <div className="absolute inset-0 bg-[#00F0FF] opacity-0 group-hover:opacity-10 transition-opacity" />
             )}
-            
+
             {/* Loading Animation */}
             {isLoading && (
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#00F0FF]/30 overflow-hidden">
@@ -113,7 +110,7 @@ export function MobileRegister({ onGoogleSignIn }: MobileRegisterProps) {
       {/* Footer Notice */}
       <div className="mt-8 text-center max-w-md">
         <p className="text-xs text-[#7F94B0] font-mono-technical leading-relaxed">
-          Ao criar uma conta, você concorda em manter a integridade<br/>
+          Ao criar uma conta, você concorda em manter a integridade<br />
           do esporte airsoft e reportar apenas informações verdadeiras.
         </p>
       </div>

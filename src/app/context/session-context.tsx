@@ -88,7 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const value: SessionContextValue = {
-    state: {...state, isCompleteProfile: true},
+    state,
     loading,
     login,
     logout,
