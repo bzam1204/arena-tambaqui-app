@@ -12,7 +12,6 @@ export interface PlayerData {
   id: string;
   name: string;
   nickname: string;
-  cpf?: string;
   avatar?: string;
   reputation: number; // 0-10
   reportCount: number;
@@ -71,11 +70,6 @@ export function MobilePlayerProfile({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-  const formatCpf = useCallback((value?: string) => {
-    const digits = (value ?? '').replace(/\D/g, '');
-    if (digits.length !== 11) return 'CPF não disponível';
-    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
-  }, []);
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
@@ -302,21 +296,6 @@ export function MobilePlayerProfile({
                   ) : null}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* CPF - Disabled */}
-          {isEditing && (
-            <div className="w-full mb-4">
-              <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
-                CPF (Não Editável)
-              </label>
-              <input
-                type="text"
-                value={formatCpf(player.cpf)}
-                disabled
-                className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#7F94B0] text-center font-mono-technical text-sm cursor-not-allowed opacity-60"
-              />
             </div>
           )}
 
