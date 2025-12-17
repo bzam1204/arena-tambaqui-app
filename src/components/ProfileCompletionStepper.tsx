@@ -5,7 +5,7 @@ import 'react-easy-crop/react-easy-crop.css';
 import { Cpf } from '@/domain/Cpf';
 import { Spinner } from './Spinner';
 import { Slider } from './ui/slider';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface ProfileCompletionStepperProps {
   onComplete: (data: { nickname: string; name: string; cpf: string; photo: File | null }) => void;
@@ -481,6 +481,9 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
             <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
               [ RECORTAR FOTO ]
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Ajuste o corte e o zoom para salvar a nova foto de perfil.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
