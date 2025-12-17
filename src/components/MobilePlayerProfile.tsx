@@ -1,12 +1,18 @@
+import { useCallback, useEffect, useState } from 'react';
 import { User, AlertTriangle, Award, Edit, X, Check } from 'lucide-react';
-import { MobileFeedCard, FeedEntry } from './MobileFeedCard';
-import { useState } from 'react';
+import Cropper, { type Area } from 'react-easy-crop';
+import 'react-easy-crop/react-easy-crop.css';
+import { MobileFeedCard, type FeedEntry } from './MobileFeedCard';
 import { TacticalButton } from './TacticalButton';
+import { Slider } from './ui/slider';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { Spinner } from './Spinner';
 
 export interface PlayerData {
   id: string;
   name: string;
   nickname: string;
+  cpf?: string;
   avatar?: string;
   reputation: number; // 0-10
   reportCount: number;
@@ -20,7 +26,8 @@ interface MobilePlayerProfileProps {
   player: PlayerData;
   onTargetClick: (targetId: string) => void;
   isOwnProfile?: boolean;
-  onProfileUpdate?: (data: { name: string; nickname: string; avatar?: string }) => void;
+  onProfileUpdate?: (data: { name: string; nickname: string; avatar?: File | string | null }) => Promise<unknown> | void;
+  isSaving?: boolean;
   onRetract?: (entryId: string) => void;
   actionsAboveHistory?: React.ReactNode;
   onRankClick?: (kind: 'prestige' | 'shame') => void;
@@ -42,6 +49,7 @@ export function MobilePlayerProfile({
   onAdminEdit,
   onAdminRetract,
   onAdminRemove,
+  isSaving = false,
 }: MobilePlayerProfileProps) {
   const hexToRgba = (hex: string, alpha: number) => {
     const clean = hex.replace('#', '');
@@ -57,6 +65,17 @@ export function MobilePlayerProfile({
   const [editNickname, setEditNickname] = useState(player.nickname);
   const [editAvatar, setEditAvatar] = useState(player.avatar);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [rawPhoto, setRawPhoto] = useState<File | null>(null);
+  const [rawPhotoPreview, setRawPhotoPreview] = useState('');
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const formatCpf = useCallback((value?: string) => {
+    const digits = (value ?? '').replace(/\D/g, '');
+    if (digits.length !== 11) return 'CPF não disponível';
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+  }, []);
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
@@ -71,18 +90,82 @@ export function MobilePlayerProfile({
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setAvatarFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditAvatar(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setRawPhoto(file);
+      const previewUrl = URL.createObjectURL(file);
+      setRawPhotoPreview(previewUrl);
+      setCropperOpen(true);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
     }
   };
 
-  const handleSave = () => {
+  const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  const getCroppedPhoto = useCallback(async (): Promise<File | null> => {
+    if (!rawPhoto || !rawPhotoPreview || !croppedAreaPixels) return rawPhoto ?? null;
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = rawPhotoPreview;
+    });
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return rawPhoto;
+
+    canvas.width = croppedAreaPixels.width;
+    canvas.height = croppedAreaPixels.height;
+
+    context.drawImage(
+      image,
+      croppedAreaPixels.x,
+      croppedAreaPixels.y,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+      0,
+      0,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) return resolve(rawPhoto);
+        const baseName = rawPhoto.name.replace(/\.[^.]+$/, '');
+        const file = new File([blob], `${baseName}-cropped.jpeg`, { type: 'image/jpeg' });
+        resolve(file);
+      }, 'image/jpeg');
+    });
+  }, [croppedAreaPixels, rawPhoto, rawPhotoPreview]);
+
+  const handleConfirmCrop = useCallback(async () => {
+    const cropped = await getCroppedPhoto();
+    if (cropped) {
+      if (editAvatar && editAvatar.startsWith('blob:')) URL.revokeObjectURL(editAvatar);
+      const url = URL.createObjectURL(cropped);
+      setAvatarFile(cropped);
+      setEditAvatar(url);
+    }
+    setCropperOpen(false);
+    setRawPhoto(null);
+    setRawPhotoPreview('');
+  }, [editAvatar, getCroppedPhoto]);
+
+  useEffect(() => {
+    return () => {
+      if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
+      if (editAvatar && editAvatar.startsWith('blob:')) URL.revokeObjectURL(editAvatar);
+    };
+  }, [editAvatar, rawPhotoPreview]);
+
+  const handleSave = async () => {
     if (onProfileUpdate) {
-      onProfileUpdate({
+      await onProfileUpdate({
         name: editName,
         nickname: editNickname,
         avatar: avatarFile ?? editAvatar,
@@ -90,6 +173,8 @@ export function MobilePlayerProfile({
     }
     setIsEditing(false);
     setAvatarFile(null);
+    setRawPhoto(null);
+    setRawPhotoPreview('');
   };
 
   const handleCancel = () => {
@@ -97,6 +182,8 @@ export function MobilePlayerProfile({
     setEditNickname(player.nickname);
     setEditAvatar(player.avatar);
     setAvatarFile(null);
+    setRawPhoto(null);
+    setRawPhotoPreview('');
     setIsEditing(false);
   };
 
@@ -226,7 +313,7 @@ export function MobilePlayerProfile({
               </label>
               <input
                 type="text"
-                value="***.***.***-**"
+                value={formatCpf(player.cpf)}
                 disabled
                 className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#7F94B0] text-center font-mono-technical text-sm cursor-not-allowed opacity-60"
               />
@@ -245,10 +332,11 @@ export function MobilePlayerProfile({
               </button>
               <button
                 onClick={handleSave}
+                disabled={isSaving}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)]"
               >
-                <Check className="w-4 h-4" />
-                SALVAR
+                {isSaving ? <Spinner inline size="sm" /> : <Check className="w-4 h-4" />}
+                {isSaving ? 'SALVANDO...' : 'SALVAR'}
               </button>
             </div>
           )}
@@ -311,6 +399,85 @@ export function MobilePlayerProfile({
           </div>
         </div>
       </div>
+
+      {/* Cropper Dialog */}
+      <Dialog
+        open={cropperOpen}
+        onOpenChange={(open) => {
+          setCropperOpen(open);
+          if (!open) {
+            setRawPhoto(null);
+            setRawPhotoPreview('');
+          }
+        }}
+      >
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
+              [ RECORTAR FOTO ]
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="relative h-[320px] w-full rounded-xl overflow-hidden border border-[#2D3A52] bg-[#0B0E14]">
+              <Cropper
+                image={rawPhotoPreview || undefined}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="rect"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                objectFit="cover"
+                cropAreaStyle={{
+                  clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                  border: '2px solid #00F0FF',
+                  boxShadow: '0 0 0 9999px rgba(11,14,20,0.85)',
+                  background: 'rgba(0,240,255,0.06)',
+                }}
+              />
+              <div className="pointer-events-none absolute inset-6 clip-hexagon-perfect border border-[#00F0FF]/30" />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#7F94B0] font-mono-technical uppercase">Zoom</span>
+              <div className="flex-1">
+                <Slider
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  value={[zoom]}
+                  onValueChange={(values) => setZoom(values[0] ?? 1)}
+                />
+              </div>
+              <span className="text-xs text-[#7F94B0] font-mono-technical w-10 text-right">{zoom.toFixed(1)}x</span>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-2 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setCropperOpen(false);
+                setRawPhoto(null);
+                setRawPhotoPreview('');
+              }}
+              className="px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+            >
+              [ CANCELAR ]
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmCrop()}
+              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+            >
+              [ CORTAR ]
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* History Section */}
       <div>

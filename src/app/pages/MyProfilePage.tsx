@@ -63,7 +63,8 @@ export function MyProfilePage({ userId, playerId }: Props) {
         window.dispatchEvent(new PopStateEvent('popstate'));
       }}
       isOwnProfile
-      onProfileUpdate={(data) => updateProfile.mutate(data)}
+      onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
+      isSaving={updateProfile.isPending}
       onRetract={(id) => retractMutation.mutate(id)}
     />
   );
