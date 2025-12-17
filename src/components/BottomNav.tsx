@@ -19,19 +19,15 @@ export function BottomNav({ currentView, onNavigate, isLoggedIn }: BottomNavProp
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
-          const isDisabled = !isLoggedIn && item.id === 'profile';
           
           return (
             <button
               key={item.id}
-              onClick={() => !isDisabled && onNavigate(item.id)}
-              disabled={isDisabled}
+              onClick={() => onNavigate(item.id)}
               className={`flex flex-col items-center gap-1 transition-colors ${
-                isDisabled 
-                  ? 'opacity-30 cursor-not-allowed' 
-                  : isActive 
-                    ? 'text-[#00F0FF]' 
-                    : 'text-[#7F94B0] hover:text-[#E6F1FF]'
+                isActive 
+                  ? 'text-[#00F0FF]' 
+                  : 'text-[#7F94B0] hover:text-[#E6F1FF]'
               }`}
             >
               <Icon className="w-5 h-5" />
