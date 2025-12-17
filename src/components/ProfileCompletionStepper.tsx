@@ -20,6 +20,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   const [cpfError, setCpfError] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [sourcePhoto, setSourcePhoto] = useState<File | null>(null);
+  const [sourcePhotoPreview, setSourcePhotoPreview] = useState<string>('');
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
   const [rawPhotoPreview, setRawPhotoPreview] = useState<string>('');
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -28,6 +30,19 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropping, setCropping] = useState(false);
   const hexClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+  const recropFromExisting = () => {
+    if (!sourcePhoto) return;
+    const freshRawUrl = URL.createObjectURL(sourcePhoto);
+    setRawPhoto(sourcePhoto);
+    setRawPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return freshRawUrl;
+    });
+    setCropperOpen(true);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  };
 
   const cpfDigits = useMemo(() => cpf.replace(/\D/g, ''), [cpf]);
 
@@ -66,16 +81,32 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   useEffect(() => {
     return () => {
       if (photoPreview) URL.revokeObjectURL(photoPreview);
+    };
+  }, [photoPreview]);
+
+  useEffect(() => {
+    return () => {
       if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
     };
-  }, [photoPreview, rawPhotoPreview]);
+  }, [rawPhotoPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (sourcePhotoPreview) URL.revokeObjectURL(sourcePhotoPreview);
+    };
+  }, [sourcePhotoPreview]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const previewUrl = URL.createObjectURL(file);
+      if (sourcePhotoPreview) URL.revokeObjectURL(sourcePhotoPreview);
+      if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
+      const sourceUrl = URL.createObjectURL(file);
+      const rawUrl = URL.createObjectURL(file);
+      setSourcePhoto(file);
+      setSourcePhotoPreview(sourceUrl);
       setRawPhoto(file);
-      setRawPhotoPreview(previewUrl);
+      setRawPhotoPreview(rawUrl);
       setCropperOpen(true);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
@@ -92,8 +123,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
   };
 
   const getCroppedPhoto = useCallback(async (): Promise<File | null> => {
-    const sourceFile = rawPhoto ?? photo;
-    const sourcePreview = rawPhotoPreview || photoPreview;
+    const sourceFile = rawPhoto ?? sourcePhoto ?? photo;
+    const sourcePreview = rawPhotoPreview || sourcePhotoPreview || photoPreview;
     if (!croppedAreaPixels || !sourcePreview || !sourceFile) return sourceFile ?? null;
 
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -130,7 +161,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
         resolve(file);
       }, 'image/jpeg');
     });
-  }, [croppedAreaPixels, photo, photoPreview, rawPhoto, rawPhotoPreview]);
+  }, [croppedAreaPixels, photo, photoPreview, rawPhoto, rawPhotoPreview, sourcePhoto, sourcePhotoPreview]);
 
   const handleNext = async () => {
     if (submitting) return;
@@ -155,7 +186,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
     setCropping(true);
     const cropped = await getCroppedPhoto();
     if (cropped) {
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      if (photoPreview && photoPreview !== rawPhotoPreview) URL.revokeObjectURL(photoPreview);
       const url = URL.createObjectURL(cropped);
       setPhoto(cropped);
       setPhotoPreview(url);
@@ -385,11 +416,20 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
                             [ ALTERAR FOTO ]
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/*;capture=camera"
+                              capture="user"
                               onChange={handlePhotoChange}
                               className="hidden"
                             />
                           </label>
+                          <button
+                            type="button"
+                            onClick={recropFromExisting}
+                            className="ml-3 inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
+                            disabled={!photoPreview}
+                          >
+                            [ RECORTAR NOVAMENTE ]
+                          </button>
                         </div>
                       </div>
                     ) : (
@@ -411,7 +451,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false }: Pro
                         </div>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/*;capture=camera"
+                          capture="user"
                           onChange={handlePhotoChange}
                           className="hidden"
                         />

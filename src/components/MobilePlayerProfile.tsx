@@ -75,6 +75,42 @@ export function MobilePlayerProfile({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
+  const openRecropFromCurrent = useCallback(async () => {
+    if (!isEditing) return;
+    let sourceFile: File | null = avatarFile;
+
+    const buildFromUrl = async (url: string) => {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const name = url.split('/').pop() || 'avatar';
+      return new File([blob], name, { type: blob.type || 'image/jpeg' });
+    };
+
+    if (!sourceFile && editAvatar) {
+      try {
+        sourceFile = await buildFromUrl(editAvatar);
+      } catch {
+        sourceFile = null;
+      }
+    }
+
+    if (!sourceFile && player.avatar) {
+      try {
+        sourceFile = await buildFromUrl(player.avatar);
+      } catch {
+        sourceFile = null;
+      }
+    }
+
+    if (!sourceFile) return;
+    const previewUrl = URL.createObjectURL(sourceFile);
+    setRawPhoto(sourceFile);
+    setRawPhotoPreview(previewUrl);
+    setCropperOpen(true);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  }, [avatarFile, editAvatar, isEditing, player.avatar]);
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
@@ -233,7 +269,8 @@ export function MobilePlayerProfile({
                 <Edit className="w-5 h-5 text-[#0B0E14]" />
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*;capture=camera"
+                  capture="user"
                   onChange={handleAvatarChange}
                   className="hidden"
                 />
