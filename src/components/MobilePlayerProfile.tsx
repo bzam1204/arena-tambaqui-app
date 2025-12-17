@@ -305,7 +305,7 @@ export function MobilePlayerProfile({
               <div key={entry.id} className="relative">
                 <MobileFeedCard entry={entry} onTargetClick={onTargetClick} />
                 {isOwnProfile && entry.type === 'report' && !entry.isRetracted && onRetract && (
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute z-50 top-2 right-2">
                     <button
                       onClick={() => onRetract(entry.id)}
                       className="text-xs font-mono-technical text-[#FF6B00] hover:text-[#FF8C33] border border-[#FF6B00]/40 rounded px-2 py-1 bg-[#0B0E14]/80"

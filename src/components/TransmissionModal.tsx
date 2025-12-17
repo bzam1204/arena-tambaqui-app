@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { X, Lock, AlertTriangle, Award, Search, User } from 'lucide-react';
 import { TacticalButton } from './TacticalButton';
 import { Spinner } from './Spinner';
@@ -52,6 +52,7 @@ export function TransmissionModal({
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
   const [content, setContent] = useState('');
   const canSearch = searchTerm.trim().length >= minChars;
+  const [, startTransition] = useTransition();
   // Initialize with pre-selected player if provided
   useEffect(() => {
     if (isOpen && preSelectedPlayerId) {
@@ -81,8 +82,11 @@ export function TransmissionModal({
   };
 
   const handleSelectType = (type: 'report' | 'praise') => {
-    setReportType(type);
-    setStep('details');
+    if (reportType === type && step === 'details') return;
+    startTransition(() => {
+      setReportType(type);
+      setStep('details');
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {

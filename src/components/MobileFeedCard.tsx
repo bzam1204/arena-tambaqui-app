@@ -29,11 +29,11 @@ export function MobileFeedCard({ entry, onTargetClick }: MobileFeedCardProps) {
 
   return (
 
-    <div className={`clip-tactical-card relative z-30 bg-[#141A26] border-x-4  overflow-hidden ${borderColor} ${bgGlow} ${entry.isRetracted ? 'opacity-50' : ''}`}>
+    <div className={`clip-tactical-card relative z-30 bg-[#141A26] border-x-4  overflow-hidden ${borderColor} ${bgGlow} ${entry.isRetracted ? 'opacity-75' : ''}`}>
       {entry.isRetracted && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div
-            className={`px-3 py-2 rotate-[-8deg] border bg-[#0B0E14]/85 font-mono-technical text-xs uppercase tracking-wide shadow-[0_0_10px_rgba(0,0,0,0.4)] ${entry.type === 'report'
+            className={`px-3 py-2 rotate-[-8deg] z-50 border bg-[#0B0E14]/85 font-mono-technical text-xs uppercase tracking-wide shadow-[0_0_10px_rgba(0,0,0,0.4)] ${entry.type === 'report'
               ? 'border-[#D4A536]/70 text-[#D4A536]'
               : 'border-[#00F0FF]/70 text-[#00F0FF]'
               }`}
