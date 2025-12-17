@@ -52,6 +52,11 @@ export function PlayerProfilePage() {
     enabled: Boolean(id),
   });
 
+  // Reset scroll when opening a player profile
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [id]);
+
   useEffect(() => {
     const sentinel = document.getElementById('history-sentinel');
     if (!sentinel) return;

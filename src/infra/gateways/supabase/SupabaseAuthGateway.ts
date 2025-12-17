@@ -13,7 +13,8 @@ export class SupabaseAuthGateway implements AuthGateway {
       return { userId: existing.data.session.user.id };
     }
 
-    const redirectTo = `${window.location.origin}/onboarding`;
+    const redirectBase = (import.meta.env.VITE_AUTH_REDIRECT_URL || window.location.origin).replace(/\/$/, '');
+    const redirectTo = `${redirectBase}/onboarding`;
     const { data, error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
