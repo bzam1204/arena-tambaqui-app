@@ -1,0 +1,30 @@
+{
+  "packageId": "com.arena.tambaqui",
+  "host": "arena-tambaqui-app-468146366490.southamerica-east1.run.app",
+  "name": "Arena Tambaqui",
+  "launcherName": "Tambaqui",
+  "display": "standalone",
+  "themeColor": "#ffffff",
+  "themeColorDark": "#000000",
+  "navigationColor": "#ffffff",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#00000000",
+  "navigationDividerColorDark": "#00000000",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": true,
+  "startUrl": "/mural/feed",
+  "iconUrl": "https://arena-tambaqui-app-468146366490.southamerica-east1.run.app/android-chrome-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersion": "1",
+  "appVersionCode": 1,
+  "webManifestUrl": "https://arena-tambaqui-app-468146366490.southamerica-east1.run.app/site.webmanifest",
+  "fallbackType": "customtabs",
+  "orientation": "default",
+  "fingerprints": [
+    "4E:72:9A:16:D7:BA:3D:18:23:34:49:5E:94:40:7D:74:7F:A5:5F:4D:BA:35:DD:1B:FB:ED:01:1D:3A:10:CB:70"
+  ]
+}

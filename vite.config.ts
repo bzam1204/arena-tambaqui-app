@@ -1,12 +1,51 @@
 
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
   plugins: [
     react({
       tsDecorators: true,
+    }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      includeAssets: [
+        'favicon.ico',
+        'apple-touch-icon.png',
+        'android-chrome-192x192.png',
+        'android-chrome-512x512.png',
+        'favicon-16x16.png',
+        'favicon-32x32.png',
+      ],
+      manifest: {
+        name: 'Arena Tambaqui',
+        short_name: 'Tambaqui',
+        description: 'Arena Tambaqui',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#ffffff',
+        lang: 'pt-BR',
+        icons: [
+          {
+            src: '/android-chrome-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: '/android-chrome-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+        ],
+      },
+      workbox: {
+        navigateFallback: '/index.html',
+      },
     }),
   ],
   resolve: {

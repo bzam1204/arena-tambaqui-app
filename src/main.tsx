@@ -10,6 +10,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
+import { registerSW } from 'virtual:pwa-register';
 
 const ReactQueryDevtools =
   import.meta.env.DEV
@@ -40,6 +41,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+registerSW({ immediate: true });
 
 createRoot(document.getElementById('root')!).render(
   <QueryClientProvider client={queryClient}>

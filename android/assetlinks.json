@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.arena.tambaqui",
+      "sha256_cert_fingerprints": [
+        "4E:72:9A:16:D7:BA:3D:18:23:34:49:5E:94:40:7D:74:7F:A5:5F:4D:BA:35:DD:1B:FB:ED:01:1D:3A:10:CB:70"
+      ]
+    }
+  }
+]
