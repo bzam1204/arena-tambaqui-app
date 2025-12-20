@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Clock, Shield, Users } from 'lucide-react';
@@ -44,6 +44,14 @@ export function MatchesPage() {
   const [matchDate, setMatchDate] = useState<Date | null>(null);
   const [matchTime, setMatchTime] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'open' | 'mine' | 'pending'>('open');
+  const [mineTab, setMineTab] = useState<'upcoming' | 'finalized'>('upcoming');
+
+  useEffect(() => {
+    if (!state.isAdmin && tab === 'pending') {
+      setTab('open');
+    }
+  }, [state.isAdmin, tab]);
 
   const {
     data: matches = [],
@@ -127,7 +135,8 @@ export function MatchesPage() {
 
   const matchCards = useMemo(() => {
     const now = new Date();
-    return matches.map((match) => {
+    return matches
+      .map((match) => {
       const startAt = new Date(match.startAt);
       const isClosed = startAt <= now;
       const isFinalized = Boolean(match.finalizedAt);
@@ -145,8 +154,45 @@ export function MatchesPage() {
         isFinalized,
         statusLabel,
       };
-    });
+    })
+      .sort((a, b) => new Date(b.match.startAt).getTime() - new Date(a.match.startAt).getTime());
   }, [matches]);
+
+  const openMatches = useMemo(
+    () => matchCards.filter(({ isClosed, isFinalized }) => !isClosed && !isFinalized),
+    [matchCards],
+  );
+  const pendingMatches = useMemo(
+    () => matchCards.filter(({ isClosed, isFinalized }) => isClosed && !isFinalized),
+    [matchCards],
+  );
+  const myMatches = useMemo(
+    () => matchCards.filter(({ match }) => match.isSubscribed),
+    [matchCards],
+  );
+  const myUpcomingMatches = useMemo(
+    () => myMatches.filter(({ isFinalized }) => !isFinalized),
+    [myMatches],
+  );
+  const myFinalizedMatches = useMemo(
+    () => myMatches.filter(({ isFinalized }) => isFinalized),
+    [myMatches],
+  );
+
+  const visibleMatches = useMemo(() => {
+    if (tab === 'open') return openMatches;
+    if (tab === 'pending') return pendingMatches;
+    return mineTab === 'finalized' ? myFinalizedMatches : myUpcomingMatches;
+  }, [tab, mineTab, openMatches, pendingMatches, myFinalizedMatches, myUpcomingMatches]);
+
+  const emptyMessage = useMemo(() => {
+    if (tab === 'open') return 'Nenhuma partida com inscrições abertas.';
+    if (tab === 'pending') return 'Nenhuma partida pendente de chamada.';
+    if (!state.playerId) return 'Complete seu perfil para ver suas partidas.';
+    return mineTab === 'finalized'
+      ? 'Nenhuma partida finalizada.'
+      : 'Nenhuma partida inscrita.';
+  }, [tab, mineTab, state.playerId]);
 
   if (isError) {
     return (
@@ -174,7 +220,7 @@ export function MatchesPage() {
           <p className="text-xs text-[#7F94B0]">Controle de presença e reputação.</p>
         </div>
         {state.isAdmin ? (
-          <TacticalButton className='w-full' variant="cyan" onClick={() => {
+          <TacticalButton fullWidth variant="cyan" onClick={() => {
             setActionError(null);
             setCreateOpen(true);
           }}>
@@ -183,11 +229,81 @@ export function MatchesPage() {
         ) : null}
       </div>
 
+      <div className={`grid gap-2 ${state.isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <button
+          onClick={() => setTab('open')}
+          className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+            tab === 'open'
+              ? 'border-[#00F0FF] bg-[#00F0FF]/20'
+              : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
+          }`}
+        >
+          <span className={`font-mono-technical text-xs uppercase ${tab === 'open' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+            Abertas
+          </span>
+        </button>
+        <button
+          onClick={() => setTab('mine')}
+          className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+            tab === 'mine'
+              ? 'border-[#D4A536] bg-[#D4A536]/20'
+              : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
+          }`}
+        >
+          <span className={`font-mono-technical text-xs uppercase ${tab === 'mine' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
+            Minhas Partidas
+          </span>
+        </button>
+        {state.isAdmin ? (
+          <button
+            onClick={() => setTab('pending')}
+            className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+              tab === 'pending'
+                ? 'border-[#D4A536] bg-[#D4A536]/20'
+                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
+            }`}
+          >
+            <span className={`font-mono-technical text-xs uppercase ${tab === 'pending' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
+              Pendentes
+            </span>
+          </button>
+        ) : null}
+      </div>
+
+      {tab === 'mine' ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setMineTab('upcoming')}
+            className={`clip-tactical p-2 border transition-all rounded-lg ${
+              mineTab === 'upcoming'
+                ? 'border-[#00F0FF] bg-[#00F0FF]/15'
+                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
+            }`}
+          >
+            <span className={`font-mono-technical text-[10px] uppercase ${mineTab === 'upcoming' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+              Próximas Missões
+            </span>
+          </button>
+          <button
+            onClick={() => setMineTab('finalized')}
+            className={`clip-tactical p-2 border transition-all rounded-lg ${
+              mineTab === 'finalized'
+                ? 'border-[#00F0FF] bg-[#00F0FF]/15'
+                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
+            }`}
+          >
+            <span className={`font-mono-technical text-[10px] uppercase ${mineTab === 'finalized' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+              Finalizadas
+            </span>
+          </button>
+        </div>
+      ) : null}
+
       {isLoading ? (
         <Spinner label="carregando partidas" />
       ) : (
         <div className="space-y-4">
-          {matchCards.map(({ match, dateLabel, timeLabel, isClosed, isFinalized, statusLabel }) => (
+          {(tab === 'mine' && !state.playerId ? [] : visibleMatches).map(({ match, dateLabel, timeLabel, isClosed, isFinalized, statusLabel }) => (
             <div
               key={match.id}
               className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3 ${
@@ -271,9 +387,9 @@ export function MatchesPage() {
             </div>
           ))}
 
-          {matchCards.length === 0 && (
+          {(tab === 'mine' && !state.playerId ? true : visibleMatches.length === 0) && (
             <div className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-6 text-center text-xs text-[#7F94B0]">
-              Nenhuma partida cadastrada.
+              {emptyMessage}
             </div>
           )}
         </div>
