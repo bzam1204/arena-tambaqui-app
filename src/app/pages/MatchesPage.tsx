@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardCheck, Shield, Users } from 'lucide-react';
-import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
+import { Shield, Users } from 'lucide-react';
+import type { MatchSummary } from '@/app/gateways/MatchGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { Inject, TkMatchGateway } from '@/infra/container';
 import { useSession } from '@/app/context/session-context';
@@ -36,7 +36,6 @@ export function MatchesPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [subscribeMatch, setSubscribeMatch] = useState<MatchSummary | null>(null);
-  const [attendanceMatch, setAttendanceMatch] = useState<MatchSummary | null>(null);
   const [rentEquipment, setRentEquipment] = useState(false);
   const [matchName, setMatchName] = useState('');
   const [matchDate, setMatchDate] = useState('');
@@ -95,42 +94,6 @@ export function MatchesPage() {
       setRentEquipment(false);
       setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
-    },
-    onError: (err) => setActionError((err as Error).message),
-  });
-
-  const {
-    data: attendanceList = [],
-    isLoading: attendanceLoading,
-    isError: attendanceIsError,
-    error: attendanceError,
-    refetch: refetchAttendance,
-  } = useQuery({
-    queryKey: ['matches', 'attendance', attendanceMatch?.id],
-    queryFn: () => matchGateway.listAttendance(attendanceMatch?.id as string),
-    enabled: Boolean(attendanceMatch?.id),
-  });
-
-  const updateAttendance = useMutation({
-    mutationFn: (input: { matchId: string; playerId: string; attended: boolean }) =>
-      matchGateway.updateAttendance(input),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', attendanceMatch?.id] });
-    },
-    onError: (err) => setActionError((err as Error).message),
-  });
-
-  const finalizeMatch = useMutation({
-    mutationFn: async () => {
-      if (!attendanceMatch) throw new Error('Selecione uma partida.');
-      if (!state.userId) throw new Error('Faça login para finalizar.');
-      await matchGateway.finalizeMatch({ matchId: attendanceMatch.id, adminId: state.userId });
-    },
-    onSuccess: async () => {
-      setAttendanceMatch(null);
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: ['matches'] });
-      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance'] });
     },
     onError: (err) => setActionError((err as Error).message),
   });
@@ -200,7 +163,18 @@ export function MatchesPage() {
           {matchCards.map(({ match, dateLabel, timeLabel, isClosed, isFinalized, statusLabel }) => (
             <div
               key={match.id}
-              className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3"
+              className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3 ${
+                state.isAdmin ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
+              }`}
+              role={state.isAdmin ? 'button' : undefined}
+              tabIndex={state.isAdmin ? 0 : undefined}
+              onClick={state.isAdmin ? () => navigate(`/partidas/${match.id}`) : undefined}
+              onKeyDown={state.isAdmin ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/partidas/${match.id}`);
+                }
+              } : undefined}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -237,7 +211,8 @@ export function MatchesPage() {
                 <TacticalButton
                   variant="amber"
                   disabled={isClosed || isFinalized || match.isSubscribed}
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     if (!state.userId) {
                       navigate('/auth');
                       return;
@@ -257,9 +232,9 @@ export function MatchesPage() {
                 {state.isAdmin && !isFinalized && isClosed ? (
                   <TacticalButton
                     variant="cyan"
-                    onClick={() => {
-                      setActionError(null);
-                      setAttendanceMatch(match);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/partidas/${match.id}`);
                     }}
                   >
                     [ CHAMADA ]
@@ -409,109 +384,6 @@ export function MatchesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(attendanceMatch)} onOpenChange={(open) => {
-        if (!open) {
-          setAttendanceMatch(null);
-          setActionError(null);
-        }
-      }}>
-        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Chamada ]</DialogTitle>
-            <DialogDescription className="text-[#7F94B0]">
-              Marque quem compareceu antes de finalizar.
-            </DialogDescription>
-          </DialogHeader>
-
-          {attendanceIsError ? (
-            <QueryErrorCard
-              message={(attendanceError as Error)?.message || 'Falha ao carregar inscritos.'}
-              action={
-                <button
-                  className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
-                  onClick={() => void refetchAttendance()}
-                >
-                  [ TENTAR NOVAMENTE ]
-                </button>
-              }
-            />
-          ) : attendanceLoading ? (
-            <Spinner label="carregando inscritos" />
-          ) : (
-            <div className="space-y-3">
-              {attendanceList.length === 0 ? (
-                <div className="text-xs text-[#7F94B0] font-mono-technical">
-                  Nenhum inscrito para esta partida.
-                </div>
-              ) : (
-                attendanceList.map((entry: MatchAttendanceEntry) => (
-                  <div
-                    key={entry.playerId}
-                    className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 flex items-center gap-3"
-                  >
-                    <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                      <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                        {entry.playerAvatar ? (
-                          <img
-                            src={entry.playerAvatar}
-                            alt={entry.playerNickname}
-                            className="w-full h-full object-cover clip-hexagon-perfect"
-                          />
-                        ) : (
-                          <Users className="w-4 h-4 text-[#7F94B0]" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm text-[#E6F1FF] uppercase">{entry.playerNickname}</div>
-                      <div className="text-xs text-[#7F94B0] font-mono-technical">{entry.playerName}</div>
-                      {entry.rentEquipment ? (
-                        <div className="text-[10px] text-[#D4A536] font-mono-technical">Alugar equipamento</div>
-                      ) : null}
-                    </div>
-                    <label className="flex items-center gap-2 text-xs text-[#7F94B0] font-mono-technical">
-                      <Checkbox
-                        checked={entry.attended}
-                        onCheckedChange={(value) =>
-                          updateAttendance.mutate({
-                            matchId: entry.matchId,
-                            playerId: entry.playerId,
-                            attended: Boolean(value),
-                          })
-                        }
-                      />
-                      Compareceu?
-                    </label>
-                  </div>
-                ))
-              )}
-              {actionError ? (
-                <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
-              ) : null}
-            </div>
-          )}
-
-          <DialogFooter>
-            <TacticalButton variant="cyan" onClick={() => setAttendanceMatch(null)}>
-              Cancelar
-            </TacticalButton>
-            <TacticalButton
-              variant="amber"
-              onClick={() => finalizeMatch.mutate()}
-              disabled={finalizeMatch.isPending || attendanceList.length === 0}
-              leftIcon={
-                finalizeMatch.isPending ? (
-                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
-                ) : (
-                  <ClipboardCheck className="w-4 h-4" />
-                )
-              }
-            >
-              {finalizeMatch.isPending ? '[ FINALIZANDO... ]' : '[ FINALIZAR PARTIDA ]'}
-            </TacticalButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -141,6 +141,33 @@
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   }
 
+  .glitch-text {
+    position: relative;
+    display: inline-block;
+    text-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+  }
+
+  .glitch-text::before,
+  .glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .glitch-text::before {
+    color: rgba(0, 240, 255, 0.7);
+    transform: translate(1px, -1px);
+  }
+
+  .glitch-text::after {
+    color: rgba(212, 165, 54, 0.5);
+    transform: translate(-1px, 1px);
+  }
+
   /* Perfect hexagon clip-path */
   .clip-hexagon {
     clip-path: polygon(30% 0%, 70% 0%,

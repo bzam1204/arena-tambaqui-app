@@ -25,6 +25,7 @@ export interface MatchAttendanceEntry {
   playerAvatar?: string;
   rentEquipment: boolean;
   attended: boolean;
+  marked: boolean;
 }
 
 export interface CreateMatchInput {

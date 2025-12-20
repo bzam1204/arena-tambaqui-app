@@ -144,6 +144,7 @@ export class MockMatchGateway implements MatchGateway {
     const attendanceMap = new Map(
       this.attendance.filter((a) => a.matchId === matchId).map((a) => [a.playerId, a.attended]),
     );
+    const markedSet = new Set(this.attendance.filter((a) => a.matchId === matchId).map((a) => a.playerId));
 
     const players = await Promise.all(subs.map((s) => this.playerGateway.getPlayer(s.playerId)));
     return subs.map((sub, index) => {
@@ -157,6 +158,7 @@ export class MockMatchGateway implements MatchGateway {
         playerAvatar: player?.avatar ?? null,
         rentEquipment: sub.rentEquipment,
         attended: attendanceMap.get(sub.playerId) ?? false,
+        marked: markedSet.has(sub.playerId),
       } satisfies MatchAttendanceEntry;
     });
   }
@@ -210,7 +212,7 @@ export class MockMatchGateway implements MatchGateway {
           targetId: player.id,
           targetName: player.nickname,
           targetAvatar: player.avatar,
-          content: 'Ausência não justificada.',
+          content: `Ausência não justificada na operação ${match.name}.`,
           date: new Date().toLocaleDateString('pt-BR').replace(/\//g, '.'),
           time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         } as any);

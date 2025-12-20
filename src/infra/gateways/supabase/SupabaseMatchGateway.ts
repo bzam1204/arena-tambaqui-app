@@ -68,7 +68,7 @@ export class SupabaseMatchGateway implements MatchGateway {
   async subscribe(input: { matchId: string; playerId: string; rentEquipment: boolean }): Promise<void> {
     const { data: match, error: matchError } = await this.supabase
       .from(this.matchesTable)
-      .select('id,start_at,finalized_at')
+      .select('id,name,start_at,finalized_at')
       .eq('id', input.matchId)
       .maybeSingle();
     if (matchError) throw matchError;
@@ -105,8 +105,10 @@ export class SupabaseMatchGateway implements MatchGateway {
     if (attendanceError) throw attendanceError;
 
     const attendanceByPlayer = new Map<string, boolean>();
+    const attendanceMarked = new Set<string>();
     (attendance || []).forEach((row: any) => {
       attendanceByPlayer.set(row.player_id, Boolean(row.attended));
+      attendanceMarked.add(row.player_id);
     });
 
     return (subs || []).map((row: any) => {
@@ -120,6 +122,7 @@ export class SupabaseMatchGateway implements MatchGateway {
         playerAvatar: player.users?.avatar ?? null,
         rentEquipment: Boolean(row.rent_equipment),
         attended: attendanceByPlayer.get(row.player_id) ?? false,
+        marked: attendanceMarked.has(row.player_id),
       } satisfies MatchAttendanceEntry;
     });
   }
@@ -153,7 +156,7 @@ export class SupabaseMatchGateway implements MatchGateway {
     const now = new Date().toISOString();
     const { data: match, error: matchError } = await this.supabase
       .from(this.matchesTable)
-      .select('id,start_at,finalized_at')
+      .select('id,name,start_at,finalized_at')
       .eq('id', input.matchId)
       .maybeSingle();
     if (matchError) throw matchError;
@@ -216,7 +219,7 @@ export class SupabaseMatchGateway implements MatchGateway {
         type: 'report',
         target_player_id: playerId,
         submitter_player_id: null,
-        content: 'Ausência não justificada.',
+        content: `Ausência não justificada na operação ${match.name}.`,
         created_at: now,
         match_id: input.matchId,
       }));
