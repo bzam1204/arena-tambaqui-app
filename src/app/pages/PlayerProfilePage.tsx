@@ -250,6 +250,7 @@ export function PlayerProfilePage() {
             : []
         }
         preSelectedPlayerId={player?.id ?? null}
+        submitterId={state.playerId ?? undefined}
         onSubmit={(data) =>
           editingEntry
             ? adminEdit.mutate(

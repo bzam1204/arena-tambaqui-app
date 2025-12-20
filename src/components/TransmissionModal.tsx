@@ -1,8 +1,10 @@
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { X, Lock, AlertTriangle, Award, Search, User, CalendarDays } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { TacticalButton } from './TacticalButton';
 import { Spinner } from './Spinner';
-import type { MatchOption } from '@/app/gateways/MatchGateway';
+import type { MatchGateway, MatchOption } from '@/app/gateways/MatchGateway';
+import { Inject, TkMatchGateway } from '@/infra/container';
 
 export interface TransmissionPlayer {
   id: string;
@@ -16,6 +18,7 @@ interface TransmissionModalProps {
   onClose: () => void;
   players: TransmissionPlayer[];
   preSelectedPlayerId?: string | null;
+  submitterId?: string | null;
   onSubmit: (data: {
     targetId: string;
     type: 'report' | 'praise';
@@ -45,6 +48,7 @@ export function TransmissionModal({
   onClose,
   players,
   preSelectedPlayerId,
+  submitterId,
   onSubmit,
   submitting = false,
   searchTerm,
@@ -63,30 +67,27 @@ export function TransmissionModal({
   eligibleMatches = [],
   requireMatch = false,
 }: TransmissionModalProps) {
-  const [step, setStep] = useState<'select' | 'type' | 'details'>('select');
+  const matchGateway = Inject<MatchGateway>(TkMatchGateway);
+  const [step, setStep] = useState<'match' | 'player' | 'type' | 'details'>(requireMatch ? 'match' : 'player');
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
   const [content, setContent] = useState('');
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const canSearch = !lockedTargetId && searchTerm.trim().length >= minChars;
+  const canSearch = !lockedTargetId && (requireMatch ? true : searchTerm.trim().length >= minChars);
   const [, startTransition] = useTransition();
   const isVisible = isOpen || submitting; // keep mounted while submitting to show loading state
-  // Initialize with pre-selected/locked player if provided (only when entering modal)
-  useEffect(() => {
-    if (!isOpen) return;
-    if (step !== 'select') return;
-    if (lockedTarget) {
-      setSelectedTarget(lockedTarget);
-      setStep(lockedType ? 'details' : 'type');
-      return;
-    }
-    if (preSelectedPlayerId || lockedTargetId) {
-      const targetId = lockedTargetId || preSelectedPlayerId;
-      const player = players.find((p) => p.id === targetId);
-      if (player) setSelectedTarget(player);
-      setStep(lockedType ? 'details' : 'type');
-    }
-  }, [isOpen, preSelectedPlayerId, lockedTargetId, lockedTarget, players, lockedType, step]);
+
+  const handleSelectMatch = useCallback(
+    (value: string | null) => {
+      setSelectedMatchId(value);
+      setSelectedTarget(null);
+      setReportType(null);
+      setContent('');
+      setStep(value ? 'player' : 'match');
+      if (searchTerm) onSearchTermChange('');
+    },
+    [onSearchTermChange, searchTerm],
+  );
 
   // Initialize type/content when locked or provided
   useEffect(() => {
@@ -100,30 +101,118 @@ export function TransmissionModal({
     }
   }, [isOpen, lockedType, initialContent]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setStep(requireMatch ? 'match' : 'player');
+  }, [isOpen, requireMatch]);
+
   // Reset on close (but keep state while submitting to show loading)
   useEffect(() => {
     if (!isOpen && !submitting) {
-      setStep('select');
+      setStep(requireMatch ? 'match' : 'player');
       setSelectedTarget(null);
       setReportType(null);
       setContent('');
       setSelectedMatchId(null);
     }
-  }, [isOpen, submitting]);
+  }, [isOpen, submitting, requireMatch]);
 
   useEffect(() => {
     if (!isOpen || !requireMatch) return;
     if (!selectedMatchId) return;
     const stillValid = eligibleMatches.some((match) => match.id === selectedMatchId);
     if (!stillValid) {
-      setSelectedMatchId(null);
+      handleSelectMatch(null);
     }
-  }, [eligibleMatches, isOpen, requireMatch, selectedMatchId]);
+  }, [eligibleMatches, handleSelectMatch, isOpen, requireMatch, selectedMatchId]);
+
+  const { data: matchAttendance = [], isLoading: matchPlayersLoading, isError: matchPlayersIsError, error: matchPlayersError } = useQuery({
+    queryKey: ['matches', 'attendance', selectedMatchId],
+    queryFn: () => matchGateway.listAttendance(selectedMatchId as string),
+    enabled: isOpen && requireMatch && Boolean(selectedMatchId),
+  });
+
+  const matchPlayers = useMemo(() => {
+    if (!requireMatch) return players;
+    return (matchAttendance ?? [])
+      .map((entry) => ({
+        id: entry.playerId,
+        name: entry.playerName,
+        nickname: entry.playerNickname,
+        avatar: entry.playerAvatar ?? undefined,
+      }))
+      .filter((player) => player.id !== submitterId);
+  }, [matchAttendance, players, requireMatch, submitterId]);
+  const playerListLoading = requireMatch ? matchPlayersLoading : isLoading;
+  const playerListError = requireMatch ? matchPlayersIsError : false;
+
+  const filteredPlayers = useMemo(() => {
+    const base = matchPlayers;
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return base;
+    return base.filter((player) =>
+      player.nickname.toLowerCase().includes(term) || player.name.toLowerCase().includes(term),
+    );
+  }, [matchPlayers, searchTerm]);
+
+  const selectedMatch = useMemo(
+    () => eligibleMatches.find((match) => match.id === selectedMatchId) ?? null,
+    [eligibleMatches, selectedMatchId],
+  );
+  const lockedTargetKey = lockedTargetId ?? lockedTarget?.id ?? null;
+  const lockedTargetInMatch = useMemo(() => {
+    if (!requireMatch || !lockedTargetKey) return true;
+    if (!selectedMatchId) return true;
+    return matchPlayers.some((player) => player.id === lockedTargetKey);
+  }, [lockedTargetKey, matchPlayers, requireMatch, selectedMatchId]);
+  const lockedTargetDisplay = selectedTarget ?? lockedTarget ?? null;
+  const showLockedTargetCard = Boolean(lockedTargetKey) && (!requireMatch || Boolean(selectedTarget));
+
+  // Initialize with pre-selected/locked player if provided
+  useEffect(() => {
+    if (!isOpen) return;
+    if (requireMatch) return;
+    if (step !== 'player') return;
+    if (lockedTarget) {
+      setSelectedTarget(lockedTarget);
+      setStep(lockedType ? 'details' : 'type');
+      return;
+    }
+    if (preSelectedPlayerId || lockedTargetId) {
+      const targetId = lockedTargetId || preSelectedPlayerId;
+      const player = players.find((p) => p.id === targetId);
+      if (player) setSelectedTarget(player);
+      setStep(lockedType ? 'details' : 'type');
+    }
+  }, [isOpen, preSelectedPlayerId, lockedTargetId, lockedTarget, players, lockedType, step, requireMatch]);
+
+  useEffect(() => {
+    if (!isOpen || !requireMatch) return;
+    if (step !== 'player') return;
+    if (!selectedMatchId || !matchPlayers.length) return;
+    const targetId = lockedTargetKey || preSelectedPlayerId;
+    if (!targetId || selectedTarget) return;
+    const candidate = matchPlayers.find((player) => player.id === targetId);
+    if (!candidate) return;
+    setSelectedTarget(candidate);
+    setStep(lockedType ? 'details' : 'type');
+  }, [
+    isOpen,
+    requireMatch,
+    step,
+    selectedMatchId,
+    matchPlayers,
+    lockedTargetKey,
+    preSelectedPlayerId,
+    selectedTarget,
+    lockedType,
+  ]);
 
   if (!isVisible) return null;
 
   const handleSelectPlayer = (player: TransmissionPlayer) => {
     if (lockedTargetId) return;
+    if (requireMatch && !selectedMatchId) return;
     setSelectedTarget(player);
     setStep('type');
   };
@@ -161,7 +250,7 @@ export function TransmissionModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-0">
-      <div className="w-full max-w-lg bg-[#0B0E14] border sm:border border-[#2D3A52] rounded-lg max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg bg-[#0B0E14] border sm:border border-[#2D3A52] rounded-lg max-h-[calc(100svh-8rem)] sm:max-h-[calc(100vh-8rem)] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-[#0B0E14] border-b border-[#2D3A52] p-4 flex items-center justify-between">
           <h2 className="font-mono-technical tracking-wider uppercase text-[#E6F1FF]">
@@ -194,105 +283,177 @@ export function TransmissionModal({
             </p>
           </div>
 
-          {/* Step 1: Select Player (or show selected) */}
-          {step === 'select' ? (
+          {/* Step 1: Select Match */}
+          {requireMatch ? (
+            <div>
+              <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
+                Selecionar Partida (Obrigatorio)
+              </label>
+              {step === 'match' ? (
+                matchOptionsEmpty ? (
+                  <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
+                    <CalendarDays className="w-4 h-4 mt-0.5" />
+                    <div>
+                      Nenhuma partida elegível encontrada. Só é possível transmitir após comparecer e finalizar a partida.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={selectedMatchId ?? ''}
+                      onChange={(e) => handleSelectMatch(e.target.value || null)}
+                      className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                      required={requireMatch}
+                    >
+                      <option value="" disabled>
+                        Selecionar partida...
+                      </option>
+                      {eligibleMatches.map((match) => (
+                        <option key={match.id} value={match.id}>
+                          {formatMatchOption(match)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )
+              ) : (
+                <div className="bg-[#141A26] border border-[#00F0FF] rounded-lg p-3 flex items-center gap-3">
+                  <CalendarDays className="w-5 h-5 text-[#00F0FF]" />
+                  <div className="flex-1">
+                    <div className="text-sm text-[#E6F1FF]">{selectedMatch?.name ?? 'Partida selecionada'}</div>
+                    <div className="text-xs text-[#7F94B0] font-mono-technical">
+                      {selectedMatch ? formatMatchOption(selectedMatch) : 'Nenhuma partida selecionada'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleSelectMatch(null)}
+                    className="text-[#00F0FF] hover:text-[#00F0FF]/80 font-mono-technical text-xs"
+                  >
+                    [ TROCAR ]
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* Step 2: Select Player (or show selected) */}
+          {step === 'player' ? (
             <div>
               <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                 Selecione o Operador Alvo
               </label>
 
-              {/* Search */}
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7F94B0]" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => onSearchTermChange(e.target.value)}
-                  disabled={Boolean(lockedTargetId)}
-                  placeholder="Buscar..."
-                  className={`w-full border rounded-lg pl-10 pr-4 py-2 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors ${lockedTargetId ? 'bg-[#111827] border-[#2D3A52]/50 text-[#7F94B0]' : 'bg-[#141A26] border-[#2D3A52]'
-                    }`}
-                />
-              </div>
-
-              {/* Player List */}
-              {lockedTargetId && selectedTarget ? (
-                <div className="bg-[#0F1729] border border-[#2D3A52] rounded-lg p-3 flex items-center gap-3 opacity-80">
-                  <div className="w-10 h-11 bg-[#2D3A52] clip-hexagon-perfect p-[2px]">
-                    <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                      {selectedTarget.avatar ? (
-                        <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                      ) : (
-                        <User className="w-5 h-5 text-[#7F94B0]" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm text-[#9CA3AF]">{selectedTarget.nickname}</div>
-                    <div className="text-xs text-[#6B7280] font-mono-technical">{selectedTarget.name}</div>
-                  </div>
-                  <div className="ml-auto text-xs text-[#6B7280] font-mono-technical">Alvo bloqueado</div>
-                </div>
-              ) : canSearch ? (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {isLoading
-                    ? <Spinner />
-                    : players.length ? (
-                      players.map((player) => (
-                        <button
-                          key={player.id}
-                          onClick={() => handleSelectPlayer(player)}
-                          className="w-full  clip-tactical-card bg-[#141A26] border-x-3 border-[#2D3A52] p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
-                        >
-                          <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                            <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                              {player.avatar ? (
-                                <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                              ) : (
-                                <User className="w-5 h-5 text-[#7F94B0]" />
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
-                            <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Nenhum operador encontrado</div>
-                    )}
+              {requireMatch && !selectedMatchId ? (
+                <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-4">
+                  Selecione uma partida para carregar a chamada.
                 </div>
               ) : (
-                <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
-                  Digite ao menos {minChars} caracteres para buscar
-                </div>
-              )}
+                <>
+                  {/* Search */}
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7F94B0]" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => onSearchTermChange(e.target.value)}
+                      disabled={Boolean(lockedTargetId) || (requireMatch && !selectedMatchId)}
+                      placeholder="Buscar..."
+                      className={`w-full border rounded-lg pl-10 pr-4 py-2 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors ${lockedTargetId || (requireMatch && !selectedMatchId)
+                        ? 'bg-[#111827] border-[#2D3A52]/50 text-[#7F94B0]'
+                        : 'bg-[#141A26] border-[#2D3A52]'
+                        }`}
+                    />
+                  </div>
 
-              {/* Pagination */}
-              {canSearch && total > pageSize ? (
-                <div className="flex items-center justify-center gap-2 pt-2">
-                  <button
-                    onClick={() => onPageChange(Math.max(1, page - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
-                  >
-                    {'<'}
-                  </button>
-                  <span className="text-xs font-mono-technical text-[#7F94B0]">
-                    {page} / {Math.max(1, Math.ceil(total / pageSize))}
-                  </span>
-                  <button
-                    onClick={() => onPageChange(Math.min(Math.max(1, Math.ceil(total / pageSize)), page + 1))}
-                    disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
-                    className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
-                  >
-                    {'>'}
-                  </button>
-                </div>
-              ) : null}
+                  {/* Player List */}
+                  {showLockedTargetCard && lockedTargetDisplay ? (
+                    <div className="bg-[#0F1729] border border-[#2D3A52] rounded-lg p-3 flex items-center gap-3 opacity-80">
+                      <div className="w-10 h-11 bg-[#2D3A52] clip-hexagon-perfect p-[2px]">
+                        <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                          {lockedTargetDisplay?.avatar ? (
+                            <img src={lockedTargetDisplay.avatar} alt={lockedTargetDisplay.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
+                          ) : (
+                            <User className="w-5 h-5 text-[#7F94B0]" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm text-[#9CA3AF]">{lockedTargetDisplay.nickname}</div>
+                        <div className="text-xs text-[#6B7280] font-mono-technical">{lockedTargetDisplay.name}</div>
+                      </div>
+                      <div className="ml-auto text-xs text-[#6B7280] font-mono-technical">Alvo bloqueado</div>
+                    </div>
+                  ) : playerListLoading ? (
+                    <Spinner />
+                  ) : playerListError ? (
+                    <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
+                      {(matchPlayersError as Error)?.message || 'Falha ao carregar chamada.'}
+                    </div>
+                  ) : lockedTargetKey && requireMatch && selectedMatchId && !lockedTargetInMatch ? (
+                    <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
+                      <AlertTriangle className="w-4 h-4 mt-0.5" />
+                      <div>Operador nao consta na chamada desta partida.</div>
+                    </div>
+                  ) : canSearch ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {filteredPlayers.length ? (
+                        filteredPlayers.map((player) => (
+                          <button
+                            key={player.id}
+                            onClick={() => handleSelectPlayer(player)}
+                            className="w-full  clip-tactical-card bg-[#141A26] border-x-3 border-[#2D3A52] p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
+                          >
+                            <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                              <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                                {player.avatar ? (
+                                  <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
+                                ) : (
+                                  <User className="w-5 h-5 text-[#7F94B0]" />
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
+                              <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">Nenhum operador encontrado</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
+                      Digite ao menos {minChars} caracteres para buscar
+                    </div>
+                  )}
+
+                  {/* Pagination */}
+                  {!requireMatch && canSearch && total > pageSize ? (
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        onClick={() => onPageChange(Math.max(1, page - 1))}
+                        disabled={page === 1}
+                        className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+                      >
+                        {'<'}
+                      </button>
+                      <span className="text-xs font-mono-technical text-[#7F94B0]">
+                        {page} / {Math.max(1, Math.ceil(total / pageSize))}
+                      </span>
+                      <button
+                        onClick={() => onPageChange(Math.min(Math.max(1, Math.ceil(total / pageSize)), page + 1))}
+                        disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
+                        className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+                      >
+                        {'>'}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
-          ) : (
+          ) : selectedTarget ? (
             <div>
               <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                 Operador Selecionado
@@ -315,7 +476,7 @@ export function TransmissionModal({
                   <button
                     onClick={() => {
                       setSelectedTarget(null);
-                      setStep('select');
+                      setStep('player');
                       setReportType(null);
                     }}
                     className="text-[#FF6B00] hover:text-[#FF6B00]/80 font-mono-technical text-xs"
@@ -325,10 +486,10 @@ export function TransmissionModal({
                 )}
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Step 2: Select Type */}
-          {selectedTarget && step !== 'select' && (
+          {selectedTarget && step !== 'player' && (
             <div>
               <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                 Tipo de Transmissão
@@ -379,40 +540,6 @@ export function TransmissionModal({
           {/* Step 3: Details */}
           {reportType && step === 'details' && (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {requireMatch ? (
-                <div>
-                  <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
-                    Selecionar Partida (Obrigatório)
-                  </label>
-                  {matchOptionsEmpty ? (
-                    <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
-                      <CalendarDays className="w-4 h-4 mt-0.5" />
-                      <div>
-                        Nenhuma partida elegível encontrada. Só é possível transmitir após comparecer e finalizar a partida.
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <select
-                        value={selectedMatchId ?? ''}
-                        onChange={(e) => setSelectedMatchId(e.target.value || null)}
-                        className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                        required={requireMatch}
-                      >
-                        <option value="" disabled>
-                          Selecionar partida...
-                        </option>
-                        {eligibleMatches.map((match) => (
-                          <option key={match.id} value={match.id}>
-                            {formatMatchOption(match)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
               {/* Description */}
               <div>
                 <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">

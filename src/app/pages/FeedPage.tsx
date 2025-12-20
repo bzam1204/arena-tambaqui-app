@@ -5,13 +5,11 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { MobileFeedCard } from '@/components/MobileFeedCard';
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
-import type { TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
-import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
-import { Inject, TkFeedGateway, TkMatchGateway, TkPlayerGateway, TkTransmissionGateway } from '@/infra/container';
+import { Inject, TkFeedGateway, TkMatchGateway, TkTransmissionGateway } from '@/infra/container';
 
 const TransmissionModal = lazy(() =>
   import('@/components/TransmissionModal').then((m) => ({ default: m.TransmissionModal })),
@@ -23,16 +21,13 @@ type Props = {
 
 export function FeedPage({ isLoggedIn }: Props) {
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
-  const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const txGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
   const matchGateway = Inject<MatchGateway>(TkMatchGateway);
   const { state } = useSession();
   const queryClient = useQueryClient();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [preSelectedPlayerId, setPreSelectedPlayerId] = useState<string | null>(null);
   const [playerSearchInput, setPlayerSearchInput] = useState('');
-  const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [modalPage, setModalPage] = useState(1);
   const [editingEntry, setEditingEntry] = useState<FeedEntry | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(false);
@@ -40,11 +35,6 @@ export function FeedPage({ isLoggedIn }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const minSearchChars = 0;
   const modalPageSize = 20;
-
-  useEffect(() => {
-    const id = setTimeout(() => setPlayerSearchTerm(playerSearchInput), 250);
-    return () => clearTimeout(id);
-  }, [playerSearchInput]);
 
   const {
     data: feedPages,
@@ -66,26 +56,10 @@ export function FeedPage({ isLoggedIn }: Props) {
   const closeModal = () => {
     setIsModalOpen(false);
     setPlayerSearchInput('');
-    setPlayerSearchTerm('');
     setModalPage(1);
     setEditingEntry(null);
     setPrefillLoading(false);
   };
-
-  const {
-    data: modalPlayersResult,
-    isLoading: playersLoading,
-    isFetching: playersFetching,
-    isError: playersIsError,
-    error: playersError,
-    refetch: refetchPlayers,
-  } = useQuery({
-    queryKey: ['players-search', playerSearchTerm, modalPage],
-    queryFn: () => playerGateway.searchPlayersPaged({ term: playerSearchTerm, page: modalPage - 1, pageSize: modalPageSize }),
-    enabled: isModalOpen && playerSearchTerm.trim().length >= minSearchChars,
-  });
-  const players = modalPlayersResult?.players ?? [];
-  const totalPlayers = modalPlayersResult?.total ?? 0;
 
   const createTransmission = useMutation({
     mutationFn: async (data: { targetId: string; type: 'report' | 'praise'; content: string; matchId?: string | null }) => {
@@ -180,7 +154,7 @@ export function FeedPage({ isLoggedIn }: Props) {
         <h2 className="text-sm font-mono-technical tracking-wider uppercase text-[#7F94B0] mb-4">
           Registro Global
         </h2>
-        {feedLoading || playersLoading ? (
+        {feedLoading ? (
           <Spinner label="carregando feed" />
         ) : (
           feed.map((entry) => (
@@ -230,81 +204,57 @@ export function FeedPage({ isLoggedIn }: Props) {
 
       {isModalOpen ? (
         <Suspense fallback={<Spinner label="carregando interface" />}>
-          {playersIsError ? (
-            <div className="p-4">
-              <QueryErrorCard
-                message={(playersError as Error)?.message || 'Falha ao carregar operadores.'}
-                action={
-                  <button
-                    className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
-                    onClick={() => void refetchPlayers()}
-                  >
-                    [ TENTAR NOVAMENTE ]
-                  </button>
-                }
-              />
-            </div>
-          ) : (
-            <TransmissionModal
-              isOpen={isModalOpen}
-              onClose={() => {
-                closeModal();
-              }}
-              players={players
-                .filter((p) => p.id !== state.playerId)
-                .map(
-                  (p): TransmissionPlayer => ({
-                    id: p.id,
-                    name: p.name,
-                    nickname: p.nickname,
-                    avatar: p.avatar,
-                  }),
-                )}
-              preSelectedPlayerId={preSelectedPlayerId}
-              onSubmit={(data) => {
-                if (editingEntry) {
-                  adminEdit.mutate(
-                    { id: editingEntry.id, content: data.content },
-                    {
-                      onSuccess: closeModal,
-                    },
-                  );
-                } else {
-                  createTransmission.mutate(data, {
+          <TransmissionModal
+            isOpen={isModalOpen}
+            onClose={() => {
+              closeModal();
+            }}
+            players={[]}
+            preSelectedPlayerId={null}
+            submitterId={state.playerId ?? undefined}
+            onSubmit={(data) => {
+              if (editingEntry) {
+                adminEdit.mutate(
+                  { id: editingEntry.id, content: data.content },
+                  {
                     onSuccess: closeModal,
-                  });
-                }
-              }}
-              submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
-              searchTerm={playerSearchInput}
-              onSearchTermChange={(term) => {
-                setPlayerSearchInput(term);
-                setModalPage(1);
-              }}
-              isLoading={(playersLoading || playersFetching) && playerSearchTerm.trim().length >= minSearchChars}
-              minChars={minSearchChars}
-              page={modalPage}
-              pageSize={modalPageSize}
-              total={totalPlayers}
-              onPageChange={setModalPage}
-              lockedTargetId={editingEntry?.targetId ?? undefined}
-              lockedTarget={
-                editingEntry
-                  ? {
-                      id: editingEntry.targetId,
-                      name: editingEntry.targetName,
-                      nickname: editingEntry.targetName,
-                      avatar: editingEntry.targetAvatar,
-                    }
-                  : undefined
+                  },
+                );
+              } else {
+                createTransmission.mutate(data, {
+                  onSuccess: closeModal,
+                });
               }
-              lockedType={editingEntry?.type ?? undefined}
-              initialContent={editingEntry?.content ?? undefined}
-              prefillLoading={prefillLoading}
-              eligibleMatches={eligibleMatches ?? []}
-              requireMatch={!editingEntry}
-            />
-          )}
+            }}
+            submitting={editingEntry ? adminEdit.isPending : createTransmission.isPending}
+            searchTerm={playerSearchInput}
+            onSearchTermChange={(term) => {
+              setPlayerSearchInput(term);
+              setModalPage(1);
+            }}
+            isLoading={false}
+            minChars={minSearchChars}
+            page={modalPage}
+            pageSize={modalPageSize}
+            total={0}
+            onPageChange={setModalPage}
+            lockedTargetId={editingEntry?.targetId ?? undefined}
+            lockedTarget={
+              editingEntry
+                ? {
+                    id: editingEntry.targetId,
+                    name: editingEntry.targetName,
+                    nickname: editingEntry.targetName,
+                    avatar: editingEntry.targetAvatar,
+                  }
+                : undefined
+            }
+            lockedType={editingEntry?.type ?? undefined}
+            initialContent={editingEntry?.content ?? undefined}
+            prefillLoading={prefillLoading}
+            eligibleMatches={eligibleMatches ?? []}
+            requireMatch={!editingEntry}
+          />
         </Suspense>
       ) : null}
       <div ref={sentinelRef} />
