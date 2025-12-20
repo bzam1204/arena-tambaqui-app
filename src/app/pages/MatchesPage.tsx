@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users } from 'lucide-react';
+import { CalendarDays, Clock, Shield, Users } from 'lucide-react';
 import type { MatchSummary } from '@/app/gateways/MatchGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { Inject, TkMatchGateway } from '@/infra/container';
@@ -18,6 +18,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -38,7 +41,7 @@ export function MatchesPage() {
   const [subscribeMatch, setSubscribeMatch] = useState<MatchSummary | null>(null);
   const [rentEquipment, setRentEquipment] = useState(false);
   const [matchName, setMatchName] = useState('');
-  const [matchDate, setMatchDate] = useState('');
+  const [matchDate, setMatchDate] = useState<Date | null>(null);
   const [matchTime, setMatchTime] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -53,6 +56,18 @@ export function MatchesPage() {
     queryFn: () => matchGateway.listMatches({ playerId: state.playerId ?? undefined }),
   });
 
+  const timeOptions = useMemo(() => {
+    const options: string[] = [];
+    for (let hour = 0; hour < 24; hour += 1) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const h = String(hour).padStart(2, '0');
+        const m = String(minute).padStart(2, '0');
+        options.push(`${h}:${m}`);
+      }
+    }
+    return options;
+  }, []);
+
   const createMatch = useMutation({
     mutationFn: async () => {
       if (!state.userId) throw new Error('Faça login para criar partidas.');
@@ -60,7 +75,19 @@ export function MatchesPage() {
       const trimmedName = matchName.trim();
       if (!trimmedName) throw new Error('Informe o nome da partida.');
       if (!matchDate || !matchTime) throw new Error('Informe data e horário de início.');
-      const startAt = new Date(`${matchDate}T${matchTime}`);
+      const [hoursRaw, minutesRaw] = matchTime.split(':');
+      const hours = Number(hoursRaw);
+      const minutes = Number(minutesRaw);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) throw new Error('Horário inválido.');
+      const startAt = new Date(
+        matchDate.getFullYear(),
+        matchDate.getMonth(),
+        matchDate.getDate(),
+        hours,
+        minutes,
+        0,
+        0,
+      );
       if (Number.isNaN(startAt.getTime())) throw new Error('Data inválida.');
       await matchGateway.createMatch({
         name: trimmedName,
@@ -71,7 +98,7 @@ export function MatchesPage() {
     onSuccess: async () => {
       setCreateOpen(false);
       setMatchName('');
-      setMatchDate('');
+      setMatchDate(null);
       setMatchTime('');
       setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
@@ -255,7 +282,7 @@ export function MatchesPage() {
       <Dialog open={createOpen} onOpenChange={(open) => {
         if (!open) {
           setMatchName('');
-          setMatchDate('');
+          setMatchDate(null);
           setMatchTime('');
           setActionError(null);
         }
@@ -281,28 +308,73 @@ export function MatchesPage() {
                 placeholder="Operação Trovão"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
                 <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                   Data de Início
                 </label>
-                <input
-                  type="date"
-                  value={matchDate}
-                  onChange={(e) => setMatchDate(e.target.value)}
-                  className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none"
-                />
+                <Popover>
+                  <PopoverTrigger
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border border-[#2D3A52] bg-[#141A26] px-3 py-2 text-sm text-[#E6F1FF] font-mono-technical transition-colors hover:bg-[#1B2434] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F0FF]/40"
+                  >
+                    <span>
+                      {matchDate
+                        ? matchDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        : 'Selecionar data'}
+                    </span>
+                    <CalendarDays className="w-4 h-4 text-[#7F94B0]" />
+                  </PopoverTrigger>
+                  <PopoverContent className="bg-[#0B0E14] border border-[#2D3A52] p-0 z-[60]" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={matchDate ?? undefined}
+                      onSelect={(date) => setMatchDate(date ?? null)}
+                      className="bg-[#0B0E14] text-[#E6F1FF] font-mono-technical uppercase"
+                      classNames={{
+                        months: 'flex flex-col gap-3',
+                        month: 'flex flex-col gap-3',
+                        caption: 'relative flex items-center justify-center px-2 py-1',
+                        caption_label: 'text-sm tracking-[0.2em] text-[#E6F1FF]',
+                        nav: 'flex items-center gap-2',
+                        nav_button:
+                          'clip-tactical-sm size-7 border border-[#2D3A52] bg-[#0F1729] p-0 text-[#7F94B0] opacity-80 hover:opacity-100 hover:border-[#00F0FF]/50 hover:text-[#E6F1FF]',
+                        nav_button_previous: 'absolute left-2',
+                        nav_button_next: 'absolute right-2',
+                        table: 'w-full border-collapse',
+                        head_row: 'grid grid-cols-7',
+                        head_cell: 'text-[0.7rem] text-[#7F94B0] tracking-[0.2em] text-center',
+                        row: 'grid grid-cols-7 gap-y-2',
+                        cell: 'flex items-center justify-center',
+                        day: 'clip-tactical-sm size-9 border border-[#1F2A3A] bg-[#0F1729] text-[#E6F1FF] font-normal aria-selected:opacity-100 hover:border-[#00F0FF]/50 hover:bg-[#00F0FF]/10',
+                        day_today: 'border-[#00F0FF] text-[#00F0FF]',
+                        day_selected: 'bg-[#00F0FF] text-[#0B0E14] border-[#00F0FF]',
+                        day_outside: 'text-[#2D3A52] border-transparent bg-transparent',
+                        day_disabled: 'text-[#2D3A52] opacity-50',
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
                   Horário de Início
                 </label>
-                <input
-                  type="time"
-                  value={matchTime}
-                  onChange={(e) => setMatchTime(e.target.value)}
-                  className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none"
-                />
+                <Select value={matchTime} onValueChange={setMatchTime}>
+                  <SelectTrigger className="bg-[#141A26] border-[#2D3A52] text-[#E6F1FF] font-mono-technical text-sm hover:bg-[#1B2434]">
+                    <SelectValue placeholder="Selecionar horário" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0B0E14] border-[#2D3A52] text-[#E6F1FF]">
+                    {timeOptions.map((time) => (
+                      <SelectItem key={time} value={time} className="text-[#E6F1FF]">
+                        <span className="inline-flex items-center gap-2 font-mono-technical">
+                          <Clock className="w-3 h-3 text-[#7F94B0]" />
+                          {time}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {actionError ? (
