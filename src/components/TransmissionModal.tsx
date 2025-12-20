@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { TacticalButton } from './TacticalButton';
 import { Spinner } from './Spinner';
 import type { MatchGateway, MatchOption } from '@/app/gateways/MatchGateway';
-import { Inject, TkMatchGateway } from '@/infra/container';
+import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
+import { Inject, TkMatchGateway, TkTransmissionGateway } from '@/infra/container';
 
 export interface TransmissionPlayer {
   id: string;
@@ -40,6 +41,7 @@ interface TransmissionModalProps {
   initialContent?: string;
   prefillLoading?: boolean;
   eligibleMatches?: MatchOption[];
+  eligibleMatchesLoading?: boolean;
   requireMatch?: boolean;
 }
 
@@ -65,9 +67,11 @@ export function TransmissionModal({
   initialContent,
   prefillLoading = false,
   eligibleMatches = [],
+  eligibleMatchesLoading = false,
   requireMatch = false,
 }: TransmissionModalProps) {
   const matchGateway = Inject<MatchGateway>(TkMatchGateway);
+  const transmissionGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
   const [step, setStep] = useState<'match' | 'player' | 'type' | 'details'>(requireMatch ? 'match' : 'player');
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
@@ -131,8 +135,22 @@ export function TransmissionModal({
     queryFn: () => matchGateway.listAttendance(selectedMatchId as string),
     enabled: isOpen && requireMatch && Boolean(selectedMatchId),
   });
+  const {
+    data: transmittedTargets = [],
+    isLoading: transmittedLoading,
+    isError: transmittedIsError,
+    error: transmittedError,
+  } = useQuery({
+    queryKey: ['transmissions', 'targets', submitterId, selectedMatchId],
+    queryFn: () =>
+      transmissionGateway.listTransmittedTargets({
+        submitterId: submitterId as string,
+        matchId: selectedMatchId as string,
+      }),
+    enabled: isOpen && requireMatch && Boolean(selectedMatchId) && Boolean(submitterId),
+  });
 
-  const matchPlayers = useMemo(() => {
+  const matchRoster = useMemo(() => {
     if (!requireMatch) return players;
     return (matchAttendance ?? [])
       .map((entry) => ({
@@ -143,17 +161,23 @@ export function TransmissionModal({
       }))
       .filter((player) => player.id !== submitterId);
   }, [matchAttendance, players, requireMatch, submitterId]);
-  const playerListLoading = requireMatch ? matchPlayersLoading : isLoading;
-  const playerListError = requireMatch ? matchPlayersIsError : false;
+  const transmittedTargetSet = useMemo(() => new Set(transmittedTargets), [transmittedTargets]);
+  const availablePlayers = useMemo(() => {
+    if (!requireMatch) return matchRoster;
+    return matchRoster.filter((player) => !transmittedTargetSet.has(player.id));
+  }, [matchRoster, requireMatch, transmittedTargetSet]);
+  const playerListLoading = requireMatch ? (matchPlayersLoading || transmittedLoading) : isLoading;
+  const playerListError = requireMatch ? (matchPlayersIsError || transmittedIsError) : false;
+  const playerListErrorMessage = (matchPlayersError as Error)?.message || (transmittedError as Error)?.message;
 
   const filteredPlayers = useMemo(() => {
-    const base = matchPlayers;
+    const base = availablePlayers;
     const term = searchTerm.trim().toLowerCase();
     if (!term) return base;
     return base.filter((player) =>
       player.nickname.toLowerCase().includes(term) || player.name.toLowerCase().includes(term),
     );
-  }, [matchPlayers, searchTerm]);
+  }, [availablePlayers, searchTerm]);
 
   const selectedMatch = useMemo(
     () => eligibleMatches.find((match) => match.id === selectedMatchId) ?? null,
@@ -163,8 +187,9 @@ export function TransmissionModal({
   const lockedTargetInMatch = useMemo(() => {
     if (!requireMatch || !lockedTargetKey) return true;
     if (!selectedMatchId) return true;
-    return matchPlayers.some((player) => player.id === lockedTargetKey);
-  }, [lockedTargetKey, matchPlayers, requireMatch, selectedMatchId]);
+    return matchRoster.some((player) => player.id === lockedTargetKey);
+  }, [lockedTargetKey, matchRoster, requireMatch, selectedMatchId]);
+  const lockedTargetAlreadyTransmitted = Boolean(lockedTargetKey && transmittedTargetSet.has(lockedTargetKey));
   const lockedTargetDisplay = selectedTarget ?? lockedTarget ?? null;
   const showLockedTargetCard = Boolean(lockedTargetKey) && (!requireMatch || Boolean(selectedTarget));
 
@@ -189,11 +214,12 @@ export function TransmissionModal({
   useEffect(() => {
     if (!isOpen || !requireMatch) return;
     if (step !== 'player') return;
-    if (!selectedMatchId || !matchPlayers.length) return;
+    if (!selectedMatchId || !matchRoster.length) return;
     const targetId = lockedTargetKey || preSelectedPlayerId;
     if (!targetId || selectedTarget) return;
-    const candidate = matchPlayers.find((player) => player.id === targetId);
+    const candidate = matchRoster.find((player) => player.id === targetId);
     if (!candidate) return;
+    if (transmittedTargetSet.has(candidate.id)) return;
     setSelectedTarget(candidate);
     setStep(lockedType ? 'details' : 'type');
   }, [
@@ -201,11 +227,12 @@ export function TransmissionModal({
     requireMatch,
     step,
     selectedMatchId,
-    matchPlayers,
+    matchRoster,
     lockedTargetKey,
     preSelectedPlayerId,
     selectedTarget,
     lockedType,
+    transmittedTargetSet,
   ]);
 
   if (!isVisible) return null;
@@ -213,12 +240,16 @@ export function TransmissionModal({
   const handleSelectPlayer = (player: TransmissionPlayer) => {
     if (lockedTargetId) return;
     if (requireMatch && !selectedMatchId) return;
+    if (requireMatch && transmittedTargetSet.has(player.id)) return;
     setSelectedTarget(player);
     setStep('type');
   };
 
+  const selectedTargetAlreadyTransmitted = Boolean(selectedTarget && transmittedTargetSet.has(selectedTarget.id));
+
   const handleSelectType = (type: 'report' | 'praise') => {
     if (lockedType) return;
+    if (selectedTargetAlreadyTransmitted) return;
     if (reportType === type && step === 'details') return;
     startTransition(() => {
       setReportType(type);
@@ -239,7 +270,13 @@ export function TransmissionModal({
     }
   };
 
-  const canSubmit = selectedTarget && reportType && content.trim() && (!requireMatch || selectedMatchId) && !submitting;
+  const canSubmit =
+    selectedTarget &&
+    reportType &&
+    content.trim() &&
+    (!requireMatch || selectedMatchId) &&
+    !selectedTargetAlreadyTransmitted &&
+    !submitting;
   const matchOptionsEmpty = requireMatch && eligibleMatches.length === 0;
   const formatMatchOption = (match: MatchOption) => {
     const date = new Date(match.startAt);
@@ -290,7 +327,11 @@ export function TransmissionModal({
                 Selecionar Partida (Obrigatorio)
               </label>
               {step === 'match' ? (
-                matchOptionsEmpty ? (
+                eligibleMatchesLoading ? (
+                  <div className="py-6">
+                    <Spinner />
+                  </div>
+                ) : matchOptionsEmpty ? (
                   <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
                     <CalendarDays className="w-4 h-4 mt-0.5" />
                     <div>
@@ -387,12 +428,21 @@ export function TransmissionModal({
                     <Spinner />
                   ) : playerListError ? (
                     <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
-                      {(matchPlayersError as Error)?.message || 'Falha ao carregar chamada.'}
+                      {playerListErrorMessage || 'Falha ao carregar chamada.'}
+                    </div>
+                  ) : lockedTargetKey && requireMatch && selectedMatchId && lockedTargetAlreadyTransmitted ? (
+                    <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
+                      <AlertTriangle className="w-4 h-4 mt-0.5" />
+                      <div>Voce ja transmitiu este operador nesta partida.</div>
                     </div>
                   ) : lockedTargetKey && requireMatch && selectedMatchId && !lockedTargetInMatch ? (
                     <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
                       <AlertTriangle className="w-4 h-4 mt-0.5" />
                       <div>Operador nao consta na chamada desta partida.</div>
+                    </div>
+                  ) : selectedMatchId && requireMatch && availablePlayers.length === 0 ? (
+                    <div className="text-center text-xs text-[#7F94B0] font-mono-technical py-6">
+                      Nenhum operador disponivel. Voce ja transmitiu todos desta partida.
                     </div>
                   ) : canSearch ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto">

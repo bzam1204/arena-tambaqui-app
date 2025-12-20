@@ -21,6 +21,7 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
       throw new Error('Selecione uma partida válida.');
     }
     await this.assertEligibleMatch(input.matchId, input.submitterId);
+    await this.assertUniqueTransmission(input.matchId, input.submitterId, input.targetId);
     const player = await this.fetchPlayer(input.targetId);
     if (!player) {
       throw new Error('Target player not found');
@@ -54,6 +55,16 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
         .eq('id', player.id);
       if (playerErr) throw playerErr;
     }
+  }
+
+  async listTransmittedTargets(input: { submitterId: string; matchId: string }): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select('target_player_id')
+      .eq('submitter_player_id', input.submitterId)
+      .eq('match_id', input.matchId);
+    if (error) throw error;
+    return (data || []).map((row: any) => row.target_player_id).filter(Boolean);
   }
 
   private async fetchPlayer(id: string): Promise<Player | null> {
@@ -91,6 +102,12 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
     if (!match.finalized_at) {
       throw new Error('Partida ainda não finalizada.');
     }
+    const now = new Date();
+    const finalizedAt = new Date(match.finalized_at);
+    const cutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+    if (finalizedAt < cutoff || finalizedAt > now) {
+      throw new Error('Partida fora da janela de transmissão.');
+    }
     if (match.start_at && new Date(match.start_at) > new Date()) {
       throw new Error('Partida ainda não ocorreu.');
     }
@@ -113,6 +130,21 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
     if (attendanceError) throw attendanceError;
     if (!attendance?.attended) {
       throw new Error('Presença não confirmada para esta partida.');
+    }
+  }
+
+  private async assertUniqueTransmission(matchId: string, submitterId: string, targetId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from(this.table)
+      .select('id')
+      .eq('match_id', matchId)
+      .eq('submitter_player_id', submitterId)
+      .eq('target_player_id', targetId)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      throw new Error('Já existe uma transmissão para este operador nesta partida.');
     }
   }
 }

@@ -141,13 +141,13 @@ export function MatchesPage() {
 
   return (
     <div className="px-4 py-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 items-start justify-between">
         <div>
           <h2 className="text-sm font-mono-technical tracking-wider uppercase text-[#7F94B0]">Partidas</h2>
           <p className="text-xs text-[#7F94B0]">Controle de presença e reputação.</p>
         </div>
         {state.isAdmin ? (
-          <TacticalButton variant="cyan" onClick={() => {
+          <TacticalButton className='w-full' variant="cyan" onClick={() => {
             setActionError(null);
             setCreateOpen(true);
           }}>

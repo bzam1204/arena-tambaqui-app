@@ -28,6 +28,10 @@ export class MockTransmissionGateway implements TransmissionGateway {
     if (!eligible) {
       throw new Error('Partida inválida ou não elegível.');
     }
+    const transmittedTargets = await this.listTransmittedTargets({ submitterId: input.submitterId, matchId: input.matchId });
+    if (transmittedTargets.includes(input.targetId)) {
+      throw new Error('Já existe uma transmissão para este operador nesta partida.');
+    }
     const player = await this.playerGateway.getPlayer(input.targetId);
     const now = new Date();
     const feedEntry: FeedEntry = {
@@ -48,6 +52,18 @@ export class MockTransmissionGateway implements TransmissionGateway {
       this.playerGateway.updateStats(player.id, praise, reports);
     }
 
-    await this.feedGateway.prepend({ ...(feedEntry as any), submitterId: input.submitterId } as any);
+    await this.feedGateway.prepend({
+      ...(feedEntry as any),
+      submitterId: input.submitterId,
+      matchId: input.matchId,
+    } as any);
+  }
+
+  async listTransmittedTargets(input: { submitterId: string; matchId: string }): Promise<string[]> {
+    const entries = await this.feedGateway.listBySubmitter(input.submitterId);
+    return entries
+      .filter((entry: any) => entry.matchId === input.matchId)
+      .map((entry) => entry.targetId)
+      .filter(Boolean);
   }
 }

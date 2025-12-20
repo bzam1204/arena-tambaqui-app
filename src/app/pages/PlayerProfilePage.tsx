@@ -122,7 +122,7 @@ export function PlayerProfilePage() {
     },
   });
 
-  const { data: eligibleMatches } = useQuery({
+  const { data: eligibleMatches, isLoading: eligibleMatchesLoading } = useQuery({
     queryKey: ['matches', 'eligible', state.playerId],
     queryFn: () => matchGateway.listEligibleMatchesForTransmission({ playerId: state.playerId as string }),
     enabled: isModalOpen && Boolean(state.playerId) && !editingEntry,
@@ -292,6 +292,7 @@ export function PlayerProfilePage() {
         initialContent={editingEntry?.content}
         prefillLoading={prefillLoading}
         eligibleMatches={eligibleMatches ?? []}
+        eligibleMatchesLoading={eligibleMatchesLoading}
         requireMatch={!editingEntry}
       />
     </>

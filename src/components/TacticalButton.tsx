@@ -1,4 +1,5 @@
 interface TacticalButtonProps {
+  className: string;
   children: React.ReactNode;
   variant?: 'cyan' | 'amber';
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
@@ -11,13 +12,14 @@ interface TacticalButtonProps {
 export function TacticalButton({
   children,
   variant = 'cyan',
+  className,
   onClick,
   type = 'button',
   fullWidth = false,
   disabled = false,
   leftIcon,
 }: TacticalButtonProps) {
-  const baseClasses = "clip-tactical font-mono-technical uppercase tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2";
+  const baseClasses = className + " clip-tactical font-mono-technical uppercase tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2";
 
   const variantClasses = {
     cyan: "bg-[#00F0FF15] border border-[#00F0FF] text-[#00F0FF] glow-cyan hover:bg-[#00F0FF30] hover:glow-cyan-intense",

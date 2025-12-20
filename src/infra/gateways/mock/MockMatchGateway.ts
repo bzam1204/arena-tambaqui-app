@@ -224,6 +224,8 @@ export class MockMatchGateway implements MatchGateway {
   }
 
   async listEligibleMatchesForTransmission(input: { playerId: string }): Promise<MatchOption[]> {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
     const subs = this.subscriptions.filter((s) => s.playerId === input.playerId);
     if (!subs.length) return [];
     const attendanceSet = new Set(
@@ -232,7 +234,11 @@ export class MockMatchGateway implements MatchGateway {
     if (!attendanceSet.size) return [];
 
     return this.matches
-      .filter((match) => match.finalizedAt)
+      .filter((match) => {
+        if (!match.finalizedAt) return false;
+        const finalizedAt = new Date(match.finalizedAt);
+        return finalizedAt >= cutoff && finalizedAt <= now;
+      })
       .filter((match) => attendanceSet.has(match.id))
       .map((match) => ({ id: match.id, name: match.name, startAt: match.startAt }));
   }

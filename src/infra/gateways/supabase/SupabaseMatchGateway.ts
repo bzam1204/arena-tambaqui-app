@@ -235,6 +235,8 @@ export class SupabaseMatchGateway implements MatchGateway {
   }
 
   async listEligibleMatchesForTransmission(input: { playerId: string }): Promise<MatchOption[]> {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
     const { data: subs, error: subsError } = await this.supabase
       .from(this.subscriptionsTable)
       .select('match_id')
@@ -262,6 +264,11 @@ export class SupabaseMatchGateway implements MatchGateway {
     return (matches || [])
       .filter((match: any) => attendedSet.has(match.id))
       .filter((match: any) => !match.start_at || new Date(match.start_at) <= new Date())
+      .filter((match: any) => {
+        if (!match.finalized_at) return false;
+        const finalizedAt = new Date(match.finalized_at);
+        return finalizedAt >= cutoff && finalizedAt <= now;
+      })
       .map((match: any) => ({
         id: match.id,
         name: match.name,

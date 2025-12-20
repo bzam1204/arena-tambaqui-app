@@ -8,6 +8,7 @@ export interface CreateTransmissionInput {
 
 export interface TransmissionGateway {
   createTransmission(input: CreateTransmissionInput): Promise<void>;
+  listTransmittedTargets(input: { submitterId: string; matchId: string }): Promise<string[]>;
 }
 
 export const TkTransmissionGateway = Symbol('TransmissionGateway');
