@@ -1,13 +1,14 @@
-import { Home, Search, User } from 'lucide-react';
+import { CalendarDays, Home, Search, User } from 'lucide-react';
 
 interface BottomNavProps {
-  currentView: 'feed' | 'search' | 'profile';
-  onNavigate: (view: 'feed' | 'search' | 'profile') => void;
+  currentView: 'matches' | 'feed' | 'search' | 'profile';
+  onNavigate: (view: 'matches' | 'feed' | 'search' | 'profile') => void;
   isLoggedIn: boolean;
 }
 
 export function BottomNav({ currentView, onNavigate, isLoggedIn }: BottomNavProps) {
   const navItems = [
+    { id: 'matches' as const, icon: CalendarDays, label: 'Partidas' },
     { id: 'feed' as const, icon: Home, label: 'Mural' },
     { id: 'search' as const, icon: Search, label: 'Busca' },
     { id: 'profile' as const, icon: User, label: 'Perfil' },

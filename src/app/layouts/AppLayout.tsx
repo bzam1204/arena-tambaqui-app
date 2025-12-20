@@ -17,6 +17,7 @@ export function AppLayout({ isLoggedIn }: Props) {
   const title = isSearch ? 'Busca' : undefined;
   const subtitle = isSearch ? 'Selecionar operador para transmissão' : undefined;
   const currentView = useMemo(() => {
+    if (location.pathname.startsWith('/partidas')) return 'matches';
     if (location.pathname.startsWith('/mural')) return 'feed';
     if (location.pathname.startsWith('/search')) return 'search';
     if (location.pathname.startsWith('/perfil') || location.pathname.startsWith('/player')) return 'profile';
@@ -49,6 +50,10 @@ export function AppLayout({ isLoggedIn }: Props) {
       <BottomNav
         currentView={currentView as any}
         onNavigate={(view) => {
+          if (view === 'matches') {
+            navigate('/partidas');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
           if (view === 'feed') {
             navigate('/mural/feed');
             window.scrollTo({ top: 0, behavior: 'smooth' });

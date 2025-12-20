@@ -5,12 +5,14 @@ import { TkProfileGateway } from '@/app/gateways/ProfileGateway';
 import { TkPlayerGateway } from '@/app/gateways/PlayerGateway';
 import { TkFeedGateway } from '@/app/gateways/FeedGateway';
 import { TkTransmissionGateway } from '@/app/gateways/TransmissionGateway';
+import { TkMatchGateway } from '@/app/gateways/MatchGateway';
 import {
   MockAuthGateway,
   MockProfileGateway,
   MockPlayerGateway,
   MockFeedGateway,
   MockTransmissionGateway,
+  MockMatchGateway,
 } from './gateways/mock';
 import {
   SupabaseAuthGateway,
@@ -18,6 +20,7 @@ import {
   SupabasePlayerGateway,
   SupabaseFeedGateway,
   SupabaseTransmissionGateway,
+  SupabaseMatchGateway,
 } from './gateways/supabase';
 
 // Tokens re-export for convenience
@@ -27,6 +30,7 @@ export {
   TkPlayerGateway,
   TkFeedGateway,
   TkTransmissionGateway,
+  TkMatchGateway,
 };
 
 const backendRaw = (import.meta.env.VITE_DATA_BACKEND || 'supabase').toLowerCase().trim();
@@ -45,6 +49,7 @@ if (backend === 'supabase') {
   container.register(TkPlayerGateway, { useClass: SupabasePlayerGateway });
   container.register(TkFeedGateway, { useClass: SupabaseFeedGateway });
   container.register(TkTransmissionGateway, { useClass: SupabaseTransmissionGateway });
+  container.register(TkMatchGateway, { useClass: SupabaseMatchGateway });
   console.info('[container] Using Supabase gateways');
 } else {
   container.register(TkAuthGateway, { useClass: MockAuthGateway });
@@ -52,6 +57,7 @@ if (backend === 'supabase') {
   container.register(TkPlayerGateway, { useClass: MockPlayerGateway });
   container.register(TkFeedGateway, { useClass: MockFeedGateway });
   container.register(TkTransmissionGateway, { useClass: MockTransmissionGateway });
+  container.register(TkMatchGateway, { useClass: MockMatchGateway });
 }
 
 export function Inject<T>(token: symbol): T {

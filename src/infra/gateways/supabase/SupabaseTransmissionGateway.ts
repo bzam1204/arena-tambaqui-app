@@ -9,11 +9,18 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
   private readonly supabase = getSupabaseClient();
   private readonly table = 'feed';
   private readonly playersTable = 'players';
+  private readonly matchesTable = 'matches';
+  private readonly subscriptionsTable = 'match_subscriptions';
+  private readonly attendanceTable = 'match_attendance';
 
   async createTransmission(input: CreateTransmissionInput): Promise<void> {
     if (input.targetId === input.submitterId) {
       throw new Error('Não é possível denunciar a si mesmo.');
     }
+    if (!input.matchId) {
+      throw new Error('Selecione uma partida válida.');
+    }
+    await this.assertEligibleMatch(input.matchId, input.submitterId);
     const player = await this.fetchPlayer(input.targetId);
     if (!player) {
       throw new Error('Target player not found');
@@ -28,6 +35,7 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
       content: input.content,
       created_at: now.toISOString(),
       submitter_player_id: input.submitterId,
+      match_id: input.matchId,
     });
     if (feedErr) throw feedErr;
 
@@ -70,5 +78,41 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
       reputation: calculateReputation({ elogios: praise, denuncias: reports }),
       history: data.history ?? [],
     };
+  }
+
+  private async assertEligibleMatch(matchId: string, playerId: string): Promise<void> {
+    const { data: match, error: matchError } = await this.supabase
+      .from(this.matchesTable)
+      .select('id,start_at,finalized_at')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (matchError) throw matchError;
+    if (!match) throw new Error('Partida não encontrada.');
+    if (!match.finalized_at) {
+      throw new Error('Partida ainda não finalizada.');
+    }
+    if (match.start_at && new Date(match.start_at) > new Date()) {
+      throw new Error('Partida ainda não ocorreu.');
+    }
+
+    const { data: sub, error: subError } = await this.supabase
+      .from(this.subscriptionsTable)
+      .select('id')
+      .eq('match_id', matchId)
+      .eq('player_id', playerId)
+      .maybeSingle();
+    if (subError) throw subError;
+    if (!sub) throw new Error('Inscrição não encontrada para a partida selecionada.');
+
+    const { data: attendance, error: attendanceError } = await this.supabase
+      .from(this.attendanceTable)
+      .select('attended')
+      .eq('match_id', matchId)
+      .eq('player_id', playerId)
+      .maybeSingle();
+    if (attendanceError) throw attendanceError;
+    if (!attendance?.attended) {
+      throw new Error('Presença não confirmada para esta partida.');
+    }
   }
 }

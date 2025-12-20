@@ -3,6 +3,7 @@ export interface CreateTransmissionInput {
   type: 'report' | 'praise';
   content: string;
   submitterId: string; // player id (not user id)
+  matchId: string;
 }
 
 export interface TransmissionGateway {

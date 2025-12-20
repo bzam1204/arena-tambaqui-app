@@ -1,7 +1,8 @@
 import { useEffect, useState, useTransition } from 'react';
-import { X, Lock, AlertTriangle, Award, Search, User } from 'lucide-react';
+import { X, Lock, AlertTriangle, Award, Search, User, CalendarDays } from 'lucide-react';
 import { TacticalButton } from './TacticalButton';
 import { Spinner } from './Spinner';
+import type { MatchOption } from '@/app/gateways/MatchGateway';
 
 export interface TransmissionPlayer {
   id: string;
@@ -19,6 +20,7 @@ interface TransmissionModalProps {
     targetId: string;
     type: 'report' | 'praise';
     content: string;
+    matchId?: string | null;
   }) => void;
   submitting?: boolean;
   searchTerm: string;
@@ -34,6 +36,8 @@ interface TransmissionModalProps {
   lockedType?: 'report' | 'praise';
   initialContent?: string;
   prefillLoading?: boolean;
+  eligibleMatches?: MatchOption[];
+  requireMatch?: boolean;
 }
 
 export function TransmissionModal({
@@ -56,11 +60,14 @@ export function TransmissionModal({
   lockedType,
   initialContent,
   prefillLoading = false,
+  eligibleMatches = [],
+  requireMatch = false,
 }: TransmissionModalProps) {
   const [step, setStep] = useState<'select' | 'type' | 'details'>('select');
   const [selectedTarget, setSelectedTarget] = useState<TransmissionPlayer | null>(null);
   const [reportType, setReportType] = useState<'report' | 'praise' | null>(null);
   const [content, setContent] = useState('');
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const canSearch = !lockedTargetId && searchTerm.trim().length >= minChars;
   const [, startTransition] = useTransition();
   const isVisible = isOpen || submitting; // keep mounted while submitting to show loading state
@@ -100,8 +107,18 @@ export function TransmissionModal({
       setSelectedTarget(null);
       setReportType(null);
       setContent('');
+      setSelectedMatchId(null);
     }
   }, [isOpen, submitting]);
+
+  useEffect(() => {
+    if (!isOpen || !requireMatch) return;
+    if (!selectedMatchId) return;
+    const stillValid = eligibleMatches.some((match) => match.id === selectedMatchId);
+    if (!stillValid) {
+      setSelectedMatchId(null);
+    }
+  }, [eligibleMatches, isOpen, requireMatch, selectedMatchId]);
 
   if (!isVisible) return null;
 
@@ -123,15 +140,24 @@ export function TransmissionModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedTarget && reportType && content.trim() && !submitting) {
+      if (requireMatch && !selectedMatchId) return;
       onSubmit({
         targetId: selectedTarget.id,
         type: reportType,
         content: content.trim(),
+        matchId: selectedMatchId,
       });
     }
   };
 
-  const canSubmit = selectedTarget && reportType && content.trim() && !submitting;
+  const canSubmit = selectedTarget && reportType && content.trim() && (!requireMatch || selectedMatchId) && !submitting;
+  const matchOptionsEmpty = requireMatch && eligibleMatches.length === 0;
+  const formatMatchOption = (match: MatchOption) => {
+    const date = new Date(match.startAt);
+    const dateLabel = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.');
+    const timeLabel = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `${match.name} - ${dateLabel} / ${timeLabel}`;
+  };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-0">
@@ -353,6 +379,39 @@ export function TransmissionModal({
           {/* Step 3: Details */}
           {reportType && step === 'details' && (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {requireMatch ? (
+                <div>
+                  <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
+                    Selecionar Partida (Obrigatório)
+                  </label>
+                  {matchOptionsEmpty ? (
+                    <div className="flex items-start gap-2 bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
+                      <CalendarDays className="w-4 h-4 mt-0.5" />
+                      <div>
+                        Nenhuma partida elegível encontrada. Só é possível transmitir após comparecer e finalizar a partida.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={selectedMatchId ?? ''}
+                        onChange={(e) => setSelectedMatchId(e.target.value || null)}
+                        className="w-full bg-[#141A26] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        required={requireMatch}
+                      >
+                        <option value="" disabled>
+                          Selecionar partida...
+                        </option>
+                        {eligibleMatches.map((match) => (
+                          <option key={match.id} value={match.id}>
+                            {formatMatchOption(match)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               {/* Description */}
               <div>

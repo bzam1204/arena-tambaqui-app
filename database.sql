@@ -13,6 +13,7 @@ create table if not exists users (
   full_name text not null,
   avatar text,
   is_admin boolean,
+  email text unique,
   cpf text not null unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -31,6 +32,34 @@ create table if not exists players (
   updated_at timestamptz not null default now()
 );
 
+-- Matches: partidas e inscrições
+create table if not exists matches (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  start_at timestamptz not null,
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  finalized_at timestamptz,
+  finalized_by uuid references users(id) on delete set null
+);
+
+create table if not exists match_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references matches(id) on delete cascade,
+  player_id uuid not null references players(id) on delete cascade,
+  rent_equipment boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (match_id, player_id)
+);
+
+create table if not exists match_attendance (
+  match_id uuid not null references matches(id) on delete cascade,
+  player_id uuid not null references players(id) on delete cascade,
+  attended boolean not null default false,
+  marked_at timestamptz not null default now(),
+  primary key (match_id, player_id)
+);
+
 -- Feed: transmissions (praise/report). Submitter is a player (anonymous to other users).
 create table if not exists feed (
   id uuid primary key default gen_random_uuid(),
@@ -39,12 +68,26 @@ create table if not exists feed (
   submitter_player_id uuid references players(id) on delete set null,
   content text not null,
   is_retracted boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  match_id uuid references matches(id) on delete set null
 );
+
+alter table if exists feed
+  add column if not exists match_id uuid references matches(id) on delete set null;
+
+alter table if exists users
+  add column if not exists email text;
 
 -- Indexes for search
 create index if not exists idx_players_nickname_lower on players (lower(nickname));
 create unique index if not exists idx_players_user on players(user_id);
 create index if not exists idx_users_full_name_lower on users (lower(full_name));
+create index if not exists idx_users_email_lower on users (lower(email));
 create index if not exists idx_feed_created_at on feed (created_at desc);
 create index if not exists idx_feed_target_player on feed (target_player_id);
+create index if not exists idx_feed_match on feed (match_id);
+create index if not exists idx_matches_start_at on matches (start_at desc);
+create index if not exists idx_match_subscriptions_match on match_subscriptions (match_id);
+create index if not exists idx_match_subscriptions_player on match_subscriptions (player_id);
+create index if not exists idx_match_attendance_match on match_attendance (match_id);
+create index if not exists idx_match_attendance_player on match_attendance (player_id);

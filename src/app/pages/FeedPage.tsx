@@ -8,9 +8,10 @@ import { QueryErrorCard } from '@/components/QueryErrorCard';
 import type { TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
+import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
-import { Inject, TkFeedGateway, TkPlayerGateway, TkTransmissionGateway } from '@/infra/container';
+import { Inject, TkFeedGateway, TkMatchGateway, TkPlayerGateway, TkTransmissionGateway } from '@/infra/container';
 
 const TransmissionModal = lazy(() =>
   import('@/components/TransmissionModal').then((m) => ({ default: m.TransmissionModal })),
@@ -24,6 +25,7 @@ export function FeedPage({ isLoggedIn }: Props) {
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const txGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
+  const matchGateway = Inject<MatchGateway>(TkMatchGateway);
   const { state } = useSession();
   const queryClient = useQueryClient();
 
@@ -86,7 +88,7 @@ export function FeedPage({ isLoggedIn }: Props) {
   const totalPlayers = modalPlayersResult?.total ?? 0;
 
   const createTransmission = useMutation({
-    mutationFn: async (data: { targetId: string; type: 'report' | 'praise'; content: string }) => {
+    mutationFn: async (data: { targetId: string; type: 'report' | 'praise'; content: string; matchId?: string | null }) => {
       if (!state.userId) {
         navigate('/auth');
         return;
@@ -94,6 +96,9 @@ export function FeedPage({ isLoggedIn }: Props) {
       if (!state.playerId) {
         navigate('/onboarding');
         return;
+      }
+      if (!data.matchId) {
+        throw new Error('Selecione uma partida válida.');
       }
       if (data.targetId === state.playerId) {
         throw new Error('Não é possível denunciar a si mesmo.');
@@ -103,12 +108,19 @@ export function FeedPage({ isLoggedIn }: Props) {
         type: data.type,
         content: data.content,
         submitterId: state.playerId,
+        matchId: data.matchId,
       });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['feed'] });
       await queryClient.invalidateQueries({ queryKey: ['players'] });
     },
+  });
+
+  const { data: eligibleMatches } = useQuery({
+    queryKey: ['matches', 'eligible', state.playerId],
+    queryFn: () => matchGateway.listEligibleMatchesForTransmission({ playerId: state.playerId as string }),
+    enabled: isModalOpen && Boolean(state.playerId) && !editingEntry,
   });
   const adminRetractAny = useMutation({
     mutationFn: (entryId: string) => feedGateway.adminRetract(entryId),
@@ -289,6 +301,8 @@ export function FeedPage({ isLoggedIn }: Props) {
               lockedType={editingEntry?.type ?? undefined}
               initialContent={editingEntry?.content ?? undefined}
               prefillLoading={prefillLoading}
+              eligibleMatches={eligibleMatches ?? []}
+              requireMatch={!editingEntry}
             />
           )}
         </Suspense>

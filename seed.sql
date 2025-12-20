@@ -1,4 +1,5 @@
--- Tables and enum must already exist (users, players, feed, feed_type). This script only seeds data.
+-- Tables and enum must already exist (users, players, matches, match_subscriptions, match_attendance, feed, feed_type).
+-- This script only seeds data.
 set local search_path = public;
 
 begin;
@@ -6,6 +7,15 @@ begin;
 -- Clean tables (drop data only) if they exist
 do $$
 begin
+  if to_regclass('public.match_attendance') is not null then
+    execute 'truncate table public.match_attendance restart identity cascade';
+  end if;
+  if to_regclass('public.match_subscriptions') is not null then
+    execute 'truncate table public.match_subscriptions restart identity cascade';
+  end if;
+  if to_regclass('public.matches') is not null then
+    execute 'truncate table public.matches restart identity cascade';
+  end if;
   if to_regclass('public.feed') is not null then
     execute 'truncate table public.feed restart identity cascade';
   end if;
@@ -21,42 +31,116 @@ begin
       execute 'alter table public.users drop constraint users_cpf_key';
     end if;
     execute 'alter table public.users add constraint users_cpf_key unique (cpf)';
+    perform 1 from pg_constraint where conname = 'users_email_key';
+    if found then
+      execute 'alter table public.users drop constraint users_email_key';
+    end if;
+    execute 'alter table public.users add constraint users_email_key unique (email)';
   end if;
 end$$;
 
 -- Insert users and players
-with inserted_users as (
-  insert into public.users (id, full_name, avatar, cpf)
-  select
-    gen_random_uuid() as id,
-    'Operador ' || gs as full_name,
-    (array[
-      'https://images.unsplash.com/photo-1502685104226-ee32379fefbe',
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1',
-      'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df',
-      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91',
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab',
-      'https://images.unsplash.com/photo-1544723795-3fb6469f5b39',
-      'https://images.unsplash.com/photo-1527980965255-d3b416303d12',
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1',
-      'https://images.unsplash.com/photo-1544723795-3fb6469f5b39',
-      'https://images.unsplash.com/photo-1441123694162-e54a981ceba3'
-    ])[1 + (random()*9)::int] as avatar,
-    lpad(gs::text, 11, '0') as cpf
-  from generate_series(1, 200) as gs
-  returning id, full_name
+with avatars as (
+  select unnest(array[
+    'https://images.unsplash.com/photo-1502685104226-ee32379fefbe',
+    'https://images.unsplash.com/photo-1524504388940-b1c1722653e1',
+    'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df',
+    'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91',
+    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab',
+    'https://images.unsplash.com/photo-1544723795-3fb6469f5b39',
+    'https://images.unsplash.com/photo-1527980965255-d3b416303d12',
+    'https://images.unsplash.com/photo-1524504388940-b1c1722653e1',
+    'https://images.unsplash.com/photo-1544723795-3fb6469f5b39',
+    'https://images.unsplash.com/photo-1441123694162-e54a981ceba3'
+  ]) as url
 ),
-enumerated_users as (
-  select id, full_name, row_number() over () as rn from inserted_users
+seed_roster as (
+  select *
+  from (values
+    ('Gabriel Costa', 'Falcao', 'gabriel.costa'),
+    ('Mariana Alves', 'Valkyria', 'mariana.alves'),
+    ('Lucas Ferreira', 'Ghost', 'lucas.ferreira'),
+    ('Beatriz Souza', 'Viper', 'beatriz.souza'),
+    ('Rafael Mendes', 'Titan', 'rafael.mendes'),
+    ('Camila Rocha', 'Siren', 'camila.rocha'),
+    ('Diego Lima', 'Jaguar', 'diego.lima'),
+    ('Juliana Barros', 'Lynx', 'juliana.barros'),
+    ('Bruno Oliveira', 'Ranger', 'bruno.oliveira'),
+    ('Fernanda Souza', 'Nova', 'fernanda.souza'),
+    ('Thiago Martins', 'Orca', 'thiago.martins'),
+    ('Luana Ribeiro', 'Mirage', 'luana.ribeiro'),
+    ('Pedro Santos', 'Echo', 'pedro.santos'),
+    ('Ana Paula Duarte', 'Sapphire', 'ana.duarte'),
+    ('Igor Carvalho', 'Specter', 'igor.carvalho'),
+    ('Carla Nunes', 'Ion', 'carla.nunes'),
+    ('Victor Hugo', 'Raider', 'victor.hugo'),
+    ('Bianca Melo', 'Orion', 'bianca.melo'),
+    ('Matheus Pinto', 'Falcon', 'matheus.pinto'),
+    ('Renata Farias', 'Vega', 'renata.farias'),
+    ('Joao Viana', 'Atlas', 'joao.viana'),
+    ('Aline Moraes', 'Hydra', 'aline.moraes'),
+    ('Felipe Cardoso', 'Draco', 'felipe.cardoso'),
+    ('Sabrina Peixoto', 'Kestrel', 'sabrina.peixoto'),
+    ('Gustavo Freitas', 'Tempest', 'gustavo.freitas'),
+    ('Patricia Lima', 'Quasar', 'patricia.lima'),
+    ('Leandro Almeida', 'Blackhawk', 'leandro.almeida'),
+    ('Larissa Braga', 'Artemis', 'larissa.braga'),
+    ('Marcos Nogueira', 'Sabre', 'marcos.nogueira'),
+    ('Daniela Pires', 'Luna', 'daniela.pires'),
+    ('Rodrigo Teixeira', 'Vortex', 'rodrigo.teixeira'),
+    ('Tatiana Campos', 'Ember', 'tatiana.campos'),
+    ('Henrique Silva', 'Sentinel', 'henrique.silva'),
+    ('Nadia Araujo', 'Aurora', 'nadia.araujo'),
+    ('Caio Batista', 'Blaze', 'caio.batista'),
+    ('Elisa Monteiro', 'Nyx', 'elisa.monteiro'),
+    ('Andre Neves', 'Forge', 'andre.neves'),
+    ('Viviane Pinto', 'Pulse', 'viviane.pinto'),
+    ('Marcelo Dias', 'Trooper', 'marcelo.dias'),
+    ('Priscila Castro', 'Halo', 'priscila.castro'),
+    ('Guilherme Reis', 'Outlaw', 'guilherme.reis'),
+    ('Yasmin Santos', 'Quartz', 'yasmin.santos'),
+    ('Rafael Siqueira', 'Warden', 'rafael.siqueira'),
+    ('Milena Prado', 'Zenith', 'milena.prado'),
+    ('Daniel Costa', 'Recon', 'daniel.costa'),
+    ('Isabela Ramos', 'Frost', 'isabela.ramos'),
+    ('Hugo Andrade', 'Ironclad', 'hugo.andrade'),
+    ('Bruna Lopes', 'Mantis', 'bruna.lopes'),
+    ('Otavio Queiroz', 'Havoc', 'otavio.queiroz'),
+    ('Nicole Vieira', 'Selene', 'nicole.vieira')
+  ) as roster(full_name, callsign, email_local)
+),
+roster as (
+  select
+    gen_random_uuid() as user_id,
+    row_number() over () as rn,
+    full_name,
+    callsign,
+    email_local,
+    (select url from avatars order by random() limit 1) as avatar,
+    lpad((10000000000 + row_number() over ())::text, 11, '0') as cpf
+  from seed_roster
+),
+inserted_users as (
+  insert into public.users (id, full_name, avatar, cpf, email, is_admin)
+  select
+    user_id,
+    full_name,
+    avatar,
+    cpf,
+    email_local || '@arena-tambaqui.com',
+    rn = 1
+  from roster
+  returning id
 ),
 player_seed as (
   select
     gen_random_uuid() as player_id,
-    id as user_id,
-    'Codinome-' || lpad(rn::text, 3, '0') as nickname,
+    roster.user_id as user_id,
+    roster.callsign as nickname,
     floor(random() * 40)::int as praise_count,
     floor(random() * 30)::int as report_count
-  from enumerated_users
+  from roster
+  where exists (select 1 from inserted_users)
 )
 insert into players (id, user_id, nickname, praise_count, report_count, reputation)
 select
@@ -67,6 +151,66 @@ select
   report_count,
   least(10, greatest(0, 6 + floor(praise_count / 5) - floor(report_count / 5))) as reputation
 from player_seed;
+
+-- Insert matches
+insert into matches (id, name, start_at, created_by, created_at, finalized_at, finalized_by)
+values
+  (gen_random_uuid(), 'Operação Trovão', now() + interval '2 hours', (select id from users limit 1), now(), null, null),
+  (gen_random_uuid(), 'Missão Noturna', now() + interval '2 days', (select id from users limit 1), now(), null, null),
+  (gen_random_uuid(), 'Treino Tático', now() - interval '7 days', (select id from users limit 1), now() - interval '7 days', now() - interval '6 days', (select id from users limit 1));
+
+-- Subscriptions (future matches + finalized match)
+with ranked_players as (
+  select id, row_number() over (order by nickname) as rn from players
+)
+insert into match_subscriptions (id, match_id, player_id, rent_equipment, created_at)
+select
+  gen_random_uuid(),
+  (select id from matches where name = 'Operação Trovão' limit 1),
+  id,
+  random() < 0.4,
+  now()
+from ranked_players
+where rn between 1 and 12;
+
+with ranked_players as (
+  select id, row_number() over (order by nickname) as rn from players
+)
+insert into match_subscriptions (id, match_id, player_id, rent_equipment, created_at)
+select
+  gen_random_uuid(),
+  (select id from matches where name = 'Missão Noturna' limit 1),
+  id,
+  random() < 0.3,
+  now()
+from ranked_players
+where rn between 13 and 24;
+
+with ranked_players as (
+  select id, row_number() over (order by nickname) as rn from players
+)
+insert into match_subscriptions (id, match_id, player_id, rent_equipment, created_at)
+select
+  gen_random_uuid(),
+  (select id from matches where name = 'Treino Tático' limit 1),
+  id,
+  random() < 0.5,
+  now() - interval '8 days'
+from ranked_players
+where rn between 25 and 36;
+
+-- Attendance for finalized match
+with ranked_players as (
+  select id, row_number() over (order by nickname) as rn from players
+)
+insert into match_attendance (match_id, player_id, attended, marked_at)
+select
+  (select id from matches where name = 'Treino Tático' limit 1),
+  id,
+  random() < 0.7,
+  now() - interval '7 days'
+from ranked_players
+where rn between 25 and 36;
 
 -- Insert feed entries (~400 rows)
 with p as (

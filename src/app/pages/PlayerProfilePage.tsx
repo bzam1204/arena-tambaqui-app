@@ -6,7 +6,8 @@ import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
-import { Inject, TkPlayerGateway, TkFeedGateway, TkTransmissionGateway } from '@/infra/container';
+import type { MatchGateway } from '@/app/gateways/MatchGateway';
+import { Inject, TkPlayerGateway, TkFeedGateway, TkMatchGateway, TkTransmissionGateway } from '@/infra/container';
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
@@ -16,6 +17,7 @@ export function PlayerProfilePage() {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const txGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
+  const matchGateway = Inject<MatchGateway>(TkMatchGateway);
   const { id } = useParams();
   const { state } = useSession();
   const navigate = useNavigate();
@@ -95,7 +97,7 @@ export function PlayerProfilePage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const createTransmission = useMutation({
-    mutationFn: (data: { targetId: string; type: 'report' | 'praise'; content: string }) => {
+    mutationFn: (data: { targetId: string; type: 'report' | 'praise'; content: string; matchId?: string | null }) => {
       if (!state.userId) {
         navigate('/auth');
         return Promise.resolve();
@@ -104,10 +106,13 @@ export function PlayerProfilePage() {
         navigate('/onboarding');
         return Promise.resolve();
       }
+      if (!data.matchId) {
+        return Promise.reject(new Error('Selecione uma partida válida.'));
+      }
       if (data.targetId === state.playerId) {
         return Promise.reject(new Error('Não é possível denunciar a si mesmo.'));
       }
-      return txGateway.createTransmission({ ...data, submitterId: state.playerId });
+      return txGateway.createTransmission({ ...data, submitterId: state.playerId, matchId: data.matchId });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['feed', 'target', id] });
@@ -115,6 +120,12 @@ export function PlayerProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ['players'] });
       await queryClient.invalidateQueries({ queryKey: ['player', id] });
     },
+  });
+
+  const { data: eligibleMatches } = useQuery({
+    queryKey: ['matches', 'eligible', state.playerId],
+    queryFn: () => matchGateway.listEligibleMatchesForTransmission({ playerId: state.playerId as string }),
+    enabled: isModalOpen && Boolean(state.playerId) && !editingEntry,
   });
 
   const adminRetract = useMutation({
@@ -279,6 +290,8 @@ export function PlayerProfilePage() {
         lockedType={editingEntry?.type}
         initialContent={editingEntry?.content}
         prefillLoading={prefillLoading}
+        eligibleMatches={eligibleMatches ?? []}
+        requireMatch={!editingEntry}
       />
     </>
   );

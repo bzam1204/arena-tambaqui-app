@@ -7,6 +7,7 @@ import { RequireAuth } from '@/app/routes/RequireAuth';
 const AppLayout = lazy(() => import('@/app/layouts/AppLayout').then((m) => ({ default: m.AppLayout })));
 const MuralLayout = lazy(() => import('@/app/layouts/MuralLayout').then((m) => ({ default: m.MuralLayout })));
 const FeedPage = lazy(() => import('@/app/pages/FeedPage').then((m) => ({ default: m.FeedPage })));
+const MatchesPage = lazy(() => import('@/app/pages/MatchesPage').then((m) => ({ default: m.MatchesPage })));
 const RankingsPage = lazy(() => import('@/app/pages/RankingsPage').then((m) => ({ default: m.RankingsPage })));
 const SearchPageRoute = lazy(() => import('@/app/pages/SearchPageRoute').then((m) => ({ default: m.SearchPageRoute })));
 const PlayerProfilePage = lazy(() => import('@/app/pages/PlayerProfilePage').then((m) => ({ default: m.PlayerProfilePage })));
@@ -23,7 +24,7 @@ export default function App() {
         {
           path: '/',
           element:
-            state.userId && !state.onboarded ? <Navigate to="/onboarding" replace /> : <Navigate to="/mural/feed" replace />,
+            state.userId && !state.onboarded ? <Navigate to="/onboarding" replace /> : <Navigate to="/partidas" replace />,
         },
         {
           path: '/auth',
@@ -54,6 +55,7 @@ export default function App() {
         {
           element: <AppLayout isLoggedIn={Boolean(state.userId)} />,
           children: [
+            { path: '/partidas', element: <MatchesPage /> },
             {
               path: '/mural',
               element: <MuralLayout />,

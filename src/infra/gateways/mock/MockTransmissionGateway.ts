@@ -5,17 +5,28 @@ import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import { TkFeedGateway } from '@/app/gateways/FeedGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import { TkPlayerGateway } from '@/app/gateways/PlayerGateway';
+import type { MatchGateway } from '@/app/gateways/MatchGateway';
+import { TkMatchGateway } from '@/app/gateways/MatchGateway';
 
 @injectable()
 export class MockTransmissionGateway implements TransmissionGateway {
   constructor(
     @inject(TkFeedGateway) private readonly feedGateway: FeedGateway,
     @inject(TkPlayerGateway) private readonly playerGateway: PlayerGateway,
+    @inject(TkMatchGateway) private readonly matchGateway: MatchGateway,
   ) {}
 
   async createTransmission(input: CreateTransmissionInput): Promise<void> {
     if (input.targetId === input.submitterId) {
       throw new Error('Não é possível denunciar a si mesmo.');
+    }
+    if (!input.matchId) {
+      throw new Error('Selecione uma partida válida.');
+    }
+    const eligibleMatches = await this.matchGateway.listEligibleMatchesForTransmission({ playerId: input.submitterId });
+    const eligible = eligibleMatches.some((match) => match.id === input.matchId);
+    if (!eligible) {
+      throw new Error('Partida inválida ou não elegível.');
     }
     const player = await this.playerGateway.getPlayer(input.targetId);
     const now = new Date();
