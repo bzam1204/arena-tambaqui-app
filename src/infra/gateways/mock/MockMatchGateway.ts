@@ -118,6 +118,13 @@ export class MockMatchGateway implements MatchGateway {
     ];
   }
 
+  async updateMatch(input: { matchId: string; name: string; startAt: string }): Promise<void> {
+    const match = this.matches.find((m) => m.id === input.matchId);
+    if (!match) throw new Error('Partida não encontrada.');
+    match.name = input.name;
+    match.startAt = input.startAt;
+  }
+
   async subscribe(input: { matchId: string; playerId: string; rentEquipment: boolean }): Promise<void> {
     const match = this.matches.find((m) => m.id === input.matchId);
     if (!match) throw new Error('Partida não encontrada.');
@@ -150,6 +157,23 @@ export class MockMatchGateway implements MatchGateway {
     );
     if (existingIndex === -1) throw new Error('Você não está inscrito.');
     this.subscriptions = this.subscriptions.filter((_, index) => index !== existingIndex);
+  }
+
+  async removePlayer(input: { matchId: string; playerId: string }): Promise<void> {
+    this.subscriptions = this.subscriptions.filter(
+      (sub) => !(sub.matchId === input.matchId && sub.playerId === input.playerId),
+    );
+    this.attendance = this.attendance.filter(
+      (entry) => !(entry.matchId === input.matchId && entry.playerId === input.playerId),
+    );
+  }
+
+  async deleteMatch(input: { matchId: string }): Promise<void> {
+    const matchIndex = this.matches.findIndex((m) => m.id === input.matchId);
+    if (matchIndex === -1) throw new Error('Partida não encontrada.');
+    this.matches = this.matches.filter((_, index) => index !== matchIndex);
+    this.subscriptions = this.subscriptions.filter((sub) => sub.matchId !== input.matchId);
+    this.attendance = this.attendance.filter((entry) => entry.matchId !== input.matchId);
   }
 
   async listAttendance(matchId: string): Promise<MatchAttendanceEntry[]> {

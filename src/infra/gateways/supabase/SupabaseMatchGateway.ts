@@ -65,6 +65,14 @@ export class SupabaseMatchGateway implements MatchGateway {
     if (error) throw error;
   }
 
+  async updateMatch(input: { matchId: string; name: string; startAt: string }): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.matchesTable)
+      .update({ name: input.name, start_at: input.startAt })
+      .eq('id', input.matchId);
+    if (error) throw error;
+  }
+
   async subscribe(input: { matchId: string; playerId: string; rentEquipment: boolean }): Promise<void> {
     const { data: match, error: matchError } = await this.supabase
       .from(this.matchesTable)
@@ -106,6 +114,27 @@ export class SupabaseMatchGateway implements MatchGateway {
       .delete()
       .eq('match_id', input.matchId)
       .eq('player_id', input.playerId);
+    if (error) throw error;
+  }
+
+  async removePlayer(input: { matchId: string; playerId: string }): Promise<void> {
+    const { error: attendanceError } = await this.supabase
+      .from(this.attendanceTable)
+      .delete()
+      .eq('match_id', input.matchId)
+      .eq('player_id', input.playerId);
+    if (attendanceError) throw attendanceError;
+
+    const { error } = await this.supabase
+      .from(this.subscriptionsTable)
+      .delete()
+      .eq('match_id', input.matchId)
+      .eq('player_id', input.playerId);
+    if (error) throw error;
+  }
+
+  async deleteMatch(input: { matchId: string }): Promise<void> {
+    const { error } = await this.supabase.from(this.matchesTable).delete().eq('id', input.matchId);
     if (error) throw error;
   }
 

@@ -1,5 +1,5 @@
 interface TacticalButtonProps {
-  className: string;
+  className?: string;
   children: React.ReactNode;
   variant?: 'cyan' | 'amber';
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
