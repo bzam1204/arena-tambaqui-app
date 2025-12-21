@@ -13,14 +13,12 @@ export function BottomNav({ currentView, onNavigate, isLoggedIn }: BottomNavProp
     { id: 'search' as const, icon: Search, label: 'Busca' },
     { id: 'profile' as const, icon: User, label: 'Perfil' },
   ];
-
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] z-50">
       <div className="flex items-center justify-around px-4 py-3">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
-          
           return (
             <button
               key={item.id}

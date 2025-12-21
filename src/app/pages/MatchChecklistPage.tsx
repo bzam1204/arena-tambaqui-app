@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, Crosshair, Shield, Users, X } from 'lucide-react';
+import { Check, Crosshair, Minus, Shield, Users, X } from 'lucide-react';
 import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { Inject, TkMatchGateway } from '@/infra/container';
@@ -9,6 +9,7 @@ import { useSession } from '@/app/context/session-context';
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
 import { TacticalButton } from '@/components/TacticalButton';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,9 @@ export function MatchChecklistPage() {
   const matchId = id ?? '';
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [rentEquipment, setRentEquipment] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [localAttendance, setLocalAttendance] = useState<Record<string, boolean>>({});
   const autoMarkedRef = useRef<Set<string>>(new Set());
@@ -45,6 +49,9 @@ export function MatchChecklistPage() {
     autoMarkedRef.current = new Set();
     setLocalAttendance({});
     setActionError(null);
+    setSubscribeOpen(false);
+    setCancelOpen(false);
+    setRentEquipment(false);
   }, [matchId]);
 
   const {
@@ -54,9 +61,9 @@ export function MatchChecklistPage() {
     error: matchesError,
     refetch: refetchMatches,
   } = useQuery({
-    queryKey: ['matches', 'detail', matchId],
-    queryFn: () => matchGateway.listMatches({}),
-    enabled: state.isAdmin && Boolean(matchId),
+    queryKey: ['matches', 'detail', matchId, state.playerId],
+    queryFn: () => matchGateway.listMatches({ playerId: state.playerId ?? undefined }),
+    enabled: Boolean(matchId),
   });
 
   const match = useMemo(() => matches.find((item) => item.id === matchId) ?? null, [matches, matchId]);
@@ -70,12 +77,14 @@ export function MatchChecklistPage() {
   } = useQuery({
     queryKey: ['matches', 'attendance', matchId],
     queryFn: () => matchGateway.listAttendance(matchId),
-    enabled: state.isAdmin && Boolean(matchId),
+    enabled: Boolean(matchId),
   });
 
   const updateAttendance = useMutation({
-    mutationFn: (input: { matchId: string; playerId: string; attended: boolean }) =>
-      matchGateway.updateAttendance(input),
+    mutationFn: (input: { matchId: string; playerId: string; attended: boolean }) => {
+      if (!state.isAdmin) throw new Error('Apenas administradores podem marcar presença.');
+      return matchGateway.updateAttendance(input);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
     },
@@ -83,6 +92,7 @@ export function MatchChecklistPage() {
   });
 
   useEffect(() => {
+    if (!state.isAdmin) return;
     if (!attendanceList.length || !match) return;
     const startAt = new Date(match.startAt);
     if (startAt > new Date() || match.finalizedAt) return;
@@ -106,6 +116,7 @@ export function MatchChecklistPage() {
   const finalizeMatch = useMutation({
     mutationFn: async (target: MatchSummary) => {
       if (!state.userId) throw new Error('Faça login para finalizar.');
+      if (!state.isAdmin) throw new Error('Apenas administradores podem finalizar.');
       await matchGateway.finalizeMatch({ matchId: target.id, adminId: state.userId });
     },
     onSuccess: async () => {
@@ -118,23 +129,52 @@ export function MatchChecklistPage() {
     onError: (err) => setActionError((err as Error).message),
   });
 
-  if (!state.isAdmin) {
-    return (
-      <div className="p-6">
-        <QueryErrorCard
-          message="Acesso restrito aos administradores."
-          action={
-            <button
-              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
-              onClick={() => navigate('/partidas')}
-            >
-              [ VOLTAR PARA PARTIDAS ]
-            </button>
-          }
-        />
-      </div>
-    );
-  }
+  const subscribeMatch = useMutation({
+    mutationFn: async () => {
+      if (!state.userId) {
+        navigate('/auth');
+        return;
+      }
+      if (!state.playerId) {
+        navigate('/onboarding');
+        return;
+      }
+      await matchGateway.subscribe({
+        matchId,
+        playerId: state.playerId,
+        rentEquipment,
+      });
+    },
+    onSuccess: async () => {
+      setSubscribeOpen(false);
+      setRentEquipment(false);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: ['matches'] });
+      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
+    },
+    onError: (err) => setActionError((err as Error).message),
+  });
+
+  const cancelSubscription = useMutation({
+    mutationFn: async () => {
+      if (!state.userId) {
+        navigate('/auth');
+        return;
+      }
+      if (!state.playerId) {
+        navigate('/onboarding');
+        return;
+      }
+      await matchGateway.unsubscribe({ matchId, playerId: state.playerId });
+    },
+    onSuccess: async () => {
+      setCancelOpen(false);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: ['matches'] });
+      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
+    },
+    onError: (err) => setActionError((err as Error).message),
+  });
 
   if (matchesIsError) {
     return (
@@ -181,6 +221,8 @@ export function MatchChecklistPage() {
   const startAt = new Date(match.startAt);
   const isLocked = startAt <= now && !match.finalizedAt;
   const isFinalized = Boolean(match.finalizedAt);
+  const canEdit = state.isAdmin && isLocked && !isFinalized;
+  const canSubscribe = !isLocked && !isFinalized;
 
   const statusMessage = isFinalized
     ? 'Partida já finalizada.'
@@ -189,6 +231,7 @@ export function MatchChecklistPage() {
       : null;
 
   const handleToggle = (entry: MatchAttendanceEntry) => {
+    if (!canEdit) return;
     const current = localAttendance[entry.playerId] ?? (entry.marked ? entry.attended : true);
     const next = !current;
     setLocalAttendance((prev) => ({ ...prev, [entry.playerId]: next }));
@@ -222,20 +265,74 @@ export function MatchChecklistPage() {
 
         <div className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52]">
           <div className="flex flex-col">
-            <div className="p-4 flex items-center gap-2 border-r border-[#2D3A52]">
+            <div className="p-4 flex items-center gap-2">
               <Users className="w-4 h-4 text-[#E6F1FF]" />
               <span className="text-xs text-nowrap font-mono-technical text-[#E6F1FF]">
                 [ TOTAL INSCRITOS: {match.subscriptionCount} ]
               </span>
             </div>
-            <hr className='border-[#2D3A52]'/>
-            <div className="p-4 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#00F0FF]" />
-              <span className="text-xs  font-mono-technical text-[#00F0FF]">
-                [ EQUIPAMENTO SOLICITADO: {match.rentEquipmentCount} ]
-              </span>
-            </div>
+            {state.isAdmin ? (
+              <>
+                <hr className="border-[#2D3A52]" />
+                <div className="p-4 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-[#00F0FF]" />
+                  <span className="text-xs font-mono-technical text-[#00F0FF]">
+                    [ EQUIPAMENTO SOLICITADO: {match.rentEquipmentCount} ]
+                  </span>
+                </div>
+              </>
+            ) : null}
           </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {canSubscribe && !match.isSubscribed ? (
+            <TacticalButton
+              variant="amber"
+              onClick={() => {
+                if (!state.userId) {
+                  navigate('/auth');
+                  return;
+                }
+                if (!state.playerId) {
+                  navigate('/onboarding');
+                  return;
+                }
+                setRentEquipment(Boolean(match.rentEquipment));
+                setActionError(null);
+                setSubscribeOpen(true);
+              }}
+            >
+              [ PARTICIPAR ]
+            </TacticalButton>
+          ) : null}
+
+          {canSubscribe && match.isSubscribed ? (
+            <TacticalButton
+              variant="cyan"
+              disabled={cancelSubscription.isPending}
+              onClick={() => {
+                if (!state.userId) {
+                  navigate('/auth');
+                  return;
+                }
+                if (!state.playerId) {
+                  navigate('/onboarding');
+                  return;
+                }
+                setActionError(null);
+                setCancelOpen(true);
+              }}
+            >
+              [ CANCELAR INSCRICAO ]
+            </TacticalButton>
+          ) : null}
+
+          {!canSubscribe && match.isSubscribed ? (
+            <span className="text-xs font-mono-technical uppercase text-[#00F0FF]">
+              [ INSCRITO ]
+            </span>
+          ) : null}
         </div>
 
         {statusMessage ? (
@@ -266,7 +363,11 @@ export function MatchChecklistPage() {
               </div>
             ) : (
               attendanceList.map((entry) => {
-                const isPresent = localAttendance[entry.playerId] ?? (entry.marked ? entry.attended : true);
+                const displayState = state.isAdmin
+                  ? (localAttendance[entry.playerId] ?? (entry.marked ? entry.attended : true))
+                  : (entry.marked ? entry.attended : null);
+                const isPresent = displayState === true;
+                const isPending = displayState === null;
                 return (
                   <div
                     key={entry.playerId}
@@ -294,7 +395,7 @@ export function MatchChecklistPage() {
                         type="button"
                         onClick={() => handleToggle(entry)}
                         className="flex flex-col items-center gap-2"
-                        disabled={!isLocked || isFinalized}
+                        disabled={!canEdit}
                       >
                         <span
                           className={`relative w-20 h-10 clip-tactical-sm border transition-all ${
@@ -310,7 +411,7 @@ export function MatchChecklistPage() {
                                 : 'bg-[#1F2937] text-[#7F94B0]'
                             }`}
                           >
-                            {isPresent ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                            {isPresent ? <Check className="w-4 h-4" /> : isPending ? <Minus className="w-4 h-4" /> : <X className="w-4 h-4" />}
                           </span>
                         </span>
                         <span
@@ -318,69 +419,176 @@ export function MatchChecklistPage() {
                             isPresent ? 'text-[#00F0FF]' : 'text-[#7F94B0]'
                           }`}
                         >
-                          [ {isPresent ? 'PRESENTE' : 'AUSENTE'} ]
+                          [ {isPresent ? 'PRESENTE' : isPending ? 'PENDENTE' : 'AUSENTE'} ]
                         </span>
                       </button>
                     </div>
-                    <div className="text-xs font-mono-technical">
-                      {entry.rentEquipment ? (
-                        <span className="flex items-center gap-2 text-[#00F0FF]">
-                          <Crosshair className="w-3 h-3" />
-                          &gt; REQUER KIT (ALUGUEL)
-                        </span>
-                      ) : (
-                        <span className="text-[#7F94B0]">&gt; Equipamento proprio</span>
-                      )}
-                    </div>
+                    {state.isAdmin ? (
+                      <div className="text-xs font-mono-technical">
+                        {entry.rentEquipment ? (
+                          <span className="flex items-center gap-2 text-[#00F0FF]">
+                            <Crosshair className="w-3 h-3" />
+                            &gt; REQUER KIT (ALUGUEL)
+                          </span>
+                        ) : (
+                          <span className="text-[#7F94B0]">&gt; Equipamento proprio</span>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })
             )}
           </div>
         )}
-        {actionError ? (
+        {actionError && !subscribeOpen && !cancelOpen ? (
           <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
         ) : null}
       </div>
 
-      <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
-        <div className="bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6">
-          <TacticalButton
-            variant="amber"
-            fullWidth
-            disabled={!isLocked || isFinalized || finalizeMatch.isPending}
-            onClick={() => setConfirmOpen(true)}
-          >
-            {finalizeMatch.isPending
-              ? '[ PROCESSANDO... ]'
-              : '[ FINALIZAR PARTIDA E PROCESSAR ]'}
-          </TacticalButton>
-          <p className="mt-3 text-[10px] text-[#D4A536] font-mono-technical text-center">
-            // ATENCAO: Acao irreversivel. Penalidades por ausencia serao aplicadas automaticamente apos confirmacao.
-          </p>
-        </div>
-      </div>
+      {state.isAdmin ? (
+        <>
+          <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
+            <div className="bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6">
+              <TacticalButton
+                variant="amber"
+                fullWidth
+                disabled={!isLocked || isFinalized || finalizeMatch.isPending}
+                onClick={() => setConfirmOpen(true)}
+              >
+                {finalizeMatch.isPending
+                  ? '[ PROCESSANDO... ]'
+                  : '[ FINALIZAR PARTIDA E PROCESSAR ]'}
+              </TacticalButton>
+              <p className="mt-3 text-[10px] text-[#D4A536] font-mono-technical text-center">
+                // ATENCAO: Acao irreversivel. Penalidades por ausencia serao aplicadas automaticamente apos confirmacao.
+              </p>
+            </div>
+          </div>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
+              <DialogHeader>
+                <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">
+                  Confirmar finalizacao?
+                </DialogTitle>
+                <DialogDescription className="text-[#7F94B0]">
+                  Isso aplicara penalidades aos ausentes e nao pode ser desfeito.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <TacticalButton variant="cyan" onClick={() => setConfirmOpen(false)}>
+                  Cancelar
+                </TacticalButton>
+                <TacticalButton
+                  variant="amber"
+                  onClick={() => finalizeMatch.mutate(match)}
+                  disabled={finalizeMatch.isPending}
+                >
+                  {finalizeMatch.isPending ? '[ PROCESSANDO... ]' : '[ CONFIRMAR ]'}
+                </TacticalButton>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
+
+      <Dialog open={subscribeOpen} onOpenChange={(open) => {
+        if (!open) {
+          setSubscribeOpen(false);
+          setRentEquipment(false);
+          setActionError(null);
+        } else {
+          setSubscribeOpen(true);
+        }
+      }}>
         <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
           <DialogHeader>
-            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">
-              Confirmar finalizacao?
-            </DialogTitle>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Confirmar Participação ]</DialogTitle>
             <DialogDescription className="text-[#7F94B0]">
-              Isso aplicara penalidades aos ausentes e nao pode ser desfeito.
+              Confirme sua inscrição para a partida.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 space-y-2">
+              <div className="text-sm text-[#E6F1FF] uppercase">{match.name}</div>
+              <div className="text-xs text-[#7F94B0] font-mono-technical">
+                DATA: {dateLabel} // HORA: {timeLabel}
+              </div>
+            </div>
+            <label className="flex items-center gap-3 text-xs text-[#7F94B0] font-mono-technical">
+              <Checkbox checked={rentEquipment} onCheckedChange={(value) => setRentEquipment(Boolean(value))} />
+              Vou alugar equipamento
+            </label>
+            {actionError ? (
+              <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
+            ) : null}
+          </div>
+
           <DialogFooter>
-            <TacticalButton variant="cyan" onClick={() => setConfirmOpen(false)}>
+            <TacticalButton variant="cyan" onClick={() => setSubscribeOpen(false)}>
               Cancelar
             </TacticalButton>
             <TacticalButton
               variant="amber"
-              onClick={() => finalizeMatch.mutate(match)}
-              disabled={finalizeMatch.isPending}
+              onClick={() => subscribeMatch.mutate()}
+              disabled={subscribeMatch.isPending}
+              leftIcon={
+                subscribeMatch.isPending ? (
+                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
+                ) : undefined
+              }
             >
-              {finalizeMatch.isPending ? '[ PROCESSANDO... ]' : '[ CONFIRMAR ]'}
+              {subscribeMatch.isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR PARTICIPAÇÃO ]'}
+            </TacticalButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelOpen} onOpenChange={(open) => {
+        if (!open) {
+          setCancelOpen(false);
+          setActionError(null);
+        } else {
+          setCancelOpen(true);
+        }
+      }}>
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Cancelar Inscricao ]</DialogTitle>
+            <DialogDescription className="text-[#7F94B0]">
+              Confirme o cancelamento da sua participação.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 space-y-2">
+              <div className="text-sm text-[#E6F1FF] uppercase">{match.name}</div>
+              <div className="text-xs text-[#7F94B0] font-mono-technical">
+                DATA: {dateLabel} // HORA: {timeLabel}
+              </div>
+            </div>
+            {actionError ? (
+              <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <TacticalButton variant="cyan" onClick={() => setCancelOpen(false)}>
+              Manter inscrição
+            </TacticalButton>
+            <TacticalButton
+              variant="amber"
+              onClick={() => cancelSubscription.mutate()}
+              disabled={cancelSubscription.isPending}
+              leftIcon={
+                cancelSubscription.isPending ? (
+                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
+                ) : undefined
+              }
+            >
+              {cancelSubscription.isPending ? '[ CANCELANDO... ]' : '[ CONFIRMAR CANCELAMENTO ]'}
             </TacticalButton>
           </DialogFooter>
         </DialogContent>

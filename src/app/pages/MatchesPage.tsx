@@ -461,16 +461,17 @@ export function MatchesPage() {
           {(tab === 'mine' && !state.playerId ? [] : visibleMatches).map(
             ({ match, dateLabel, timeLabel, isClosed, isFinalized, statusLabel }) => {
               const canSubscribe = !isClosed && !isFinalized;
+              const canOpenDetails = true;
               return (
                 <div
                   key={match.id}
                   className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3 ${
-                    state.isAdmin ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
+                    canOpenDetails ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
                   }`}
-                  role={state.isAdmin ? 'button' : undefined}
-                  tabIndex={state.isAdmin ? 0 : undefined}
-                  onClick={state.isAdmin ? () => navigate(`/partidas/${match.id}`) : undefined}
-                  onKeyDown={state.isAdmin ? (event) => {
+                  role={canOpenDetails ? 'button' : undefined}
+                  tabIndex={canOpenDetails ? 0 : undefined}
+                  onClick={canOpenDetails ? () => navigate(`/partidas/${match.id}`) : undefined}
+                  onKeyDown={canOpenDetails ? (event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
                       navigate(`/partidas/${match.id}`);
