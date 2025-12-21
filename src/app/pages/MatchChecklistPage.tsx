@@ -167,6 +167,7 @@ export function MatchChecklistPage() {
     mutationFn: async () => {
       if (!state.userId) throw new Error('Faça login para cancelar.');
       if (!state.isAdmin) throw new Error('Apenas administradores podem cancelar.');
+      if (match?.finalizedAt) throw new Error('Partida já finalizada.');
       await matchGateway.deleteMatch({ matchId });
     },
     onSuccess: async () => {
@@ -209,6 +210,7 @@ export function MatchChecklistPage() {
     mutationFn: async () => {
       if (!state.userId) throw new Error('Faça login para editar.');
       if (!state.isAdmin) throw new Error('Apenas administradores podem editar.');
+      if (match?.finalizedAt) throw new Error('Partida já finalizada.');
       const trimmedName = editName.trim();
       if (!trimmedName) throw new Error('Informe o nome da partida.');
       if (!editDate || !editTime) throw new Error('Informe data e horário de início.');
@@ -514,13 +516,11 @@ export function MatchChecklistPage() {
                         )}
                       </div>
                     ) : null}
-                    <div className="flex flex-wrap justify-between items-center">
-                      
-                      {state.isAdmin ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {state.isAdmin && !isFinalized ? (
                         <TacticalButton
                           variant="cyan"
-                      
-                          className="px-3! py-1! text-[14px] !border-[#FF3B3B] !text-[#FF3B3B] !bg-[#FF3B3B]/10 hover:!bg-[#FF3B3B]/20 hover:!shadow-[0_0_20px_rgba(255,59,59,0.6)]"
+                          className="!px-3 !py-1 text-[10px] !border-[#FF3B3B] !text-[#FF3B3B] !bg-[#FF3B3B]/10 hover:!bg-[#FF3B3B]/20 hover:!shadow-[0_0_20px_rgba(255,59,59,0.6)]"
                           onClick={() => {
                             setActionError(null);
                             setRemoveTarget(entry);
@@ -580,7 +580,7 @@ export function MatchChecklistPage() {
         ) : null}
       </div>
 
-      {state.isAdmin ? (
+      {state.isAdmin && !isFinalized ? (
         <>
           <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
             <div className="bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6">
