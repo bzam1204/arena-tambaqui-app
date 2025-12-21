@@ -152,6 +152,17 @@ export function PlayerProfilePage() {
     },
   });
 
+  const updateProfile = useMutation({
+    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null }) => {
+      if (!id) return Promise.resolve();
+      return playerGateway.updatePlayerProfile({ playerId: id, ...data });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['player', id] });
+      await queryClient.invalidateQueries({ queryKey: ['players'] });
+    },
+  });
+
   if (playerIsError || historyIsError || ranksIsError) {
     return (
       <div className="p-6">
@@ -202,6 +213,9 @@ export function PlayerProfilePage() {
           const query = params.toString();
           navigate(`/mural/rankings/${slug}${query ? `?${query}` : ''}`);
         }}
+        canEditProfile={state.isAdmin}
+        onProfileUpdate={state.isAdmin ? (data) => updateProfile.mutateAsync(data) : undefined}
+        isSaving={state.isAdmin ? updateProfile.isPending : false}
         isAdmin={state.isAdmin}
         onAdminRetract={(entryId) => adminRetract.mutate(entryId)}
         onAdminRemove={(entryId) => adminRemove.mutate(entryId)}

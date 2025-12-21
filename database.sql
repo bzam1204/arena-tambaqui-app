@@ -24,6 +24,7 @@ create table if not exists players (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
   nickname text not null,
+  motto text,
   praise_count integer not null default 0,
   report_count integer not null default 0,
   reputation integer not null default 6 check (reputation between 0 and 10),
@@ -77,6 +78,9 @@ alter table if exists feed
 
 alter table if exists users
   add column if not exists email text;
+
+alter table if exists players
+  add column if not exists motto text;
 
 -- Indexes for search
 create index if not exists idx_players_nickname_lower on players (lower(nickname));

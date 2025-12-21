@@ -5,6 +5,7 @@ export interface SearchPlayer {
   name: string;
   nickname: string;
   avatar?: string;
+  motto?: string | null;
   reputation: number;
   elogios: number;
   denuncias: number;
@@ -104,7 +105,10 @@ export function SearchPage({
                     {/* Player Info */}
                     <div className="flex-1 text-left">
                       <div className="text-sm text-[#E6F1FF] mb-1 uppercase">{player.nickname}</div>
-                      <div className="text-xs text-[#7F94B0] font-mono-technical mb-2">{player.name}</div>
+                      <div className="text-xs text-[#7F94B0] font-mono-technical mb-1">{player.name}</div>
+                      <div className="text-[10px] text-[#7F94B0] font-mono-technical mb-2 min-h-[14px]">
+                        {player.motto ? `"${player.motto}"` : ''}
+                      </div>
                       
                       {/* Stats */}
                       <div className="flex items-center gap-3">

@@ -8,7 +8,7 @@ import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface ProfileCompletionStepperProps {
-  onComplete: (data: { nickname: string; name: string; cpf: string; photo: File | null }) => void;
+  onComplete: (data: { nickname: string; name: string; cpf: string; motto?: string; photo: File | null }) => void;
   submitting?: boolean;
   onCheckCpfExists?: (cpf: string) => Promise<boolean>;
 }
@@ -17,6 +17,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const [currentStep, setCurrentStep] = useState(1);
   const [nickname, setNickname] = useState('');
   const [name, setName] = useState('');
+  const [motto, setMotto] = useState('');
   const [cpf, setCpf] = useState('');
   const [cpfError, setCpfError] = useState('');
   const [cpfExistsError, setCpfExistsError] = useState('');
@@ -148,8 +149,9 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const canProceed = () => {
     if (currentStep === 1) return nickname.trim().length >= 3;
     if (currentStep === 2) return name.trim().length >= 3;
-    if (currentStep === 3) return cpfDigits.length === 11 && isCpfValid() && !cpfError && !cpfExistsError && !checkingCpf;
-    if (currentStep === 4) return photo !== null;
+    if (currentStep === 3) return true;
+    if (currentStep === 4) return cpfDigits.length === 11 && isCpfValid() && !cpfError && !cpfExistsError && !checkingCpf;
+    if (currentStep === 5) return photo !== null;
     return false;
   };
 
@@ -196,20 +198,20 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
 
   const handleNext = async () => {
     if (submitting) return;
-    if (currentStep < 4) {
-      if (currentStep === 3 && (!isCpfValid() || cpfError || cpfExistsError || checkingCpf)) {
+    if (currentStep < 5) {
+      if (currentStep === 4 && (!isCpfValid() || cpfError || cpfExistsError || checkingCpf)) {
         setCpfError('CPF inválido');
         return;
       }
       setCurrentStep(currentStep + 1);
-    } else if (currentStep === 4 && canProceed()) {
+    } else if (currentStep === 5 && canProceed()) {
       if (!isCpfValid()) {
         setCpfError('CPF inválido');
-        setCurrentStep(3);
+        setCurrentStep(4);
         return;
       }
       const finalPhoto = await getCroppedPhoto();
-      onComplete({ nickname, name, cpf, photo: finalPhoto ?? photo });
+      onComplete({ nickname, name, cpf, motto: motto.trim() || undefined, photo: finalPhoto ?? photo });
     }
   };
 
@@ -231,8 +233,9 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const steps = [
     { number: 1, title: 'Codinome', icon: User, field: 'nickname' },
     { number: 2, title: 'Nome', icon: FileText, field: 'name' },
-    { number: 3, title: 'CPF', icon: CreditCard, field: 'cpf' },
-    { number: 4, title: 'Foto', icon: Camera, field: 'photo' },
+    { number: 3, title: 'Bordão', icon: FileText, field: 'motto' },
+    { number: 4, title: 'CPF', icon: CreditCard, field: 'cpf' },
+    { number: 5, title: 'Foto', icon: Camera, field: 'photo' },
   ];
 
   return (
@@ -260,12 +263,12 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
           </div>
 
           {/* Progress Steps */}
-          <div className="flex items-center justify-center gap-2 mb-12 ">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-4 mb-12">
             {steps.map((step, index) => (
               <div key={step.number} className="flex items-center">
                 <div className="flex flex-col items-center ">
                   <div
-                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${currentStep > step.number
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all ${currentStep > step.number
                       ? 'bg-[#00F0FF] border-[#00F0FF] text-[#0B0E14]'
                       : currentStep === step.number
                         ? 'bg-[#00F0FF]/20 border-[#00F0FF] text-[#00F0FF] shadow-[0_0_20px_rgba(0,240,255,0.4)]'
@@ -275,7 +278,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                     {currentStep > step.number ? (
                       <Check className="w-5 h-5" />
                     ) : (
-                      <span className="text-sm font-mono-technical">{step.number}</span>
+                      <span className="text-xs sm:text-sm font-mono-technical">{step.number}</span>
                     )}
                   </div>
                   <span className={`text-[10px] font-mono-technical mt-1 ${currentStep >= step.number ? 'text-[#00F0FF]' : 'text-[#7F94B0]'
@@ -284,7 +287,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </span>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`w-8 h-[2px] mx-2 mb-5 ${currentStep > step.number ? 'bg-[#00F0FF]' : 'bg-[#2D3A52]'
+                  <div className={`hidden sm:block w-8 h-[2px] mx-2 mb-5 ${currentStep > step.number ? 'bg-[#00F0FF]' : 'bg-[#2D3A52]'
                     }`} />
                 )}
               </div>
@@ -365,8 +368,40 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </div>
                 )}
 
-                {/* Step 3: CPF */}
+                {/* Step 3: Motto */}
                 {currentStep === 3 && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
+                        <FileText className="w-8 h-8 text-[#00F0FF]" />
+                      </div>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">Bordão</h2>
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Frase curta para marcar sua identidade (opcional)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2">
+                        Bordão
+                      </label>
+                      <input
+                        type="text"
+                        value={motto}
+                        onChange={(e) => setMotto(e.target.value)}
+                        placeholder='Ex: "Disciplina antes do disparo."'
+                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        autoFocus
+                      />
+                      <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
+                        Campo opcional
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: CPF */}
+                {currentStep === 4 && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
@@ -417,8 +452,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </div>
                 )}
 
-                {/* Step 4: Photo */}
-                {currentStep === 4 && (
+                {/* Step 5: Photo */}
+                {currentStep === 5 && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
@@ -520,7 +555,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                 disabled={!canProceed() || submitting}
                 className="px-4 text-center py-4 text-nowrap bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-sm uppercase hover:bg-[#00F0FF]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:border-[#2D3A52] disabled:text-[#7F94B0] flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.3)]"
               >
-                {currentStep === 4 ? (
+                {currentStep === 5 ? (
                   submitting
                     ? <Spinner inline size="sm" />
                     : '[ FINALIZAR ]'
@@ -537,7 +572,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
           {/* Step Info */}
           <div className="mt-6 text-center">
             <p className="text-xs text-[#7F94B0] font-mono-technical">
-              PASSO {currentStep} DE 4 // {Math.round((currentStep / 4) * 100)}% COMPLETO
+              PASSO {currentStep} DE 5 // {Math.round((currentStep / 5) * 100)}% COMPLETO
             </p>
           </div>
         </div>

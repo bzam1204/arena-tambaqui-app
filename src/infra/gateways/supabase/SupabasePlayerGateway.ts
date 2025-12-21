@@ -7,8 +7,10 @@ import { calculateReputation } from '@/domain/reputation';
 export class SupabasePlayerGateway implements PlayerGateway {
   private readonly supabase = getSupabaseClient();
   private readonly table = 'players';
+  private readonly usersTable = 'users';
+  private readonly avatarBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'avatars';
   private readonly selectColumns =
-    'id,nickname,praise_count,report_count,reputation,history, users:users!inner(full_name,avatar)';
+    'id,nickname,praise_count,report_count,reputation,history,motto, users:users!inner(full_name,avatar)';
   private escapeIlike(term: string) {
     // Escape Postgres ilike wildcards and delimiters used by PostgREST OR clause
     return term.replace(/[%_,]/g, (c) => `\\${c}`);
@@ -32,16 +34,19 @@ export class SupabasePlayerGateway implements PlayerGateway {
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
 
-  async listPlayersPaged(params: { page: number; pageSize?: number }): Promise<Player[]> {
+  async listPlayersPaged(params: { page: number; pageSize?: number; kind?: 'prestige' | 'shame' }): Promise<Player[]> {
     const pageSize = params.pageSize ?? 20;
     const sortField = params.kind === 'shame' ? 'report_count' : 'praise_count';
     const from = params.page * pageSize;
     const to = from + pageSize - 1;
-    const { data, error } = await this.supabase
+    const query = this.supabase
       .from(this.table)
       .select(this.selectColumns)
       .order(sortField, { ascending: false })
       .range(from, to);
+    if (params.kind === 'prestige') query.gt('praise_count', 0);
+    if (params.kind === 'shame') query.gt('report_count', 0);
+    const { data, error } = await query;
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
@@ -86,6 +91,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
       name: row.users?.full_name ?? row.nickname ?? '',
       nickname: row.nickname,
       avatar: row.users?.avatar ?? null,
+      motto: row.motto ?? null,
       elogios: praise,
       denuncias: reports,
       praiseCount: praise,
@@ -93,6 +99,40 @@ export class SupabasePlayerGateway implements PlayerGateway {
       reputation,
       history: row.history ?? [],
     };
+  }
+
+  async updatePlayerProfile(input: {
+    playerId: string;
+    name: string;
+    nickname: string;
+    avatar?: File | string | null;
+    motto?: string | null;
+  }): Promise<void> {
+    const { data: player, error } = await this.supabase
+      .from(this.table)
+      .select('id,user_id')
+      .eq('id', input.playerId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!player?.user_id) throw new Error('Jogador não encontrado.');
+
+    const avatarUrl = input.avatar ? await this.uploadAvatar(player.user_id, input.avatar) : undefined;
+    const userUpdate: Record<string, string | undefined | null> = { full_name: input.name };
+    if (avatarUrl) userUpdate.avatar = avatarUrl;
+    const { error: userError } = await this.supabase
+      .from(this.usersTable)
+      .update(userUpdate)
+      .eq('id', player.user_id);
+    if (userError) throw userError;
+
+    const { error: playerError } = await this.supabase
+      .from(this.table)
+      .update({
+        nickname: input.nickname,
+        motto: input.motto ?? null,
+      })
+      .eq('id', input.playerId);
+    if (playerError) throw playerError;
   }
 
   async getPlayerRank(playerId: string): Promise<{ prestige: number | null; shame: number | null }> {
@@ -106,21 +146,55 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const praise = player.praise_count ?? 0;
     const reports = player.report_count ?? 0;
 
-    const prestigeCount = await this.supabase
-      .from(this.table)
-      .select('id', { head: true, count: 'exact' })
-      .gt('praise_count', praise);
-    if (prestigeCount.error) throw prestigeCount.error;
+    const prestige =
+      praise > 0
+        ? await this.supabase
+            .from(this.table)
+            .select('id', { head: true, count: 'exact' })
+            .gt('praise_count', praise)
+        : null;
+    if (prestige?.error) throw prestige.error;
 
-    const shameCount = await this.supabase
-      .from(this.table)
-      .select('id', { head: true, count: 'exact' })
-      .gt('report_count', reports);
-    if (shameCount.error) throw shameCount.error;
+    const shame =
+      reports > 0
+        ? await this.supabase
+            .from(this.table)
+            .select('id', { head: true, count: 'exact' })
+            .gt('report_count', reports)
+        : null;
+    if (shame?.error) throw shame.error;
 
     return {
-      prestige: typeof prestigeCount.count === 'number' ? prestigeCount.count + 1 : null,
-      shame: typeof shameCount.count === 'number' ? shameCount.count + 1 : null,
+      prestige: praise > 0 && typeof prestige?.count === 'number' ? prestige.count + 1 : null,
+      shame: reports > 0 && typeof shame?.count === 'number' ? shame.count + 1 : null,
     };
+  }
+
+  private async uploadAvatar(userId: string, avatar: File | string): Promise<string> {
+    const normalized = await this.normalizeAvatar(avatar);
+    if (!normalized.file && normalized.url) return normalized.url;
+    if (!normalized.file) throw new Error('Falha ao processar avatar');
+    const file = normalized.file;
+    const path = `${userId}/${Date.now()}-${file.name}`;
+    const { error } = await this.supabase.storage.from(this.avatarBucket).upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data } = this.supabase.storage.from(this.avatarBucket).getPublicUrl(path);
+    if (!data?.publicUrl) throw new Error('Falha ao obter URL público do avatar');
+    return data.publicUrl;
+  }
+
+  private async normalizeAvatar(avatar: File | string): Promise<{ file?: File; url?: string }> {
+    if (avatar instanceof File) return { file: avatar };
+    if (typeof avatar === 'string') {
+      if (avatar.startsWith('http')) return { url: avatar };
+      if (avatar.startsWith('data:')) {
+        const res = await fetch(avatar);
+        const blob = await res.blob();
+        const ext = blob.type.split('/')[1] || 'png';
+        const file = new File([blob], `avatar.${ext}`, { type: blob.type });
+        return { file };
+      }
+    }
+    return {};
   }
 }

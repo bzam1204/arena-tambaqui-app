@@ -17,7 +17,12 @@ export class MockPlayerGateway implements PlayerGateway {
   }
 
   async listPlayersPaged(params: { page: number; pageSize?: number; kind?: 'prestige' | 'shame' }): Promise<Player[]> {
-    const arr = Object.values(this.players).sort((a, b) => {
+    const filtered = Object.values(this.players).filter((player) => {
+      if (params.kind === 'prestige') return player.praiseCount > 0;
+      if (params.kind === 'shame') return player.reportCount > 0;
+      return true;
+    });
+    const arr = filtered.sort((a, b) => {
       if (params.kind === 'shame') {
         return b.reportCount - a.reportCount;
       }
@@ -59,17 +64,35 @@ export class MockPlayerGateway implements PlayerGateway {
     player.reputation = calculateReputation({ elogios: praiseCount, denuncias: reportCount });
   }
 
-  updateProfile(id: string, input: { name: string; nickname: string; avatar?: string }) {
+  updateProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null }) {
     const player = this.players[id];
     if (!player) return;
     player.name = input.name;
     player.nickname = input.nickname;
+    player.motto = input.motto ?? player.motto ?? null;
     if (input.avatar) {
       player.avatar = input.avatar;
     }
   }
 
-  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string }): string {
+  async updatePlayerProfile(input: {
+    playerId: string;
+    name: string;
+    nickname: string;
+    avatar?: File | string | null;
+    motto?: string | null;
+  }): Promise<void> {
+    const player = this.players[input.playerId];
+    if (!player) throw new Error('Jogador não encontrado.');
+    player.name = input.name;
+    player.nickname = input.nickname;
+    player.motto = input.motto ?? null;
+    if (input.avatar) {
+      player.avatar = typeof input.avatar === 'string' ? input.avatar : URL.createObjectURL(input.avatar);
+    }
+  }
+
+  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null }): string {
     const existing = this.players[id];
     const praiseCount = existing?.praiseCount ?? 0;
     const reportCount = existing?.reportCount ?? 0;
@@ -78,6 +101,7 @@ export class MockPlayerGateway implements PlayerGateway {
       id,
       name: input.name,
       nickname: input.nickname,
+      motto: input.motto ?? existing?.motto ?? null,
       avatar: input.avatar ?? existing?.avatar,
       elogios: praiseCount,
       denuncias: reportCount,
@@ -93,8 +117,10 @@ export class MockPlayerGateway implements PlayerGateway {
     const arr = Object.values(this.players);
     const player = this.players[playerId];
     if (!player) return { prestige: null, shame: null };
-    const prestige = arr.filter((p) => p.praiseCount > player.praiseCount).length + 1;
-    const shame = arr.filter((p) => p.reportCount > player.reportCount).length + 1;
+    const prestige =
+      player.praiseCount > 0 ? arr.filter((p) => p.praiseCount > player.praiseCount).length + 1 : null;
+    const shame =
+      player.reportCount > 0 ? arr.filter((p) => p.reportCount > player.reportCount).length + 1 : null;
     return { prestige, shame };
   }
 }

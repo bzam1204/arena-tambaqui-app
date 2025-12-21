@@ -66,7 +66,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   });
 
   const updateProfile = useMutation({
-    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null }) =>
+    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null }) =>
       profileGateway.updateProfile(userId, data),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['player', playerId] });
@@ -102,7 +102,6 @@ export function MyProfilePage({ userId, playerId }: Props) {
   }
 
   if (!player) return <Spinner fullScreen label="carregando perfil" />;
-  if (!player) return null;
   return (
     <MobilePlayerProfile
       player={{ ...player, history, rankPrestige: ranks?.prestige ?? null, rankShame: ranks?.shame ?? null }}
@@ -120,6 +119,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
         navigate(`/mural/rankings/${slug}${query ? `?${query}` : ''}`);
       }}
       isOwnProfile
+      canEditProfile
       onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
       isSaving={updateProfile.isPending}
       onRetract={(id) => retractMutation.mutate(id)}

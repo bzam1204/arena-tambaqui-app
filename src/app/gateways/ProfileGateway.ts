@@ -2,6 +2,7 @@ export interface CompleteProfileInput {
   nickname: string;
   name: string;
   cpf: string;
+  motto?: string | null;
   photo?: File | string | null;
 }
 
@@ -9,6 +10,7 @@ export interface UpdateProfileInput {
   name: string;
   nickname: string;
   avatar?: File | string | null;
+  motto?: string | null;
 }
 
 export interface OnboardingStatus {

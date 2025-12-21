@@ -18,6 +18,7 @@ export class MockProfileGateway implements ProfileGateway {
     const playerId = this.playerGateway.upsertFromProfile(userId, {
       name: input.name,
       nickname: input.nickname,
+      motto: input.motto ?? null,
       avatar: this.toAvatar(input.photo),
     });
     this.onboarded.add(userId);
@@ -27,6 +28,7 @@ export class MockProfileGateway implements ProfileGateway {
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
     this.playerGateway.upsertFromProfile(userId, {
       ...input,
+      motto: input.motto ?? null,
       avatar: this.toAvatar(input.avatar),
     });
   }

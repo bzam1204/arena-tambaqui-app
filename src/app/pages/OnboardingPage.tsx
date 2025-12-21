@@ -14,11 +14,12 @@ export function OnboardingPage({ userId, onComplete }: Props) {
   const profile = Inject<ProfileGateway>(TkProfileGateway);
 
   const mutation = useMutation({
-    mutationFn: (data: { nickname: string; name: string; cpf: string; photo: File | null }) =>
+    mutationFn: (data: { nickname: string; name: string; cpf: string; motto?: string; photo: File | null }) =>
       profile.completeProfile(userId, {
         nickname: data.nickname,
         name: data.name,
         cpf: data.cpf,
+        motto: data.motto,
         photo: data.photo,
       }),
     onSuccess: (playerId) => {

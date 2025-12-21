@@ -153,6 +153,14 @@ export function RankingsPage() {
         <div className="py-10">
           <Spinner label="carregando ranking" />
         </div>
+      ) : players.length === 0 ? (
+        <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-6 text-center">
+          <p className="text-xs text-[#7F94B0] font-mono-technical">
+            {tab === 'prestige'
+              ? 'Nenhum operador com pontos de prestígio ainda. Participe de partidas e receba elogios para aparecer aqui.'
+              : 'Nenhum operador com pontos de infâmia ainda. Relatos e ausências contabilizam pontos para este ranking.'}
+          </p>
+        </div>
       ) : (
         <RankingSection
           players={players.map((p) => ({

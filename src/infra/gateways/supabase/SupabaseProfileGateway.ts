@@ -56,6 +56,7 @@ export class SupabaseProfileGateway implements ProfileGateway {
       .upsert({
         user_id: userId,
         nickname: input.nickname,
+        motto: input.motto ?? null,
         praise_count: 0,
         report_count: 0,
         reputation: 6,
@@ -91,6 +92,7 @@ export class SupabaseProfileGateway implements ProfileGateway {
       .from(this.playersTable)
       .update({
         nickname: input.nickname,
+        motto: input.motto ?? null,
       })
       .eq('user_id', userId);
     if (playerErr) throw playerErr;
