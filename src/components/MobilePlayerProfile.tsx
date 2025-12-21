@@ -336,11 +336,14 @@ export function MobilePlayerProfile({
             ) : (
               <div className="mb-3 space-y-1">
                 <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
-                {player.motto ? (
-                  <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                    "{player.motto}"
-                  </p>
-                ) : null}
+              {player.motto ? (
+                <p
+                  className="text-md w-full text-[#7F94B0] font-mono-technical text-center glitch-text"
+                  data-text={`"${player.motto}"`}
+                >
+                  "{player.motto}"
+                </p>
+              ) : null}
               </div>
             )}
             {(player.rankPrestige || player.rankShame) && (
