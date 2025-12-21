@@ -139,6 +139,19 @@ export class MockMatchGateway implements MatchGateway {
     ];
   }
 
+  async unsubscribe(input: { matchId: string; playerId: string }): Promise<void> {
+    const match = this.matches.find((m) => m.id === input.matchId);
+    if (!match) throw new Error('Partida não encontrada.');
+    if (match.finalizedAt) throw new Error('Partida já finalizada.');
+    if (new Date(match.startAt) <= new Date()) throw new Error('Inscrições encerradas.');
+
+    const existingIndex = this.subscriptions.findIndex(
+      (s) => s.matchId === input.matchId && s.playerId === input.playerId,
+    );
+    if (existingIndex === -1) throw new Error('Você não está inscrito.');
+    this.subscriptions = this.subscriptions.filter((_, index) => index !== existingIndex);
+  }
+
   async listAttendance(matchId: string): Promise<MatchAttendanceEntry[]> {
     const subs = this.subscriptions.filter((s) => s.matchId === matchId);
     const attendanceMap = new Map(

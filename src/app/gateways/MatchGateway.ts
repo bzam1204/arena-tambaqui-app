@@ -38,6 +38,7 @@ export interface MatchGateway {
   listMatches(params: { playerId?: string }): Promise<MatchSummary[]>;
   createMatch(input: CreateMatchInput): Promise<void>;
   subscribe(input: { matchId: string; playerId: string; rentEquipment: boolean }): Promise<void>;
+  unsubscribe(input: { matchId: string; playerId: string }): Promise<void>;
   listAttendance(matchId: string): Promise<MatchAttendanceEntry[]>;
   updateAttendance(input: { matchId: string; playerId: string; attended: boolean }): Promise<void>;
   finalizeMatch(input: { matchId: string; adminId: string }): Promise<void>;

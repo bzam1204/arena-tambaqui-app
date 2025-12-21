@@ -88,6 +88,27 @@ export class SupabaseMatchGateway implements MatchGateway {
     if (error) throw error;
   }
 
+  async unsubscribe(input: { matchId: string; playerId: string }): Promise<void> {
+    const { data: match, error: matchError } = await this.supabase
+      .from(this.matchesTable)
+      .select('id,start_at,finalized_at')
+      .eq('id', input.matchId)
+      .maybeSingle();
+    if (matchError) throw matchError;
+    if (!match) throw new Error('Partida não encontrada.');
+    if (match.finalized_at) throw new Error('Partida já finalizada.');
+    if (match.start_at && new Date(match.start_at) <= new Date()) {
+      throw new Error('Inscrições encerradas.');
+    }
+
+    const { error } = await this.supabase
+      .from(this.subscriptionsTable)
+      .delete()
+      .eq('match_id', input.matchId)
+      .eq('player_id', input.playerId);
+    if (error) throw error;
+  }
+
   async listAttendance(matchId: string): Promise<MatchAttendanceEntry[]> {
     const { data: subs, error } = await this.supabase
       .from(this.subscriptionsTable)

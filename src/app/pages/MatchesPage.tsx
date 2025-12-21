@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Clock, Shield, Users } from 'lucide-react';
@@ -36,18 +36,26 @@ export function MatchesPage() {
   const { state } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  type TabKey = 'open' | 'mine' | 'pending' | 'finalized';
+  type MineTabKey = 'upcoming' | 'finalized';
 
   const [createOpen, setCreateOpen] = useState(false);
   const [subscribeMatch, setSubscribeMatch] = useState<MatchSummary | null>(null);
+  const [cancelMatch, setCancelMatch] = useState<MatchSummary | null>(null);
   const [rentEquipment, setRentEquipment] = useState(false);
   const [matchName, setMatchName] = useState('');
   const [matchDate, setMatchDate] = useState<Date | null>(null);
   const [matchTime, setMatchTime] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'open' | 'mine' | 'pending' | 'finalized'>('open');
-  const [mineTab, setMineTab] = useState<'upcoming' | 'finalized'>('upcoming');
+  const [tab, setTab] = useState<TabKey>('open');
+  const [mineTab, setMineTab] = useState<MineTabKey>('upcoming');
   const [finalizedPage, setFinalizedPage] = useState(1);
   const finalizedPageSize = 6;
+  const tabListRef = useRef<HTMLDivElement | null>(null);
+  const tabTouchRef = useRef<{ x: number; y: number } | null>(null);
+  const tabButtonRefs = useRef<Partial<Record<TabKey, HTMLButtonElement | null>>>({});
+  const mineTabRef = useRef<HTMLDivElement | null>(null);
+  const mineTouchRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!state.isAdmin && (tab === 'pending' || tab === 'finalized')) {
@@ -60,6 +68,26 @@ export function MatchesPage() {
       setFinalizedPage(1);
     }
   }, [tab]);
+
+  const tabOrder = useMemo(
+    () => (state.isAdmin ? (['open', 'mine', 'pending', 'finalized'] as TabKey[]) : (['open', 'mine'] as TabKey[])),
+    [state.isAdmin],
+  );
+
+  const mineTabOrder = useMemo(() => ['upcoming', 'finalized'] as MineTabKey[], []);
+
+  useEffect(() => {
+    const target = tabButtonRefs.current[tab];
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [tab]);
+
+  useEffect(() => {
+    const container = mineTabRef.current;
+    if (!container) return;
+    container.scrollTo({ left: mineTab === 'upcoming' ? 0 : container.scrollWidth, behavior: 'smooth' });
+  }, [mineTab]);
 
   const {
     data: matches = [],
@@ -135,6 +163,19 @@ export function MatchesPage() {
     onSuccess: async () => {
       setSubscribeMatch(null);
       setRentEquipment(false);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: ['matches'] });
+    },
+    onError: (err) => setActionError((err as Error).message),
+  });
+
+  const cancelSubscription = useMutation({
+    mutationFn: async (match: MatchSummary) => {
+      if (!state.playerId) throw new Error('Complete seu perfil para cancelar.');
+      await matchGateway.unsubscribe({ matchId: match.id, playerId: state.playerId });
+    },
+    onSuccess: async () => {
+      setCancelMatch(null);
       setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
@@ -251,10 +292,37 @@ export function MatchesPage() {
         ) : null}
       </div>
 
-      <div className={`grid gap-2 ${state.isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+      <div
+        ref={tabListRef}
+        className="flex flex-nowrap gap-2 overflow-x-auto whitespace-nowrap pb-1 no-scrollbar"
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (!touch) return;
+          tabTouchRef.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchEnd={(event) => {
+          const touchStart = tabTouchRef.current;
+          const touch = event.changedTouches[0];
+          tabTouchRef.current = null;
+          if (!touchStart || !touch) return;
+          const deltaX = touch.clientX - touchStart.x;
+          const deltaY = touch.clientY - touchStart.y;
+          if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+          const currentIndex = tabOrder.indexOf(tab);
+          if (deltaX < 0 && currentIndex < tabOrder.length - 1) {
+            setTab(tabOrder[currentIndex + 1]);
+          }
+          if (deltaX > 0 && currentIndex > 0) {
+            setTab(tabOrder[currentIndex - 1]);
+          }
+        }}
+      >
         <button
           onClick={() => setTab('open')}
-          className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+          ref={(el) => {
+            tabButtonRefs.current.open = el;
+          }}
+          className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
             tab === 'open'
               ? 'border-[#00F0FF] bg-[#00F0FF]/20'
               : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
@@ -266,7 +334,10 @@ export function MatchesPage() {
         </button>
         <button
           onClick={() => setTab('mine')}
-          className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+          ref={(el) => {
+            tabButtonRefs.current.mine = el;
+          }}
+          className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
             tab === 'mine'
               ? 'border-[#D4A536] bg-[#D4A536]/20'
               : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
@@ -278,22 +349,11 @@ export function MatchesPage() {
         </button>
         {state.isAdmin ? (
           <button
-            onClick={() => setTab('finalized')}
-            className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
-              tab === 'finalized'
-                ? 'border-[#00F0FF] bg-[#00F0FF]/20'
-                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
-            }`}
-          >
-            <span className={`font-mono-technical text-xs uppercase ${tab === 'finalized' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
-              Finalizadas
-            </span>
-          </button>
-        ) : null}
-        {state.isAdmin ? (
-          <button
             onClick={() => setTab('pending')}
-            className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+            ref={(el) => {
+              tabButtonRefs.current.pending = el;
+            }}
+            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
               tab === 'pending'
                 ? 'border-[#D4A536] bg-[#D4A536]/20'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
@@ -304,13 +364,54 @@ export function MatchesPage() {
             </span>
           </button>
         ) : null}
+        {state.isAdmin ? (
+          <button
+            onClick={() => setTab('finalized')}
+            ref={(el) => {
+              tabButtonRefs.current.finalized = el;
+            }}
+            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
+              tab === 'finalized'
+                ? 'border-[#00F0FF] bg-[#00F0FF]/20'
+                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
+            }`}
+          >
+            <span className={`font-mono-technical text-xs uppercase ${tab === 'finalized' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+              Finalizadas
+            </span>
+          </button>
+        ) : null}
       </div>
 
       {tab === 'mine' ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          ref={mineTabRef}
+          className="flex flex-nowrap gap-2 overflow-x-auto whitespace-nowrap pb-1 no-scrollbar"
+          onTouchStart={(event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            mineTouchRef.current = { x: touch.clientX, y: touch.clientY };
+          }}
+          onTouchEnd={(event) => {
+            const touchStart = mineTouchRef.current;
+            const touch = event.changedTouches[0];
+            mineTouchRef.current = null;
+            if (!touchStart || !touch) return;
+            const deltaX = touch.clientX - touchStart.x;
+            const deltaY = touch.clientY - touchStart.y;
+            if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+            const currentIndex = mineTabOrder.indexOf(mineTab);
+            if (deltaX < 0 && currentIndex < mineTabOrder.length - 1) {
+              setMineTab(mineTabOrder[currentIndex + 1]);
+            }
+            if (deltaX > 0 && currentIndex > 0) {
+              setMineTab(mineTabOrder[currentIndex - 1]);
+            }
+          }}
+        >
           <button
             onClick={() => setMineTab('upcoming')}
-            className={`clip-tactical p-2 border transition-all rounded-lg ${
+            className={`clip-tactical shrink-0 p-2 border transition-all rounded-lg ${
               mineTab === 'upcoming'
                 ? 'border-[#00F0FF] bg-[#00F0FF]/15'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
@@ -322,7 +423,7 @@ export function MatchesPage() {
           </button>
           <button
             onClick={() => setMineTab('finalized')}
-            className={`clip-tactical p-2 border transition-all rounded-lg ${
+            className={`clip-tactical shrink-0 p-2 border transition-all rounded-lg ${
               mineTab === 'finalized'
                 ? 'border-[#00F0FF] bg-[#00F0FF]/15'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
@@ -335,93 +436,133 @@ export function MatchesPage() {
         </div>
       ) : null}
 
+      {actionError && !createOpen && !subscribeMatch && !cancelMatch ? (
+        <div className="bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
+          {actionError}
+        </div>
+      ) : null}
+
       {isLoading ? (
         <Spinner label="carregando partidas" />
       ) : (
         <div className="space-y-4">
-          {(tab === 'mine' && !state.playerId ? [] : visibleMatches).map(({ match, dateLabel, timeLabel, isClosed, isFinalized, statusLabel }) => (
-            <div
-              key={match.id}
-              className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3 ${
-                state.isAdmin ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
-              }`}
-              role={state.isAdmin ? 'button' : undefined}
-              tabIndex={state.isAdmin ? 0 : undefined}
-              onClick={state.isAdmin ? () => navigate(`/partidas/${match.id}`) : undefined}
-              onKeyDown={state.isAdmin ? (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  navigate(`/partidas/${match.id}`);
-                }
-              } : undefined}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-[#E6F1FF] uppercase">{match.name}</div>
-                  <div className="text-xs text-[#7F94B0] font-mono-technical">
-                    DATA: {dateLabel} // HORA: {timeLabel}
+          {(tab === 'mine' && !state.playerId ? [] : visibleMatches).map(
+            ({ match, dateLabel, timeLabel, isClosed, isFinalized, statusLabel }) => {
+              const canSubscribe = !isClosed && !isFinalized;
+              return (
+                <div
+                  key={match.id}
+                  className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3 ${
+                    state.isAdmin ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
+                  }`}
+                  role={state.isAdmin ? 'button' : undefined}
+                  tabIndex={state.isAdmin ? 0 : undefined}
+                  onClick={state.isAdmin ? () => navigate(`/partidas/${match.id}`) : undefined}
+                  onKeyDown={state.isAdmin ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(`/partidas/${match.id}`);
+                    }
+                  } : undefined}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-[#E6F1FF] uppercase">{match.name}</div>
+                      <div className="text-xs text-[#7F94B0] font-mono-technical">
+                        DATA: {dateLabel} // HORA: {timeLabel}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs font-mono-technical uppercase ${
+                        isFinalized
+                          ? 'text-[#00F0FF]'
+                          : isClosed
+                            ? 'text-[#D4A536]'
+                            : 'text-[#7F94B0]'
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs text-[#7F94B0] font-mono-technical">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-[#00F0FF]" />
+                      {match.subscriptionCount} inscritos
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-[#D4A536]" />
+                      {match.rentEquipmentCount} aluguel
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {canSubscribe && !match.isSubscribed ? (
+                      <TacticalButton
+                        variant="amber"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (!state.userId) {
+                            navigate('/auth');
+                            return;
+                          }
+                          if (!state.playerId) {
+                            navigate('/onboarding');
+                            return;
+                          }
+                          setRentEquipment(Boolean(match.rentEquipment));
+                          setActionError(null);
+                          setSubscribeMatch(match);
+                        }}
+                      >
+                        [ PARTICIPAR ]
+                      </TacticalButton>
+                    ) : null}
+
+                    {canSubscribe && match.isSubscribed ? (
+                      <TacticalButton
+                        variant="cyan"
+                        disabled={cancelSubscription.isPending}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (!state.userId) {
+                            navigate('/auth');
+                            return;
+                          }
+                          if (!state.playerId) {
+                            navigate('/onboarding');
+                            return;
+                          }
+                          setActionError(null);
+                          setCancelMatch(match);
+                        }}
+                      >
+                        [ CANCELAR INSCRICAO ]
+                      </TacticalButton>
+                    ) : null}
+
+                    {!canSubscribe && match.isSubscribed ? (
+                      <span className="text-xs font-mono-technical uppercase text-[#00F0FF]">
+                        [ INSCRITO ]
+                      </span>
+                    ) : null}
+
+                    {state.isAdmin && !isFinalized && isClosed ? (
+                      <TacticalButton
+                        variant="cyan"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/partidas/${match.id}`);
+                        }}
+                      >
+                        [ CHAMADA ]
+                      </TacticalButton>
+                    ) : null}
                   </div>
                 </div>
-                <span
-                  className={`text-xs font-mono-technical uppercase ${
-                    isFinalized
-                      ? 'text-[#00F0FF]'
-                      : isClosed
-                        ? 'text-[#D4A536]'
-                        : 'text-[#7F94B0]'
-                  }`}
-                >
-                  {statusLabel}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs text-[#7F94B0] font-mono-technical">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#00F0FF]" />
-                  {match.subscriptionCount} inscritos
-                </div>
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-[#D4A536]" />
-                  {match.rentEquipmentCount} aluguel
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <TacticalButton
-                  variant="amber"
-                  disabled={isClosed || isFinalized || match.isSubscribed}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!state.userId) {
-                      navigate('/auth');
-                      return;
-                    }
-                    if (!state.playerId) {
-                      navigate('/onboarding');
-                      return;
-                    }
-                    setRentEquipment(Boolean(match.rentEquipment));
-                    setActionError(null);
-                    setSubscribeMatch(match);
-                  }}
-                >
-                  {match.isSubscribed ? '[ INSCRITO ]' : '[ PARTICIPAR ]'}
-                </TacticalButton>
-
-                {state.isAdmin && !isFinalized && isClosed ? (
-                  <TacticalButton
-                    variant="cyan"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigate(`/partidas/${match.id}`);
-                    }}
-                  >
-                    [ CHAMADA ]
-                  </TacticalButton>
-                ) : null}
-              </div>
-            </div>
-          ))}
+              );
+            },
+          )}
 
           {(tab === 'mine' && !state.playerId ? true : visibleMatches.length === 0) && (
             <div className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-6 text-center text-xs text-[#7F94B0]">
@@ -625,6 +766,57 @@ export function MatchesPage() {
               }
             >
               {subscribe.isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR PARTICIPAÇÃO ]'}
+            </TacticalButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(cancelMatch)} onOpenChange={(open) => {
+        if (!open) {
+          setCancelMatch(null);
+          setActionError(null);
+        }
+      }}>
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Cancelar Inscricao ]</DialogTitle>
+            <DialogDescription className="text-[#7F94B0]">
+              Confirme o cancelamento da sua participacao.
+            </DialogDescription>
+          </DialogHeader>
+
+          {cancelMatch ? (
+            <div className="space-y-4">
+              <div className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-3 space-y-2">
+                <div className="text-sm text-[#E6F1FF] uppercase">{cancelMatch.name}</div>
+                <div className="text-xs text-[#7F94B0] font-mono-technical">
+                  DATA: {formatDateTime(cancelMatch.startAt).dateLabel} // HORA:{' '}
+                  {formatDateTime(cancelMatch.startAt).timeLabel}
+                </div>
+              </div>
+              {actionError ? (
+                <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <TacticalButton variant="cyan" onClick={() => setCancelMatch(null)}>
+              Manter inscricao
+            </TacticalButton>
+            <TacticalButton
+              variant="amber"
+              onClick={() => {
+                if (cancelMatch) cancelSubscription.mutate(cancelMatch);
+              }}
+              disabled={cancelSubscription.isPending}
+              leftIcon={
+                cancelSubscription.isPending ? (
+                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
+                ) : undefined
+              }
+            >
+              {cancelSubscription.isPending ? '[ CANCELANDO... ]' : '[ CONFIRMAR CANCELAMENTO ]'}
             </TacticalButton>
           </DialogFooter>
         </DialogContent>
