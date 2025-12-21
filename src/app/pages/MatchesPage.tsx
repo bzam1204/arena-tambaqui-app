@@ -465,7 +465,7 @@ export function MatchesPage() {
               return (
                 <div
                   key={match.id}
-                  className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-3 ${
+                  className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-6 ${
                     canOpenDetails ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
                   }`}
                   role={canOpenDetails ? 'button' : undefined}
@@ -513,6 +513,7 @@ export function MatchesPage() {
                     {canSubscribe && !match.isSubscribed ? (
                       <TacticalButton
                         variant="amber"
+                        fullWidth
                         onClick={(event) => {
                           event.stopPropagation();
                           if (!state.userId) {
@@ -535,6 +536,7 @@ export function MatchesPage() {
                     {canSubscribe && match.isSubscribed ? (
                       <TacticalButton
                         variant="cyan"
+                        fullWidth
                         disabled={cancelSubscription.isPending}
                         onClick={(event) => {
                           event.stopPropagation();
