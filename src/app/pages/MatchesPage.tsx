@@ -33,7 +33,7 @@ function formatDateTime(value: string) {
 
 export function MatchesPage() {
   const matchGateway = Inject<MatchGateway>(TkMatchGateway);
-  const { state } = useSession();
+  const { state, loading } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   type TabKey = 'open' | 'mine' | 'pending' | 'finalized';
@@ -58,10 +58,14 @@ export function MatchesPage() {
   const mineTouchRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    if (!state.userId && tab !== 'open') {
+      setTab('open');
+      return;
+    }
     if (!state.isAdmin && (tab === 'pending' || tab === 'finalized')) {
       setTab('open');
     }
-  }, [state.isAdmin, tab]);
+  }, [state.userId, state.isAdmin, tab]);
 
   useEffect(() => {
     if (tab !== 'finalized') {
@@ -69,10 +73,11 @@ export function MatchesPage() {
     }
   }, [tab]);
 
-  const tabOrder = useMemo(
-    () => (state.isAdmin ? (['open', 'mine', 'pending', 'finalized'] as TabKey[]) : (['open', 'mine'] as TabKey[])),
-    [state.isAdmin],
-  );
+  const tabOrder = useMemo(() => {
+    if (!state.userId) return ['open'] as TabKey[];
+    if (state.isAdmin) return ['open', 'mine', 'pending', 'finalized'] as TabKey[];
+    return ['open', 'mine'] as TabKey[];
+  }, [state.userId, state.isAdmin]);
 
   const mineTabOrder = useMemo(() => ['upcoming', 'finalized'] as MineTabKey[], []);
 
@@ -98,6 +103,7 @@ export function MatchesPage() {
   } = useQuery({
     queryKey: ['matches', state.playerId],
     queryFn: () => matchGateway.listMatches({ playerId: state.playerId ?? undefined }),
+    enabled: !loading,
   });
 
   const timeOptions = useMemo(() => {
@@ -275,6 +281,10 @@ export function MatchesPage() {
     );
   }
 
+  if (loading) {
+    return <Spinner fullScreen label="carregando sessao" />;
+  }
+
   return (
     <div className="px-4 py-6 space-y-4">
       <div className="flex flex-col gap-4 items-start justify-between">
@@ -332,21 +342,23 @@ export function MatchesPage() {
             Abertas
           </span>
         </button>
-        <button
-          onClick={() => setTab('mine')}
-          ref={(el) => {
-            tabButtonRefs.current.mine = el;
-          }}
-          className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
-            tab === 'mine'
-              ? 'border-[#D4A536] bg-[#D4A536]/20'
-              : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
-          }`}
-        >
-          <span className={`font-mono-technical text-xs uppercase ${tab === 'mine' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
-            Minhas Partidas
-          </span>
-        </button>
+        {state.userId ? (
+          <button
+            onClick={() => setTab('mine')}
+            ref={(el) => {
+              tabButtonRefs.current.mine = el;
+            }}
+            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
+              tab === 'mine'
+                ? 'border-[#D4A536] bg-[#D4A536]/20'
+                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
+            }`}
+          >
+            <span className={`font-mono-technical text-xs uppercase ${tab === 'mine' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
+              Minhas Partidas
+            </span>
+          </button>
+        ) : null}
         {state.isAdmin ? (
           <button
             onClick={() => setTab('pending')}
