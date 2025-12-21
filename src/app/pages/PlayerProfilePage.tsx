@@ -193,7 +193,15 @@ export function PlayerProfilePage() {
             navigate(`/player/${targetId}`);
           }
         }}
-        onRankClick={(kind) => navigate(`/mural/rankings/${kind === 'prestige' ? 'prestigio' : 'vergonha'}`)}
+        onRankClick={(kind) => {
+          const slug = kind === 'prestige' ? 'prestigio' : 'vergonha';
+          const rank = kind === 'prestige' ? ranks?.prestige : ranks?.shame;
+          const params = new URLSearchParams();
+          if (id) params.set('focus', id);
+          if (rank && rank > 0) params.set('rank', String(rank));
+          const query = params.toString();
+          navigate(`/mural/rankings/${slug}${query ? `?${query}` : ''}`);
+        }}
         isAdmin={state.isAdmin}
         onAdminRetract={(entryId) => adminRetract.mutate(entryId)}
         onAdminRemove={(entryId) => adminRemove.mutate(entryId)}

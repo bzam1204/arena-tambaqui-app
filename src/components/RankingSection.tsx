@@ -13,9 +13,10 @@ interface RankingSectionProps {
   players: RankingPlayer[];
   variant: 'prestige' | 'shame';
   onPlayerClick: (playerId: string) => void;
+  highlightId?: string | null;
 }
 
-export function RankingSection({ players, variant, onPlayerClick }: RankingSectionProps) {
+export function RankingSection({ players, variant, onPlayerClick, highlightId }: RankingSectionProps) {
   const badgeColor = variant === 'prestige' ? 'bg-[#00F0FF]' : 'bg-[#D4A536]';
   const countColor = variant === 'prestige' ? 'text-[#00F0FF]' : 'text-[#D4A536]';
   return (
@@ -24,12 +25,16 @@ export function RankingSection({ players, variant, onPlayerClick }: RankingSecti
         {players.map((player, index) => {
           const borderColor = index === 0 ? 'border-[#D4A536]' : index === 1 ? 'border-[#7F94B0]' : index === 2 ? 'border-[#B87333]' : 'border-[#2D3A52]'
           const rankColor = index === 0 ? 'text-[#D4A536]' : index === 1 ? 'text-[#7F94B0]' : index === 2 ? 'text-[#B87333]' : 'text-[#4A5568]';
+          const isHighlighted = highlightId === player.id;
 
           return (
             <button
               key={player.id}
+              id={`ranking-player-${player.id}`}
               onClick={() => onPlayerClick(player.id)}
-              className={`w-full clip-tactical-card bg-[#0B0E14] border-x-2 ${borderColor} p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3`}
+              className={`w-full clip-tactical-card bg-[#0B0E14] border-x-2 ${borderColor} p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 ${
+                isHighlighted ? 'ring-2 ring-[#00F0FF]/70 shadow-[0_0_18px_rgba(0,240,255,0.35)]' : ''
+              }`}
             >
               {/* Rank Number */}
               <div className={`font-mono-technical text-lg w-8 ${rankColor}`}>

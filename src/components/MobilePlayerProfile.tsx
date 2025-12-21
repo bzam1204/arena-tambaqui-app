@@ -337,7 +337,7 @@ export function MobilePlayerProfile({
                     >
                       <span className="text-[#D4A536] font-semibold">#{player.rankShame}</span>
                       <span className="text-[#7F94B0]">·</span>
-                      <span className="text-[#D4A536]">Vergonha</span>
+                      <span className="text-[#D4A536]">Infâmia</span>
                     </button>
                   ) : null}
                 </div>
@@ -400,7 +400,7 @@ export function MobilePlayerProfile({
             <div className="clip-tactical-stats bg-[#2ad4e0] rounded-md p-[2px] text-center">
               <div className="clip-tactical-stats inner-shadow-blue bg-[#092c2e] rounded-md p-2 text-center">
                 <div className="text-5xl text-[#00F0FF] font-mono-technical mb-1">{player.praiseCount.toString().padStart(2, '0')}</div>
-                <div className="text-sm text-[#00F0FF] uppercase font-mono-technical">Elogios<br />Recebidos</div>
+                <div className="text-sm text-[#00F0FF] uppercase font-mono-technical">Pontos de<br />Prestígio</div>
               </div>
             </div>
           </div>
@@ -417,7 +417,7 @@ export function MobilePlayerProfile({
                   {player.reportCount.toString().padStart(2, '0')}
                 </div>
                 <div className="text-sm text-[#D4A536] uppercase font-mono-technical">
-                  Denúncias<br />Recebidas
+                  Pontos de<br />Infâmia
                 </div>
               </div>
             </div>

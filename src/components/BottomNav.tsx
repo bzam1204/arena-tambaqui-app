@@ -8,8 +8,8 @@ interface BottomNavProps {
 
 export function BottomNav({ currentView, onNavigate, isLoggedIn }: BottomNavProps) {
   const navItems = [
-    { id: 'matches' as const, icon: CalendarDays, label: 'Partidas' },
     { id: 'feed' as const, icon: Home, label: 'Mural' },
+    { id: 'matches' as const, icon: CalendarDays, label: 'Partidas' },
     { id: 'search' as const, icon: Search, label: 'Busca' },
     { id: 'profile' as const, icon: User, label: 'Perfil' },
   ];

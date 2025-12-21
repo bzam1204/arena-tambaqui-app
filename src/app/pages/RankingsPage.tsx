@@ -1,24 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { RankingSection } from '@/components/RankingSection';
 import { Spinner } from '@/components/Spinner';
-import type { PlayerGateway, Player } from '@/app/gateways/PlayerGateway';
+import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import { Inject, TkPlayerGateway } from '@/infra/container';
 
 export function RankingsPage() {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const navigate = useNavigate();
+  const location = useLocation();
   const { kind } = useParams();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const initial = kind === 'vergonha' ? 'shame' : 'prestige';
   const [tab, setTab] = useState<'prestige' | 'shame'>(initial);
   const pageSize = 25;
+  const [autoScrollDone, setAutoScrollDone] = useState(false);
+
+  const focusMeta = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const focusId = params.get('focus') || null;
+    const rankRaw = params.get('rank');
+    const rankNum = rankRaw ? Number(rankRaw) : null;
+    const focusRank = Number.isFinite(rankNum) && rankNum && rankNum > 0 ? rankNum : null;
+    return { focusId, focusRank };
+  }, [location.search]);
 
   useEffect(() => {
     const next = kind === 'vergonha' ? 'shame' : 'prestige';
     setTab(next);
+    setAutoScrollDone(false);
   }, [kind]);
 
   const {
@@ -33,7 +45,50 @@ export function RankingsPage() {
     getNextPageParam: (lastPage, allPages) => (lastPage.length < pageSize ? undefined : allPages.length),
   });
 
-  const players = data?.pages.flatMap((p) => p) ?? [];
+  const players = useMemo(() => {
+    const list = data?.pages.flatMap((p) => p) ?? [];
+    const seen = new Set<string>();
+    return list.filter((player) => {
+      if (seen.has(player.id)) return false;
+      seen.add(player.id);
+      return true;
+    });
+  }, [data]);
+
+  useEffect(() => {
+    setAutoScrollDone(false);
+  }, [focusMeta.focusId, focusMeta.focusRank, tab]);
+
+  useEffect(() => {
+    if (!focusMeta.focusRank || autoScrollDone) return;
+    if (players.length >= focusMeta.focusRank) return;
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [focusMeta.focusRank, players.length, hasNextPage, isFetchingNextPage, fetchNextPage, autoScrollDone]);
+
+  useEffect(() => {
+    if (autoScrollDone || players.length === 0) return;
+    const targetId =
+      focusMeta.focusId ??
+      (focusMeta.focusRank && players[focusMeta.focusRank - 1] ? players[focusMeta.focusRank - 1].id : null);
+    if (!targetId) return;
+    const targetEl = document.getElementById(`ranking-player-${targetId}`);
+    if (targetEl) {
+      requestAnimationFrame(() => {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setAutoScrollDone(true);
+      });
+    } else if (
+      !focusMeta.focusRank ||
+      players.length >= (focusMeta.focusRank ?? 0) ||
+      (!hasNextPage && !isFetchingNextPage)
+    ) {
+      setAutoScrollDone(true);
+    }
+  }, [autoScrollDone, players, focusMeta.focusId, focusMeta.focusRank, hasNextPage, isFetchingNextPage]);
+
+  const highlightId = focusMeta.focusId ?? (focusMeta.focusRank ? players[focusMeta.focusRank - 1]?.id : null);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -88,7 +143,7 @@ export function RankingsPage() {
         >
           <div className="flex items-center justify-center gap-2">
             <span className={`font-mono-technical text-xs uppercase ${tab === 'shame' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
-              Vergonha
+              Infâmia
             </span>
           </div>
         </button>
@@ -109,6 +164,7 @@ export function RankingsPage() {
             denuncias: p.denuncias,
           }))}
           variant={tab}
+          highlightId={highlightId}
           onPlayerClick={(id) => navigate(`/player/${id}`)}
         />
       )}

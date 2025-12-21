@@ -110,7 +110,15 @@ export function MyProfilePage({ userId, playerId }: Props) {
         if (targetId === playerId) return;
         navigate(`/player/${targetId}`);
       }}
-      onRankClick={(kind) => navigate(`/mural/rankings/${kind === 'prestige' ? 'prestigio' : 'vergonha'}`)}
+      onRankClick={(kind) => {
+        const slug = kind === 'prestige' ? 'prestigio' : 'vergonha';
+        const rank = kind === 'prestige' ? ranks?.prestige : ranks?.shame;
+        const params = new URLSearchParams();
+        params.set('focus', playerId);
+        if (rank && rank > 0) params.set('rank', String(rank));
+        const query = params.toString();
+        navigate(`/mural/rankings/${slug}${query ? `?${query}` : ''}`);
+      }}
       isOwnProfile
       onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
       isSaving={updateProfile.isPending}
