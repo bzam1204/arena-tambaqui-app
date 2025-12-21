@@ -44,14 +44,22 @@ export function MatchesPage() {
   const [matchDate, setMatchDate] = useState<Date | null>(null);
   const [matchTime, setMatchTime] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'open' | 'mine' | 'pending'>('open');
+  const [tab, setTab] = useState<'open' | 'mine' | 'pending' | 'finalized'>('open');
   const [mineTab, setMineTab] = useState<'upcoming' | 'finalized'>('upcoming');
+  const [finalizedPage, setFinalizedPage] = useState(1);
+  const finalizedPageSize = 6;
 
   useEffect(() => {
-    if (!state.isAdmin && tab === 'pending') {
+    if (!state.isAdmin && (tab === 'pending' || tab === 'finalized')) {
       setTab('open');
     }
   }, [state.isAdmin, tab]);
+
+  useEffect(() => {
+    if (tab !== 'finalized') {
+      setFinalizedPage(1);
+    }
+  }, [tab]);
 
   const {
     data: matches = [],
@@ -178,16 +186,30 @@ export function MatchesPage() {
     () => myMatches.filter(({ isFinalized }) => isFinalized),
     [myMatches],
   );
+  const adminFinalizedMatches = useMemo(
+    () => matchCards.filter(({ isFinalized }) => isFinalized),
+    [matchCards],
+  );
+  const finalizedTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(adminFinalizedMatches.length / finalizedPageSize)),
+    [adminFinalizedMatches.length, finalizedPageSize],
+  );
+  const paginatedFinalizedMatches = useMemo(() => {
+    const start = (finalizedPage - 1) * finalizedPageSize;
+    return adminFinalizedMatches.slice(start, start + finalizedPageSize);
+  }, [adminFinalizedMatches, finalizedPage, finalizedPageSize]);
 
   const visibleMatches = useMemo(() => {
     if (tab === 'open') return openMatches;
     if (tab === 'pending') return pendingMatches;
+    if (tab === 'finalized') return paginatedFinalizedMatches;
     return mineTab === 'finalized' ? myFinalizedMatches : myUpcomingMatches;
-  }, [tab, mineTab, openMatches, pendingMatches, myFinalizedMatches, myUpcomingMatches]);
+  }, [tab, mineTab, openMatches, pendingMatches, paginatedFinalizedMatches, myFinalizedMatches, myUpcomingMatches]);
 
   const emptyMessage = useMemo(() => {
     if (tab === 'open') return 'Nenhuma partida com inscrições abertas.';
     if (tab === 'pending') return 'Nenhuma partida pendente de chamada.';
+    if (tab === 'finalized') return 'Nenhuma partida finalizada.';
     if (!state.playerId) return 'Complete seu perfil para ver suas partidas.';
     return mineTab === 'finalized'
       ? 'Nenhuma partida finalizada.'
@@ -229,7 +251,7 @@ export function MatchesPage() {
         ) : null}
       </div>
 
-      <div className={`grid gap-2 ${state.isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      <div className={`grid gap-2 ${state.isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
         <button
           onClick={() => setTab('open')}
           className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
@@ -254,6 +276,20 @@ export function MatchesPage() {
             Minhas Partidas
           </span>
         </button>
+        {state.isAdmin ? (
+          <button
+            onClick={() => setTab('finalized')}
+            className={`clip-tactical p-3 border-2 transition-all rounded-lg ${
+              tab === 'finalized'
+                ? 'border-[#00F0FF] bg-[#00F0FF]/20'
+                : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
+            }`}
+          >
+            <span className={`font-mono-technical text-xs uppercase ${tab === 'finalized' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
+              Finalizadas
+            </span>
+          </button>
+        ) : null}
         {state.isAdmin ? (
           <button
             onClick={() => setTab('pending')}
@@ -390,6 +426,28 @@ export function MatchesPage() {
           {(tab === 'mine' && !state.playerId ? true : visibleMatches.length === 0) && (
             <div className="bg-[#141A26] border border-[#2D3A52] rounded-lg p-6 text-center text-xs text-[#7F94B0]">
               {emptyMessage}
+            </div>
+          )}
+
+          {tab === 'finalized' && adminFinalizedMatches.length > 0 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setFinalizedPage(Math.max(1, finalizedPage - 1))}
+                disabled={finalizedPage === 1}
+                className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+              >
+                {'<'}
+              </button>
+              <span className="text-xs font-mono-technical text-[#7F94B0]">
+                {finalizedPage} / {finalizedTotalPages}
+              </span>
+              <button
+                onClick={() => setFinalizedPage(Math.min(finalizedTotalPages, finalizedPage + 1))}
+                disabled={finalizedPage >= finalizedTotalPages}
+                className="px-3 py-1 bg-[#141A26] border border-[#2D3A52] rounded text-[#00F0FF] font-mono-technical text-xs disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#00F0FF] transition-colors"
+              >
+                {'>'}
+              </button>
             </div>
           )}
         </div>
