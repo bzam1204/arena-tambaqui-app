@@ -23,6 +23,7 @@ export interface MatchAttendanceEntry {
   playerName: string;
   playerNickname: string;
   playerAvatar?: string;
+  playerAvatarFrame?: string | null;
   rentEquipment: boolean;
   attended: boolean;
   marked: boolean;

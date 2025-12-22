@@ -1,10 +1,12 @@
 import { User } from 'lucide-react';
+import { PlayerAvatar } from './PlayerAvatar';
 
 export interface RankingPlayer {
   id: string;
   name: string;
   nickname: string;
   avatar?: string;
+  avatarFrame?: string | null;
   elogios: number;
   denuncias: number;
 }
@@ -42,21 +44,15 @@ export function RankingSection({ players, variant, onPlayerClick, highlightId }:
               </div>
 
               {/* Avatar */}
-              <div className="relative">
-                <div className={`w-10 h-11 ${badgeColor} clip-hexagon-perfect p-[2px]`}>
-                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                    {player.avatar ? (
-                      <img
-                        src={player.avatar}
-                        alt={player.nickname}
-                        className="w-full h-full object-cover clip-hexagon-perfect"
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-[#7F94B0]" />
-                    )}
-                  </div>
-                </div>
-              </div>
+              <PlayerAvatar
+                avatarUrl={player.avatar}
+                frameUrl={player.avatarFrame}
+                alt={player.nickname}
+                sizeClassName="w-10 h-11"
+                accentClassName={badgeColor}
+                paddingClassName="p-[2px]"
+                fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
+              />
 
               {/* Player Info */}
               <div className="flex-1 text-left">

@@ -59,6 +59,7 @@ export function SearchPageRoute() {
           name: p.name,
           nickname: p.nickname,
           avatar: p.avatar,
+          avatarFrame: p.avatarFrame ?? null,
           motto: p.motto ?? null,
           reputation: p.reputation,
           elogios: p.elogios,

@@ -22,7 +22,8 @@ export class SupabaseFeedGateway implements FeedGateway {
       nickname,
       users:users(
         full_name,
-        avatar
+        avatar,
+        avatar_frame
       )
     )
   `;
@@ -36,6 +37,7 @@ export class SupabaseFeedGateway implements FeedGateway {
       targetId: row.target_player_id,
       targetName: target.nickname ?? 'Jogador Desconhecido',
       targetAvatar: target.users?.avatar ?? null,
+      targetAvatarFrame: target.users?.avatar_frame ?? null,
       content: row.content,
       date: format(created, 'date'),
       time: format(created, 'time'),

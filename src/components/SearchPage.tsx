@@ -1,10 +1,12 @@
 import { Search, User, Filter } from 'lucide-react';
+import { PlayerAvatar } from './PlayerAvatar';
 
 export interface SearchPlayer {
   id: string;
   name: string;
   nickname: string;
   avatar?: string;
+  avatarFrame?: string | null;
   motto?: string | null;
   reputation: number;
   elogios: number;
@@ -86,21 +88,16 @@ export function SearchPage({
                 >
                   <div className="flex items-center gap-4">
                     {/* Avatar */}
-                    <div className="relative">
-                      <div className={`w-22 h-24 ${reputationColor.replace('text-', 'bg-')} clip-hexagon-perfect p-[2px]`}>
-                        <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                          {player.avatar ? (
-                            <img 
-                              src={player.avatar} 
-                              alt={player.nickname} 
-                              className="w-full h-full object-cover clip-hexagon-perfect"
-                            />
-                          ) : (
-                            <User className="w-7 h-7 text-[#7F94B0]" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <PlayerAvatar
+                      avatarUrl={player.avatar}
+                      frameUrl={player.avatarFrame}
+                      alt={player.nickname}
+                      wrapperClassName="w-22 h-24"
+                      sizeClassName="w-full h-full"
+                      accentClassName={reputationColor.replace('text-', 'bg-')}
+                      paddingClassName="p-[2px]"
+                      fallbackIcon={<User className="w-7 h-7 text-[#7F94B0]" />}
+                    />
 
                     {/* Player Info */}
                     <div className="flex-1 text-left">

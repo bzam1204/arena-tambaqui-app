@@ -70,7 +70,7 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
   private async fetchPlayer(id: string): Promise<Player | null> {
     const { data, error } = await this.supabase
       .from(this.playersTable)
-      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar)')
+      .select('id,nickname,praise_count,report_count,reputation,history, users:users(full_name,avatar,avatar_frame)')
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
@@ -82,6 +82,7 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
       name: data.users?.full_name ?? data.nickname ?? '',
       nickname: data.nickname,
       avatar: data.users?.avatar ?? null,
+      avatarFrame: data.users?.avatar_frame ?? null,
       elogios: praise,
       denuncias: reports,
       praiseCount: praise,

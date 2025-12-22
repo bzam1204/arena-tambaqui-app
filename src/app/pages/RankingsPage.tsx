@@ -168,6 +168,7 @@ export function RankingsPage() {
             name: p.name,
             nickname: p.nickname,
             avatar: p.avatar,
+            avatarFrame: p.avatarFrame ?? null,
             elogios: tab === 'prestige' ? p.elogios : p.denuncias,
             denuncias: p.denuncias,
           }))}

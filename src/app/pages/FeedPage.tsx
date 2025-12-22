@@ -246,6 +246,7 @@ export function FeedPage({ isLoggedIn }: Props) {
                     name: editingEntry.targetName,
                     nickname: editingEntry.targetName,
                     avatar: editingEntry.targetAvatar,
+                    avatarFrame: editingEntry.targetAvatarFrame ?? null,
                   }
                 : undefined
             }

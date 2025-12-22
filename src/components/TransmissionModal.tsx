@@ -3,6 +3,7 @@ import { X, Lock, AlertTriangle, Award, Search, User, CalendarDays } from 'lucid
 import { useQuery } from '@tanstack/react-query';
 import { TacticalButton } from './TacticalButton';
 import { Spinner } from './Spinner';
+import { PlayerAvatar } from './PlayerAvatar';
 import type { MatchGateway, MatchOption } from '@/app/gateways/MatchGateway';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
 import { Inject, TkMatchGateway, TkTransmissionGateway } from '@/infra/container';
@@ -12,6 +13,7 @@ export interface TransmissionPlayer {
   name: string;
   nickname: string;
   avatar?: string;
+  avatarFrame?: string | null;
 }
 
 interface TransmissionModalProps {
@@ -158,6 +160,7 @@ export function TransmissionModal({
         name: entry.playerName,
         nickname: entry.playerNickname,
         avatar: entry.playerAvatar ?? undefined,
+        avatarFrame: entry.playerAvatarFrame ?? null,
       }))
       .filter((player) => player.id !== submitterId);
   }, [matchAttendance, players, requireMatch, submitterId]);
@@ -409,15 +412,15 @@ export function TransmissionModal({
                   {/* Player List */}
                   {showLockedTargetCard && lockedTargetDisplay ? (
                     <div className="bg-[#0F1729] border border-[#2D3A52] rounded-lg p-3 flex items-center gap-3 opacity-80">
-                      <div className="w-10 h-11 bg-[#2D3A52] clip-hexagon-perfect p-[2px]">
-                        <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                          {lockedTargetDisplay?.avatar ? (
-                            <img src={lockedTargetDisplay.avatar} alt={lockedTargetDisplay.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                          ) : (
-                            <User className="w-5 h-5 text-[#7F94B0]" />
-                          )}
-                        </div>
-                      </div>
+                      <PlayerAvatar
+                        avatarUrl={lockedTargetDisplay?.avatar}
+                        frameUrl={lockedTargetDisplay?.avatarFrame}
+                        alt={lockedTargetDisplay?.nickname ?? 'Operador'}
+                        sizeClassName="w-10 h-11"
+                        accentClassName="bg-[#2D3A52]"
+                        paddingClassName="p-[2px]"
+                        fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
+                      />
                       <div className="flex-1">
                         <div className="text-sm text-[#9CA3AF]">{lockedTargetDisplay.nickname}</div>
                         <div className="text-xs text-[#6B7280] font-mono-technical">{lockedTargetDisplay.name}</div>
@@ -453,15 +456,15 @@ export function TransmissionModal({
                             onClick={() => handleSelectPlayer(player)}
                             className="w-full  clip-tactical-card bg-[#141A26] border-x-3 border-[#2D3A52] p-3 hover:border-[#00F0FF]/50 transition-all flex items-center gap-3 text-left"
                           >
-                            <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                              <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                                {player.avatar ? (
-                                  <img src={player.avatar} alt={player.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                                ) : (
-                                  <User className="w-5 h-5 text-[#7F94B0]" />
-                                )}
-                              </div>
-                            </div>
+                            <PlayerAvatar
+                              avatarUrl={player.avatar}
+                              frameUrl={player.avatarFrame}
+                              alt={player.nickname}
+                              sizeClassName="w-16 h-18"
+                              accentClassName="bg-[#00F0FF]"
+                              paddingClassName="p-[2px]"
+                              fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
+                            />
                             <div>
                               <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
                               <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
@@ -509,15 +512,15 @@ export function TransmissionModal({
                 Operador Selecionado
               </label>
               <div className="bg-[#141A26] border border-[#00F0FF] rounded-lg p-3 flex items-center gap-3">
-                <div className="w-10 h-11 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                    {selectedTarget?.avatar ? (
-                      <img src={selectedTarget.avatar} alt={selectedTarget.nickname} className="w-full h-full object-cover clip-hexagon-perfect" />
-                    ) : (
-                      <User className="w-5 h-5 text-[#7F94B0]" />
-                    )}
-                  </div>
-                </div>
+                <PlayerAvatar
+                  avatarUrl={selectedTarget?.avatar}
+                  frameUrl={selectedTarget?.avatarFrame}
+                  alt={selectedTarget?.nickname ?? 'Operador'}
+                  sizeClassName="w-10 h-11"
+                  accentClassName="bg-[#00F0FF]"
+                  paddingClassName="p-[2px]"
+                  fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
+                />
                 <div className="flex-1">
                   <div className="text-sm text-[#E6F1FF]">{selectedTarget?.nickname}</div>
                   <div className="text-xs text-[#7F94B0] font-mono-technical">{selectedTarget?.name}</div>

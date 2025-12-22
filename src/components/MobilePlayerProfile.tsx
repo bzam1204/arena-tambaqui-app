@@ -7,6 +7,7 @@ import { TacticalButton } from './TacticalButton';
 import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Spinner } from './Spinner';
+import { PlayerAvatar } from './PlayerAvatar';
 
 const frameManifest = import.meta.glob('/public/frames/*.{png,jpg,jpeg,webp,svg}', {
   eager: true,
@@ -293,28 +294,18 @@ export function MobilePlayerProfile({
           {/* Avatar */}
           <div className="flex flex-col items-center mb-2">
             <div className="relative mb-4">
-              <div className="relative w-44 h-48 flex items-center justify-center">
-                {activeFrame ? (
-                  <img
-                    src={activeFrame}
-                    alt="Moldura do perfil"
-                    className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
-                  />
-                ) : null}
-                <div className={`w-40 h-44 ${status.barColor} clip-hexagon-perfect p-[3px] relative z-10`}>
-                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center relative">
-                    {(isEditing ? editAvatar : player.avatar) ? (
-                      <img
-                        src={isEditing ? editAvatar : player.avatar}
-                        alt={isEditing ? editNickname : player.nickname}
-                        className="w-full h-full object-cover clip-hexagon-perfect rounded-[4px]"
-                      />
-                    ) : (
-                      <User className="w-16 h-16 text-[#7F94B0]" />
-                    )}
-                  </div>
-                </div>
-              </div>
+              <PlayerAvatar
+                avatarUrl={isEditing ? editAvatar : player.avatar}
+                frameUrl={activeFrame}
+                alt={isEditing ? editNickname : player.nickname}
+                wrapperClassName="w-[250px] h-[200px]"
+                sizeClassName="w-40 h-44"
+                accentClassName={status.barColor}
+                paddingClassName="p-[3px]"
+                frameClassName="scale-[1.08]"
+                imageClassName="rounded-[4px]"
+                fallbackIcon={<User className="w-16 h-16 text-[#7F94B0]" />}
+              />
               {canEditProfile && isEditing && (
                 <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#00F0FF] rounded-full flex items-center justify-center border-2 border-[#0B0E14] hover:bg-[#00F0FF]/80 transition-colors cursor-pointer">
                   <Edit className="w-5 h-5 text-[#0B0E14]" />

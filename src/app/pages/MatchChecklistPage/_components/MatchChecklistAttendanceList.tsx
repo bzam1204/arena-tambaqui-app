@@ -1,6 +1,7 @@
 import { Check, Minus, Users, X } from 'lucide-react';
 import type { MatchAttendanceEntry } from '@/app/gateways/MatchGateway';
 import { TacticalButton } from '@/components/TacticalButton';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 type MatchChecklistAttendanceListProps = {
   entries: MatchAttendanceEntry[];
@@ -60,19 +61,15 @@ export function MatchChecklistAttendanceList({
             className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-3 cursor-pointer group"
           >
             <div className="flex items-start gap-4">
-              <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                  {entry.playerAvatar ? (
-                    <img
-                      src={entry.playerAvatar}
-                      alt={entry.playerNickname}
-                      className="w-full h-full object-cover clip-hexagon-perfect"
-                    />
-                  ) : (
-                    <Users className="w-4 h-4 text-[#7F94B0]" />
-                  )}
-                </div>
-              </div>
+              <PlayerAvatar
+                avatarUrl={entry.playerAvatar}
+                frameUrl={entry.playerAvatarFrame}
+                alt={entry.playerNickname}
+                sizeClassName="w-16 h-18"
+                accentClassName="bg-[#00F0FF]"
+                paddingClassName="p-[2px]"
+                fallbackIcon={<Users className="w-4 h-4 text-[#7F94B0]" />}
+              />
               <div className="flex-1">
                 <div className="flex flex-col flex-wrap items-start justify-start gap-2 mb-3">
                   <div className="text-sm text-[#E6F1FF] uppercase group-hover:text-[#00F0FF]">

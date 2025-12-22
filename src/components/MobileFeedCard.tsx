@@ -3,6 +3,7 @@ import { User, AlertTriangle, Award, MoreHorizontal } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TacticalButton } from './TacticalButton';
+import { PlayerAvatar } from './PlayerAvatar';
 
 export interface FeedEntry {
   id: string;
@@ -10,6 +11,7 @@ export interface FeedEntry {
   targetId: string;
   targetName: string;
   targetAvatar?: string;
+  targetAvatarFrame?: string | null;
   content: string;
   date: string;
   time: string;
@@ -149,19 +151,16 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
                 onTargetClick(entry.targetId);
               }}
             >
-              <div className={`w-20 h-22 ${isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'} clip-hexagon-perfect p-[3px] transition-all group-hover:scale-105`}>
-                <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                  {entry.targetAvatar ? (
-                    <img
-                      src={entry.targetAvatar}
-                      alt={entry.targetName}
-                      className="w-full h-full object-cover clip-hexagon-perfect"
-                    />
-                  ) : (
-                    <User className="w-6 h-6 text-[#7F94B0]" />
-                  )}
-                </div>
-              </div>
+              <PlayerAvatar
+                avatarUrl={entry.targetAvatar}
+                frameUrl={entry.targetAvatarFrame}
+                alt={entry.targetName}
+                wrapperClassName="w-20 h-22 transition-all group-hover:scale-105"
+                sizeClassName="w-full h-full"
+                accentClassName={isCyan ? 'bg-[#00F0FF]' : 'bg-[#D4A536]'}
+                paddingClassName="p-[3px]"
+                fallbackIcon={<User className="w-6 h-6 text-[#7F94B0]" />}
+              />
             </div>
 
             <div className="space-y-2">

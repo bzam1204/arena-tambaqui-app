@@ -279,6 +279,7 @@ export function PlayerProfilePage() {
                 name: player.name,
                 nickname: player.nickname,
                 avatar: player.avatar,
+                avatarFrame: player.avatarFrame ?? null,
               } as TransmissionPlayer,
             ]
             : []
@@ -313,12 +314,14 @@ export function PlayerProfilePage() {
               name: editingEntry.targetName,
               nickname: editingEntry.targetName,
               avatar: editingEntry.targetAvatar,
+              avatarFrame: editingEntry.targetAvatarFrame ?? null,
             }
             : {
               id: player.id,
               name: player.name,
               nickname: player.nickname,
               avatar: player.avatar,
+              avatarFrame: player.avatarFrame ?? null,
             }
         }
         lockedTargetId={editingEntry?.targetId ?? player?.id ?? undefined}

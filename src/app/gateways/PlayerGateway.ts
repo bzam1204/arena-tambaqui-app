@@ -19,6 +19,7 @@ export interface FeedEntry {
   targetId: string;
   targetName: string;
   targetAvatar?: string;
+  targetAvatarFrame?: string | null;
   content: string;
   date: string;
   time: string;
