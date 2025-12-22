@@ -175,7 +175,9 @@ export class SupabasePlayerGateway implements PlayerGateway {
     if (!normalized.file && normalized.url) return normalized.url;
     if (!normalized.file) throw new Error('Falha ao processar avatar');
     const file = normalized.file;
-    const path = `${userId}/${Date.now()}-${file.name}`;
+    const { data: authData } = await this.supabase.auth.getUser();
+    const ownerId = authData?.user?.id ?? userId;
+    const path = `${ownerId}/${Date.now()}-${file.name}`;
     const { error } = await this.supabase.storage.from(this.avatarBucket).upload(path, file, { upsert: true });
     if (error) throw error;
     const { data } = this.supabase.storage.from(this.avatarBucket).getPublicUrl(path);
