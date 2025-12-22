@@ -302,7 +302,7 @@ export function MobilePlayerProfile({
                 sizeClassName="w-40 h-44"
                 accentClassName={status.barColor}
                 paddingClassName="p-[3px]"
-                frameClassName="scale-[1.08]"
+                frameClassName="scale-[1.12]"
                 imageClassName="rounded-[4px]"
                 fallbackIcon={<User className="w-16 h-16 text-[#7F94B0]" />}
               />

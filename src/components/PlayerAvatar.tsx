@@ -23,7 +23,7 @@ export function PlayerAvatar({
   accentClassName = 'bg-[#00F0FF]',
   paddingClassName = 'p-[2px]',
   imageClassName,
-  frameClassName = 'scale-[1.14]',
+  frameClassName = 'scale-[1.18]',
   fallbackIcon,
 }: PlayerAvatarProps) {
   const wrapper = wrapperClassName ?? sizeClassName;
