@@ -293,24 +293,26 @@ export function MobilePlayerProfile({
           {/* Avatar */}
           <div className="flex flex-col items-center mb-2">
             <div className="relative mb-4">
-              <div className={`w-40 h-44 ${status.barColor} clip-hexagon-perfect p-[3px]`}>
-                <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center relative">
-                  {(isEditing ? editAvatar : player.avatar) ? (
-                    <img
-                      src={isEditing ? editAvatar : player.avatar}
-                      alt={isEditing ? editNickname : player.nickname}
-                      className="w-full h-full object-cover clip-hexagon-perfect rounded-[4px]"
-                    />
-                  ) : (
-                    <User className="w-16 h-16 text-[#7F94B0]" />
-                  )}
-                  {activeFrame ? (
-                    <img
-                      src={activeFrame}
-                      alt="Moldura do perfil"
-                      className="absolute inset-0 w-full h-full object-contain pointer-events-none clip-hexagon-perfect"
-                    />
-                  ) : null}
+              <div className="relative w-44 h-48 flex items-center justify-center">
+                {activeFrame ? (
+                  <img
+                    src={activeFrame}
+                    alt="Moldura do perfil"
+                    className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
+                  />
+                ) : null}
+                <div className={`w-40 h-44 ${status.barColor} clip-hexagon-perfect p-[3px] relative z-10`}>
+                  <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center relative">
+                    {(isEditing ? editAvatar : player.avatar) ? (
+                      <img
+                        src={isEditing ? editAvatar : player.avatar}
+                        alt={isEditing ? editNickname : player.nickname}
+                        className="w-full h-full object-cover clip-hexagon-perfect rounded-[4px]"
+                      />
+                    ) : (
+                      <User className="w-16 h-16 text-[#7F94B0]" />
+                    )}
+                  </div>
                 </div>
               </div>
               {canEditProfile && isEditing && (
