@@ -9,7 +9,7 @@ export function AvatarFrame({ src, className }: AvatarFrameProps) {
     <img
       src={src}
       alt="Moldura do perfil"
-      className={`absolute inset-0 w-full h-full object-contain pointer-events-none z-20 ${className ?? ''}`}
+      className={`absolute inset-0 w-full h-full object-contain pointer-events-none z-0 ${className ?? ''}`}
     />
   );
 }

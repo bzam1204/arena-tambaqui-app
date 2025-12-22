@@ -12,6 +12,7 @@ type PlayerAvatarProps = {
   imageClassName?: string;
   frameClassName?: string;
   fallbackIcon?: React.ReactNode;
+  hideAccentWhenFramed?: boolean;
 };
 
 export function PlayerAvatar({
@@ -25,13 +26,16 @@ export function PlayerAvatar({
   imageClassName,
   frameClassName = 'scale-[1.18]',
   fallbackIcon,
+  hideAccentWhenFramed = true,
 }: PlayerAvatarProps) {
   const wrapper = wrapperClassName ?? sizeClassName;
+  const resolvedAccent =
+    hideAccentWhenFramed && frameUrl ? 'bg-transparent' : accentClassName;
 
   return (
     <div className={`relative flex items-center justify-center ${wrapper}`}>
       <AvatarFrame src={frameUrl} className={frameClassName} />
-      <div className={`relative z-10 ${sizeClassName} ${accentClassName} clip-hexagon-perfect ${paddingClassName}`}>
+      <div className={`relative z-10 ${sizeClassName} ${resolvedAccent} clip-hexagon-perfect ${paddingClassName}`}>
         <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
           {avatarUrl ? (
             <img

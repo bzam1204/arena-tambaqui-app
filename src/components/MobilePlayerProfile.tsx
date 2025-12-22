@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Spinner } from './Spinner';
 import { PlayerAvatar } from './PlayerAvatar';
 
-const frameManifest = import.meta.glob('/public/frames/*.{png,jpg,jpeg,webp,svg}', {
+const frameManifest = import.meta.glob('/public/frames/*.{png,jpg,jpeg,webp,svg,gif}', {
   eager: true,
   as: 'url',
 }) as Record<string, string>;
@@ -298,7 +298,7 @@ export function MobilePlayerProfile({
                 avatarUrl={isEditing ? editAvatar : player.avatar}
                 frameUrl={activeFrame}
                 alt={isEditing ? editNickname : player.nickname}
-                wrapperClassName="w-[250px] h-[200px]"
+                wrapperClassName="w-64 h-64"
                 sizeClassName="w-40 h-44"
                 accentClassName={status.barColor}
                 paddingClassName="p-[3px]"
