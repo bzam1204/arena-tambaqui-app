@@ -597,7 +597,7 @@ export function MatchChecklistPage() {
 
       {state.isAdmin && !isFinalized ? (
         <>
-          <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
+          <div className="fixed bottom-16 left-0 right-0 px-4 z-40">
             <div className="bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6">
               <TacticalButton
                 variant="cyan"
@@ -619,7 +619,7 @@ export function MatchChecklistPage() {
                   : '[ FINALIZAR PARTIDA E PROCESSAR ]'}
               </TacticalButton>
               <p className="mt-3 text-[10px] text-[#D4A536] font-mono-technical text-center">
-                // ATENCAO: Acao irreversivel. Penalidades por ausencia serao aplicadas automaticamente apos confirmacao.
+                // ATENCAO: Ação irreversivel. Penalidades por ausência serão aplicadas automaticamente após confirmação.
               </p>
             </div>
           </div>
