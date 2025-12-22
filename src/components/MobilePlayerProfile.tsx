@@ -81,6 +81,7 @@ export function MobilePlayerProfile({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [cropping, setCropping] = useState(false);
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
+  const [historyTab, setHistoryTab] = useState<'feed' | 'stats'>('feed');
   const openRecropFromCurrent = useCallback(async () => {
     if (!isEditing) return;
     let sourceFile: File | null = avatarFile;
@@ -349,41 +350,34 @@ export function MobilePlayerProfile({
               ) : null}
               </div>
             )}
-            {(player.rankPrestige || player.rankShame || player.matchCount !== null && player.matchCount !== undefined) && (
+            {(player.rankPrestige || player.rankShame) ? (
               <div className="mb-3 space-y-2">
-                {player.matchCount !== null && player.matchCount !== undefined ? (
-                  <div className="mx-auto w-fit px-3 py-1 text-[10px] uppercase border border-[#2D3A52] rounded-md text-[#7F94B0] bg-[#0B0E14]">
-                    PARTIDAS: {String(player.matchCount).padStart(2, '0')}
-                  </div>
-                ) : null}
-                {(player.rankPrestige || player.rankShame) ? (
-                  <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
-                    {player.rankPrestige ? (
-                      <TacticalButton
-                        variant="cyan"
-                        onClick={() => onRankClick?.('prestige')}
-                        className="text-xs !px-3 !py-1"
-                      >
-                        <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige}</span>
-                        <span className="text-[#7F94B0]">·</span>
-                        <span className="text-[#00F0FF]">Prestígio</span>
-                      </TacticalButton>
-                    ) : null}
-                    {player.rankShame ? (
-                      <TacticalButton
-                        variant="amber"
-                        onClick={() => onRankClick?.('shame')}
-                        className="text-xs !px-3 !py-1"
-                      >
-                        <span className="text-[#D4A536] font-semibold">#{player.rankShame}</span>
-                        <span className="text-[#7F94B0]">·</span>
-                        <span className="text-[#D4A536]">Infâmia</span>
-                      </TacticalButton>
-                    ) : null}
-                  </div>
-                ) : null}
+                <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
+                  {player.rankPrestige ? (
+                    <TacticalButton
+                      variant="cyan"
+                      onClick={() => onRankClick?.('prestige')}
+                      className="text-xs !px-3 !py-1"
+                    >
+                      <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige}</span>
+                      <span className="text-[#7F94B0]">·</span>
+                      <span className="text-[#00F0FF]">Prestígio</span>
+                    </TacticalButton>
+                  ) : null}
+                  {player.rankShame ? (
+                    <TacticalButton
+                      variant="amber"
+                      onClick={() => onRankClick?.('shame')}
+                      className="text-xs !px-3 !py-1"
+                    >
+                      <span className="text-[#D4A536] font-semibold">#{player.rankShame}</span>
+                      <span className="text-[#7F94B0]">·</span>
+                      <span className="text-[#D4A536]">Infâmia</span>
+                    </TacticalButton>
+                  ) : null}
+                </div>
               </div>
-            )}
+            ) : null}
 
             {/* Save/Cancel Buttons */}
             {isEditing && (
@@ -548,14 +542,41 @@ export function MobilePlayerProfile({
           </DialogContent>
         </Dialog>
 
-        {/* History Section */}
-        <div>
-          {actionsAboveHistory ? <div className="mb-4">{actionsAboveHistory}</div> : null}
-          <h3 className="text-sm font-mono-technical tracking-wider mb-3 text-[#7F94B0] uppercase">
+      {/* History Section */}
+      <div>
+        {actionsAboveHistory ? <div className="mb-4">{actionsAboveHistory}</div> : null}
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-mono-technical tracking-wider text-[#7F94B0] uppercase">
             Histórico Operacional
           </h3>
-          <div className="space-y-3">
-            {player.history.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setHistoryTab('feed')}
+              className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
+                historyTab === 'feed'
+                  ? 'border-[#00F0FF] bg-[#00F0FF]/15 text-[#00F0FF]'
+                  : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#00F0FF]/40'
+              }`}
+            >
+              Transmissões
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryTab('stats')}
+              className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
+                historyTab === 'stats'
+                  ? 'border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536]'
+                  : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#D4A536]/40'
+              }`}
+            >
+              Stats
+            </button>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {historyTab === 'feed' ? (
+            player.history.length > 0 ? (
               player.history.map((entry) => (
                 <div key={entry.id} className="relative">
                   <MobileFeedCard
@@ -587,9 +608,36 @@ export function MobilePlayerProfile({
               <div className="bg-[#141A26] rounded-lg border border-[#2D3A52] p-8 text-center">
                 <p className="text-[#7F94B0] text-sm">Nenhum registro encontrado</p>
               </div>
-            )}
-          </div>
+            )
+          ) : (
+            <div className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-5 space-y-4">
+              <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">
+                // Estatísticas do Operador
+              </div>
+              {player.matchCount !== null && player.matchCount !== undefined ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">Partidas</div>
+                    <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                      Presenças confirmadas
+                    </div>
+                  </div>
+                  <div className="text-3xl text-[#00F0FF] font-mono-technical">
+                    {String(player.matchCount).padStart(2, '0')}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-[#7F94B0] font-mono-technical">
+                  Estatísticas indisponíveis no momento.
+                </div>
+              )}
+              <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">
+                // Novos indicadores serão adicionados aqui.
+              </div>
+            </div>
+          )}
         </div>
+      </div>
       </div>
 
       <Dialog open={Boolean(confirmRetractId)} onOpenChange={(open) => !open && setConfirmRetractId(null)}>
