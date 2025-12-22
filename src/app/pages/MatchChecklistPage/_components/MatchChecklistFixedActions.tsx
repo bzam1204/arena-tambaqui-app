@@ -42,39 +42,38 @@ export function MatchChecklistFixedActions({
   if (!hasActions) return null;
 
   return (
-    <div className="fixed bottom-14 left-0 right-0 px-4 z-40">
-      <div
-        className="transition-transform duration-300 ease-out"
-        style={{ transform: isOpen ? 'translateY(0)' : 'translateY(calc(100% - 52px))' }}
-      >
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={onToggleOpen}
-            className={`h-10 clip-tactical-card border-x-3 border-[#2D3A52] bg-[#0B0E14]/95 px-4 text-[10px] font-mono-technical uppercase text-[#7F94B0] hover:text-[#00F0FF] hover:border-[#00F0FF]/50 transition-all ${
-              isOpen
-                ? 'bg-[#D4A536]/20 border border-[#D4A536] text-[#D4A536] shadow-[0_0_10px_rgba(212,165,54,0.3)] hover:bg-[#D4A536]/30 hover:shadow-[0_0_20px_rgba(212,165,54,0.6)]'
-                : ''
-            }`}
-            aria-expanded={isOpen}
-          >
-            <span className="inline-flex items-center gap-2">
-              <ChevronUp className={`w-3 h-3 transition-transform duration-300 ${isOpen ? '' : 'rotate-180'}`} />
-              {isOpen ? 'Ocultar ações' : 'Mostrar ações'}
-            </span>
-          </button>
-        </div>
-        <div className="mt-2 bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6 space-y-3">
+    <div
+      className="fixed bottom-14 left-0 right-0 px-4 z-40 transition-transform duration-300 ease-out"
+      style={{ transform: isOpen ? 'translateY(0)' : 'translateY(calc(100% - 52px))' }}
+    >
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={onToggleOpen}
+          className={`h-10 clip-tactical-card border-x-3 border-[#2D3A52] bg-[#0B0E14]/95 px-4 text-[10px] font-mono-technical uppercase text-[#7F94B0] hover:text-[#00F0FF] hover:border-[#00F0FF]/50 transition-all ${
+            isOpen
+              ? 'bg-[#D4A536]/20 border border-[#D4A536] text-[#D4A536] shadow-[0_0_10px_rgba(212,165,54,0.3)] hover:bg-[#D4A536]/30 hover:shadow-[0_0_20px_rgba(212,165,54,0.6)]'
+              : ''
+          }`}
+          aria-expanded={isOpen}
+        >
+          <span className="inline-flex items-center gap-2">
+            <ChevronUp className={`w-3 h-3 transition-transform duration-300 ${isOpen ? '' : 'rotate-180'}`} />
+            {isOpen ? 'Ocultar ações' : 'Mostrar ações'}
+          </span>
+        </button>
+      </div>
+      <div className="mt-2 bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6 space-y-3">
           {(showEditAction || showSubscribeAction || showCancelSubscription) ? (
             <div className="space-y-2">
-              {showEditAction ? (
-                <TacticalButton variant="cyan" fullWidth onClick={onEdit}>
-                  [ EDITAR PARTIDA ]
-                </TacticalButton>
-              ) : null}
               {showSubscribeAction ? (
                 <TacticalButton variant="amber" fullWidth onClick={onSubscribe}>
                   [ PARTICIPAR ]
+                </TacticalButton>
+              ) : null}
+              {showEditAction ? (
+                <TacticalButton variant="cyan" fullWidth onClick={onEdit}>
+                  [ EDITAR PARTIDA ]
                 </TacticalButton>
               ) : null}
               {showCancelSubscription ? (
@@ -103,7 +102,6 @@ export function MatchChecklistFixedActions({
               </p>
             </div>
           ) : null}
-        </div>
       </div>
     </div>
   );

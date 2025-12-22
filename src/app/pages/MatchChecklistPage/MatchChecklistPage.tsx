@@ -1,24 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
-import type { MatchGateway } from '@/app/gateways/MatchGateway';
-import { Inject, TkMatchGateway } from '@/infra/container';
-import { useSession } from '@/app/context/session-context';
+
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
 import { MatchChecklistHeader } from './_components/MatchChecklistHeader';
 import { MatchChecklistStatsCard } from './_components/MatchChecklistStatsCard';
-import { MatchChecklistAttendanceList } from './_components/MatchChecklistAttendanceList';
 import { MatchChecklistFixedActions } from './_components/MatchChecklistFixedActions';
-import {
-  CancelSubscriptionDialog,
-  DeleteMatchDialog,
-  EditMatchDialog,
-  FinalizeMatchDialog,
-  RemovePlayerDialog,
-  SubscribeMatchDialog,
-} from './_components/MatchChecklistDialogs';
+import { MatchChecklistAttendanceList } from './_components/MatchChecklistAttendanceList';
+import { CancelSubscriptionDialog, DeleteMatchDialog, EditMatchDialog, FinalizeMatchDialog, RemovePlayerDialog, SubscribeMatchDialog } from './_components/MatchChecklistDialogs';
+
+import { useSession } from '@/app/context/session-context';
+
+import type { MatchGateway } from '@/app/gateways/MatchGateway';
+import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
+
+import { Inject, TkMatchGateway } from '@/infra/container';
+
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -27,7 +26,7 @@ function formatDateTime(value: string) {
     .replace(/\//g, '.');
   const timeLabel = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return { dateLabel, timeLabel };
-}
+};
 
 export function MatchChecklistPage() {
   const matchGateway = Inject<MatchGateway>(TkMatchGateway);
@@ -37,19 +36,19 @@ export function MatchChecklistPage() {
   const { id } = useParams();
   const matchId = id ?? '';
 
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState<Date | null>(null);
   const [editTime, setEditTime] = useState('');
-  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [rentEquipment, setRentEquipment] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<MatchAttendanceEntry | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [localAttendance, setLocalAttendance] = useState<Record<string, boolean>>({});
   const [actionsOpen, setActionsOpen] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<MatchAttendanceEntry | null>(null);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [rentEquipment, setRentEquipment] = useState(false);
+  const [localAttendance, setLocalAttendance] = useState<Record<string, boolean>>({});
   const autoMarkedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -302,14 +301,7 @@ export function MatchChecklistPage() {
       <div className="p-6">
         <QueryErrorCard
           message="Partida nao encontrada."
-          action={
-            <button
-              className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
-              onClick={() => navigate('/partidas')}
-            >
-              [ VOLTAR PARA PARTIDAS ]
-            </button>
-          }
+          action={<button className="px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all" onClick={() => navigate('/partidas')}>[ VOLTAR PARA PARTIDAS ]</button>}
         />
       </div>
     );
@@ -350,7 +342,7 @@ export function MatchChecklistPage() {
   };
 
   return (
-    <div className="relative pb-52">
+    <div className={`relative transition-all ${actionsOpen && (state.isAdmin ? 'pb-80!' : 'pb-28!')}`}>
       <div className="px-4 pt-6 pb-8 space-y-4">
         <MatchChecklistHeader name={match.name} dateLabel={dateLabel} timeLabel={timeLabel} />
         <MatchChecklistStatsCard
