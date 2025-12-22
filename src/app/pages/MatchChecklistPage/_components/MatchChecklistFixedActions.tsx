@@ -50,7 +50,7 @@ export function MatchChecklistFixedActions({
         <button
           type="button"
           onClick={onToggleOpen}
-          className={`h-10 clip-tactical-card border-x-3 border-[#2D3A52] bg-[#0B0E14]/95 px-4 text-[10px] font-mono-technical uppercase text-[#7F94B0] hover:text-[#00F0FF] hover:border-[#00F0FF]/50 transition-all ${
+          className={`h-10 clip-tactical-card border-x-3 border-[#2D3A52] bg-[#0B0E14]/90 backdrop-blur-md px-4 text-[10px] font-mono-technical uppercase text-[#7F94B0] hover:text-[#00F0FF] hover:border-[#00F0FF]/50 transition-all ${
             isOpen
               ? 'bg-[#D4A536]/20 border border-[#D4A536] text-[#D4A536] shadow-[0_0_10px_rgba(212,165,54,0.3)] hover:bg-[#D4A536]/30 hover:shadow-[0_0_20px_rgba(212,165,54,0.6)]'
               : ''
@@ -63,7 +63,7 @@ export function MatchChecklistFixedActions({
           </span>
         </button>
       </div>
-      <div className="mt-2 bg-[#0B0E14]/95 backdrop-blur-sm border-t border-[#2D3A52] pt-4 pb-6 space-y-3">
+      <div className="mt-2 bg-[#0B0E14]/90 backdrop-blur-md border-t border-[#2D3A52] pt-4 pb-6 space-y-3">
           {(showEditAction || showSubscribeAction || showCancelSubscription) ? (
             <div className="space-y-2">
               {showSubscribeAction ? (
