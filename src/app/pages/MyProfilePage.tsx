@@ -74,7 +74,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   });
 
   const updateProfile = useMutation({
-    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null }) =>
+    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null; avatarFrame?: string | null }) =>
       profileGateway.updateProfile(userId, data),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['player', playerId] });

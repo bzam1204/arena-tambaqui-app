@@ -12,6 +12,7 @@ create table if not exists users (
   id uuid primary key,
   full_name text not null,
   avatar text,
+  avatar_frame text,
   is_admin boolean,
   email text unique,
   cpf text not null unique,
@@ -78,6 +79,9 @@ alter table if exists feed
 
 alter table if exists users
   add column if not exists email text;
+
+alter table if exists users
+  add column if not exists avatar_frame text;
 
 alter table if exists players
   add column if not exists motto text;

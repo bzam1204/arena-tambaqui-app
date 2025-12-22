@@ -20,6 +20,7 @@ export class MockProfileGateway implements ProfileGateway {
       nickname: input.nickname,
       motto: input.motto ?? null,
       avatar: this.toAvatar(input.photo),
+      avatarFrame: null,
     });
     this.onboarded.add(userId);
     return playerId;
@@ -30,6 +31,7 @@ export class MockProfileGateway implements ProfileGateway {
       ...input,
       motto: input.motto ?? null,
       avatar: this.toAvatar(input.avatar),
+      avatarFrame: input.avatarFrame ?? null,
     });
   }
 

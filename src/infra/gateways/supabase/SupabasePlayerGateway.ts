@@ -10,7 +10,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
   private readonly usersTable = 'users';
   private readonly avatarBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'avatars';
   private readonly selectColumns =
-    'id,nickname,praise_count,report_count,reputation,history,motto, users:users!inner(full_name,avatar)';
+    'id,nickname,praise_count,report_count,reputation,history,motto, users:users!inner(full_name,avatar,avatar_frame)';
   private escapeIlike(term: string) {
     // Escape Postgres ilike wildcards and delimiters used by PostgREST OR clause
     return term.replace(/[%_,]/g, (c) => `\\${c}`);
@@ -91,6 +91,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
       name: row.users?.full_name ?? row.nickname ?? '',
       nickname: row.nickname,
       avatar: row.users?.avatar ?? null,
+      avatarFrame: row.users?.avatar_frame ?? null,
       motto: row.motto ?? null,
       elogios: praise,
       denuncias: reports,
@@ -107,6 +108,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     nickname: string;
     avatar?: File | string | null;
     motto?: string | null;
+    avatarFrame?: string | null;
   }): Promise<void> {
     const { data: player, error } = await this.supabase
       .from(this.table)
@@ -119,6 +121,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const avatarUrl = input.avatar ? await this.uploadAvatar(player.user_id, input.avatar) : undefined;
     const userUpdate: Record<string, string | undefined | null> = { full_name: input.name };
     if (avatarUrl) userUpdate.avatar = avatarUrl;
+    if (input.avatarFrame !== undefined) userUpdate.avatar_frame = input.avatarFrame;
     const { error: userError } = await this.supabase
       .from(this.usersTable)
       .update(userUpdate)

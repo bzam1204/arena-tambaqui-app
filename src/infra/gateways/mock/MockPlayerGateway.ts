@@ -64,12 +64,15 @@ export class MockPlayerGateway implements PlayerGateway {
     player.reputation = calculateReputation({ elogios: praiseCount, denuncias: reportCount });
   }
 
-  updateProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null }) {
+  updateProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null; avatarFrame?: string | null }) {
     const player = this.players[id];
     if (!player) return;
     player.name = input.name;
     player.nickname = input.nickname;
     player.motto = input.motto ?? player.motto ?? null;
+    if (input.avatarFrame !== undefined) {
+      player.avatarFrame = input.avatarFrame;
+    }
     if (input.avatar) {
       player.avatar = input.avatar;
     }
@@ -81,18 +84,22 @@ export class MockPlayerGateway implements PlayerGateway {
     nickname: string;
     avatar?: File | string | null;
     motto?: string | null;
+    avatarFrame?: string | null;
   }): Promise<void> {
     const player = this.players[input.playerId];
     if (!player) throw new Error('Jogador não encontrado.');
     player.name = input.name;
     player.nickname = input.nickname;
     player.motto = input.motto ?? null;
+    if (input.avatarFrame !== undefined) {
+      player.avatarFrame = input.avatarFrame;
+    }
     if (input.avatar) {
       player.avatar = typeof input.avatar === 'string' ? input.avatar : URL.createObjectURL(input.avatar);
     }
   }
 
-  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null }): string {
+  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null; avatarFrame?: string | null }): string {
     const existing = this.players[id];
     const praiseCount = existing?.praiseCount ?? 0;
     const reportCount = existing?.reportCount ?? 0;
@@ -103,6 +110,7 @@ export class MockPlayerGateway implements PlayerGateway {
       nickname: input.nickname,
       motto: input.motto ?? existing?.motto ?? null,
       avatar: input.avatar ?? existing?.avatar,
+      avatarFrame: input.avatarFrame ?? existing?.avatarFrame ?? null,
       elogios: praiseCount,
       denuncias: reportCount,
       praiseCount,

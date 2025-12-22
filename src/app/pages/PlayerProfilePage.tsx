@@ -159,7 +159,7 @@ export function PlayerProfilePage() {
   });
 
   const updateProfile = useMutation({
-    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null }) => {
+    mutationFn: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null; avatarFrame?: string | null }) => {
       if (!id) return Promise.resolve();
       return playerGateway.updatePlayerProfile({ playerId: id, ...data });
     },

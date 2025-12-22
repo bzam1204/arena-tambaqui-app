@@ -11,6 +11,7 @@ export interface UpdateProfileInput {
   nickname: string;
   avatar?: File | string | null;
   motto?: string | null;
+  avatarFrame?: string | null;
 }
 
 export interface OnboardingStatus {

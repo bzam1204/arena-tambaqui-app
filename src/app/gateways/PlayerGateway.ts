@@ -3,6 +3,7 @@ export interface Player {
   name: string;
   nickname: string;
   avatar?: string;
+  avatarFrame?: string | null;
   motto?: string | null;
   elogios: number;
   denuncias: number;
@@ -36,6 +37,7 @@ export interface PlayerGateway {
     nickname: string;
     avatar?: File | string | null;
     motto?: string | null;
+    avatarFrame?: string | null;
   }): Promise<void>;
   getPlayerRank(playerId: string): Promise<{ prestige: number | null; shame: number | null }>;
 }

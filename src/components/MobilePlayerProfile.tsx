@@ -8,11 +8,38 @@ import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Spinner } from './Spinner';
 
+const frameManifest = import.meta.glob('/public/frames/*.{png,jpg,jpeg,webp,svg}', {
+  eager: true,
+  as: 'url',
+}) as Record<string, string>;
+
+const formatFrameLabel = (path: string) => {
+  const file = path.split('/').pop() || 'moldura';
+  const base = file.replace(/\.[^.]+$/, '');
+  const cleaned = base.replace(/[-_]+/g, ' ').trim();
+  const withoutFrame = cleaned.replace(/\bframe\b/i, '').trim();
+  const title = (withoutFrame || cleaned || 'Moldura')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(' ');
+  return `Moldura ${title}`;
+};
+
+const frameOptions = (() => {
+  const entries = Object.entries(frameManifest);
+  const fallback = entries.length ? entries : [['/public/frames/blue-frame.png', '/frames/blue-frame.png']];
+  return fallback
+    .map(([path, url]) => ({ value: url, label: formatFrameLabel(path) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+})();
+
 export interface PlayerData {
   id: string;
   name: string;
   nickname: string;
   avatar?: string;
+  avatarFrame?: string | null;
   motto?: string | null;
   reputation: number; // 0-10
   reportCount: number;
@@ -28,7 +55,7 @@ interface MobilePlayerProfileProps {
   onTargetClick: (targetId: string) => void;
   isOwnProfile?: boolean;
   canEditProfile?: boolean;
-  onProfileUpdate?: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null }) => Promise<unknown> | void;
+  onProfileUpdate?: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null; avatarFrame?: string | null }) => Promise<unknown> | void;
   isSaving?: boolean;
   onRetract?: (entryId: string) => void;
   isRetracting?: boolean;
@@ -71,6 +98,7 @@ export function MobilePlayerProfile({
   const [editName, setEditName] = useState(player.name);
   const [editNickname, setEditNickname] = useState(player.nickname);
   const [editAvatar, setEditAvatar] = useState(player.avatar);
+  const [editAvatarFrame, setEditAvatarFrame] = useState<string | null>(player.avatarFrame ?? null);
   const [editMotto, setEditMotto] = useState(player.motto ?? '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
@@ -214,6 +242,7 @@ export function MobilePlayerProfile({
         nickname: editNickname,
         avatar: avatarFile ?? editAvatar,
         motto: editMotto.trim().slice(0, 100) || null,
+        avatarFrame: editAvatarFrame || null,
       });
     }
     setIsEditing(false);
@@ -226,6 +255,7 @@ export function MobilePlayerProfile({
     setEditName(player.name);
     setEditNickname(player.nickname);
     setEditAvatar(player.avatar);
+    setEditAvatarFrame(player.avatarFrame ?? null);
     setEditMotto(player.motto ?? '');
     setAvatarFile(null);
     setRawPhoto(null);
@@ -234,6 +264,7 @@ export function MobilePlayerProfile({
   };
 
   const status = getReputationStatus();
+  const activeFrame = (isEditing ? editAvatarFrame : player.avatarFrame) ?? null;
   const glowStyles = {
     ['--glow-border' as any]: hexToRgba(status.glowHex, 0.4),
     ['--glow-inner' as any]: hexToRgba(status.glowHex, 0.7),
@@ -263,7 +294,7 @@ export function MobilePlayerProfile({
           <div className="flex flex-col items-center mb-2">
             <div className="relative mb-4">
               <div className={`w-40 h-44 ${status.barColor} clip-hexagon-perfect p-[3px]`}>
-                <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center relative">
                   {(isEditing ? editAvatar : player.avatar) ? (
                     <img
                       src={isEditing ? editAvatar : player.avatar}
@@ -273,6 +304,13 @@ export function MobilePlayerProfile({
                   ) : (
                     <User className="w-16 h-16 text-[#7F94B0]" />
                   )}
+                  {activeFrame ? (
+                    <img
+                      src={activeFrame}
+                      alt="Moldura do perfil"
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none clip-hexagon-perfect"
+                    />
+                  ) : null}
                 </div>
               </div>
               {canEditProfile && isEditing && (
@@ -326,15 +364,31 @@ export function MobilePlayerProfile({
                   <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
                     Bordão
                   </label>
-                <input
-                  type="text"
-                  value={editMotto}
-                  onChange={(e) => setEditMotto(e.target.value.slice(0, 100))}
-                  className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                  placeholder="Frase curta (opcional)"
-                  maxLength={100}
-                  
-                />
+                  <input
+                    type="text"
+                    value={editMotto}
+                    onChange={(e) => setEditMotto(e.target.value.slice(0, 100))}
+                    className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                    placeholder="Frase curta (opcional)"
+                    maxLength={100}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
+                    Moldura do Perfil
+                  </label>
+                  <select
+                    value={editAvatarFrame ?? ''}
+                    onChange={(e) => setEditAvatarFrame(e.target.value || null)}
+                    className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                  >
+                    <option value="">Sem moldura</option>
+                    {frameOptions.map((frame) => (
+                      <option key={frame.value} value={frame.value}>
+                        {frame.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ) : (

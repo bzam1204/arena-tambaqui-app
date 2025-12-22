@@ -79,11 +79,15 @@ export class SupabaseProfileGateway implements ProfileGateway {
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
     const avatarUrl = input.avatar ? await this.uploadAvatar(userId, input.avatar) : undefined;
+    const userUpdate: Record<string, string | undefined | null> = {
+      full_name: input.name,
+    };
+    if (avatarUrl) userUpdate.avatar = avatarUrl;
+    if (input.avatarFrame !== undefined) userUpdate.avatar_frame = input.avatarFrame;
     const { error } = await this.supabase
       .from(this.usersTable)
       .update({
-        full_name: input.name,
-        avatar: avatarUrl,
+        ...userUpdate,
       })
       .eq('id', userId);
     if (error) throw error;
