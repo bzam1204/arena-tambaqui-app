@@ -211,7 +211,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
         return;
       }
       const finalPhoto = await getCroppedPhoto();
-      onComplete({ nickname, name, cpf, motto: motto.trim() || undefined, photo: finalPhoto ?? photo });
+      onComplete({ nickname, name, cpf, motto: motto.trim().slice(0, 100) || undefined, photo: finalPhoto ?? photo });
     }
   };
 
@@ -388,10 +388,11 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                       <input
                         type="text"
                         value={motto}
-                        onChange={(e) => setMotto(e.target.value)}
+                        onChange={(e) => setMotto(e.target.value.slice(0, 100))}
                         placeholder='Ex: "Disciplina antes do disparo."'
                         className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-3 text-[#E6F1FF] font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
                         autoFocus
+                        maxLength={100}
                       />
                       <p className="text-xs text-[#7F94B0]/70 font-mono-technical mt-2">
                         Campo opcional

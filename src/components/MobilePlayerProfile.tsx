@@ -212,7 +212,7 @@ export function MobilePlayerProfile({
         name: editName,
         nickname: editNickname,
         avatar: avatarFile ?? editAvatar,
-        motto: editMotto.trim() || null,
+        motto: editMotto.trim().slice(0, 100) || null,
       });
     }
     setIsEditing(false);
@@ -325,13 +325,15 @@ export function MobilePlayerProfile({
                   <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
                     Bordão
                   </label>
-                  <input
-                    type="text"
-                    value={editMotto}
-                    onChange={(e) => setEditMotto(e.target.value)}
-                    className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                    placeholder="Frase curta (opcional)"
-                  />
+                <input
+                  type="text"
+                  value={editMotto}
+                  onChange={(e) => setEditMotto(e.target.value.slice(0, 100))}
+                  className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                  placeholder="Frase curta (opcional)"
+                  maxLength={100}
+                  
+                />
                 </div>
               </div>
             ) : (
@@ -339,7 +341,7 @@ export function MobilePlayerProfile({
                 <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
               {player.motto ? (
                 <p
-                  className="text-md w-full text-[#7F94B0] font-mono-technical text-center glitch-text"
+                  className={`text-md w-full text-[#7F94B0] font-mono-technical text-center glitch-text ${player.motto.length > 60 && "text-justify!"}`}
                   data-text={`"${player.motto}"`}
                 >
                   "{player.motto}"

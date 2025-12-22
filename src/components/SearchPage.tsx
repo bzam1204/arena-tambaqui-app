@@ -106,7 +106,10 @@ export function SearchPage({
                     <div className="flex-1 text-left">
                       <div className="text-sm text-[#E6F1FF] mb-1 uppercase">{player.nickname}</div>
                       <div className="text-xs text-[#7F94B0] font-mono-technical mb-1">{player.name}</div>
-                      <div className="text-[10px] text-[#7F94B0] font-mono-technical mb-2 min-h-[14px]">
+                      <div
+                        className="text-[10px] text-[#7F94B0] font-mono-technical mb-2 min-h-[14px] glitch-text text-justify"
+                        data-text={player.motto ? `"${player.motto}"` : ''}
+                      >
                         {player.motto ? `"${player.motto}"` : ''}
                       </div>
                       
