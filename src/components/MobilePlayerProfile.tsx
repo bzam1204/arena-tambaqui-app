@@ -298,7 +298,7 @@ export function MobilePlayerProfile({
                 avatarUrl={isEditing ? editAvatar : player.avatar}
                 frameUrl={activeFrame}
                 alt={isEditing ? editNickname : player.nickname}
-                wrapperClassName="w-64 h-64"
+                wrapperClassName="w-[230px] h-[190px]"
                 sizeClassName="w-40 h-44"
                 accentClassName={status.barColor}
                 paddingClassName="p-[3px]"
