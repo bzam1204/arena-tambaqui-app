@@ -279,4 +279,8 @@ export class MockMatchGateway implements MatchGateway {
       .filter((match) => attendanceSet.has(match.id))
       .map((match) => ({ id: match.id, name: match.name, startAt: match.startAt }));
   }
+
+  async countPlayerMatches(input: { playerId: string }): Promise<number> {
+    return this.attendance.filter((entry) => entry.playerId === input.playerId && entry.attended).length;
+  }
 }

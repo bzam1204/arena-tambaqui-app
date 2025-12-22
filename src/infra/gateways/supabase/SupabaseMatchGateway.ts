@@ -325,4 +325,14 @@ export class SupabaseMatchGateway implements MatchGateway {
         startAt: match.start_at,
       }));
   }
+
+  async countPlayerMatches(input: { playerId: string }): Promise<number> {
+    const { count, error } = await this.supabase
+      .from(this.attendanceTable)
+      .select('match_id', { count: 'exact', head: true })
+      .eq('player_id', input.playerId)
+      .eq('attended', true);
+    if (error) throw error;
+    return typeof count === 'number' ? count : 0;
+  }
 }

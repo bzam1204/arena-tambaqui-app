@@ -46,6 +46,7 @@ export interface MatchGateway {
   updateAttendance(input: { matchId: string; playerId: string; attended: boolean }): Promise<void>;
   finalizeMatch(input: { matchId: string; adminId: string }): Promise<void>;
   listEligibleMatchesForTransmission(input: { playerId: string }): Promise<MatchOption[]>;
+  countPlayerMatches(input: { playerId: string }): Promise<number>;
 }
 
 export const TkMatchGateway = Symbol('MatchGateway');

@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
+import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
-import { Inject, TkPlayerGateway, TkProfileGateway, TkFeedGateway } from '@/infra/container';
+import { Inject, TkPlayerGateway, TkProfileGateway, TkFeedGateway, TkMatchGateway } from '@/infra/container';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
 
 type Props = {
@@ -18,6 +19,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const playerGateway = Inject<PlayerGateway>(TkPlayerGateway);
   const profileGateway = Inject<ProfileGateway>(TkProfileGateway);
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
+  const matchGateway = Inject<MatchGateway>(TkMatchGateway);
   const queryClient = useQueryClient();
   const [retractingId, setRetractingId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -52,6 +54,12 @@ export function MyProfilePage({ userId, playerId }: Props) {
   } = useQuery({
     queryKey: ['player', 'rank', playerId],
     queryFn: () => playerGateway.getPlayerRank(playerId),
+    enabled: Boolean(playerId),
+  });
+
+  const { data: matchCount } = useQuery({
+    queryKey: ['player', 'match-count', playerId],
+    queryFn: () => matchGateway.countPlayerMatches({ playerId }),
     enabled: Boolean(playerId),
   });
   const retractMutation = useMutation({
@@ -104,7 +112,13 @@ export function MyProfilePage({ userId, playerId }: Props) {
   if (!player) return <Spinner fullScreen label="carregando perfil" />;
   return (
     <MobilePlayerProfile
-      player={{ ...player, history, rankPrestige: ranks?.prestige ?? null, rankShame: ranks?.shame ?? null }}
+      player={{
+        ...player,
+        history,
+        rankPrestige: ranks?.prestige ?? null,
+        rankShame: ranks?.shame ?? null,
+        matchCount: matchCount ?? null,
+      }}
       onTargetClick={(targetId) => {
         if (targetId === playerId) return;
         navigate(`/player/${targetId}`);

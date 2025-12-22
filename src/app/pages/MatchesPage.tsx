@@ -756,10 +756,34 @@ export function MatchesPage() {
                   {formatDateTime(subscribeMatch.startAt).timeLabel}
                 </div>
               </div>
-              <label className="flex items-center gap-3 text-xs text-[#7F94B0] font-mono-technical">
-                <Checkbox checked={rentEquipment} onCheckedChange={(value) => setRentEquipment(Boolean(value))} />
-                Vou alugar equipamento
-              </label>
+              <button
+                type="button"
+                onClick={() => setRentEquipment((prev) => !prev)}
+                className={`w-full clip-tactical-card border-x-4 p-3 text-left transition-all ${
+                  rentEquipment
+                    ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
+                    : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-md border flex items-center justify-center ${
+                      rentEquipment
+                        ? 'border-[#00F0FF] bg-[#00F0FF]/20 text-[#00F0FF]'
+                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0]'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-[#E6F1FF] font-mono-technical uppercase">Aluguel de equipamento</div>
+                    <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                      Precisa do kit do campo para jogar?
+                    </div>
+                  </div>
+                  <Checkbox checked={rentEquipment} className="pointer-events-none" />
+                </div>
+              </button>
               {actionError ? (
                 <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
               ) : null}

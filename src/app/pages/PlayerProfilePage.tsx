@@ -128,6 +128,12 @@ export function PlayerProfilePage() {
     enabled: isModalOpen && Boolean(state.playerId) && !editingEntry,
   });
 
+  const { data: matchCount } = useQuery({
+    queryKey: ['player', 'match-count', id],
+    queryFn: () => matchGateway.countPlayerMatches({ playerId: id as string }),
+    enabled: Boolean(id),
+  });
+
   const adminRetract = useMutation({
     mutationFn: (entryId: string) => feedGateway.adminRetract(entryId),
     onSuccess: async () => {
@@ -196,7 +202,13 @@ export function PlayerProfilePage() {
   return (
     <>
       <MobilePlayerProfile
-        player={{ ...player, history, rankPrestige: ranks?.prestige ?? null, rankShame: ranks?.shame ?? null }}
+        player={{
+          ...player,
+          history,
+          rankPrestige: ranks?.prestige ?? null,
+          rankShame: ranks?.shame ?? null,
+          matchCount: matchCount ?? null,
+        }}
         onTargetClick={(targetId) => {
           if (targetId === state.playerId) {
             navigate('/perfil');

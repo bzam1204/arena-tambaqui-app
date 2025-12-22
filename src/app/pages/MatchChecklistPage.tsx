@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, Check, Clock, Crosshair, Minus, Shield, Users, X } from 'lucide-react';
+import { CalendarDays, Check, Clock, Minus, Shield, Users, X } from 'lucide-react';
 import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { Inject, TkMatchGateway } from '@/infra/container';
@@ -480,47 +480,62 @@ export function MatchChecklistPage() {
                 const isPresent = displayState === true;
                 const isAbsent = displayState === false;
                 const isPending = displayState === null;
+                const rentalLabel = entry.rentEquipment ? 'ALUGUEL' : 'EQUIPAMENTO PRÓPRIO';
+                const rentalClass = entry.rentEquipment
+                  ? 'border-[#00F0FF]/50 text-[#00F0FF] bg-[#00F0FF]/10'
+                  : 'border-[#2D3A52] text-[#7F94B0] bg-[#0B0E14]';
+                const canViewProfile = isFinalized;
+                const identityContent = (
+                  <>
+                    <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
+                      <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
+                        {entry.playerAvatar ? (
+                          <img
+                            src={entry.playerAvatar}
+                            alt={entry.playerNickname}
+                            className="w-full h-full object-cover clip-hexagon-perfect"
+                          />
+                        ) : (
+                          <Users className="w-4 h-4 text-[#7F94B0]" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex flex-col flex-wrap items-start justify-start gap-2 mb-3">
+                        <div className={`text-sm text-[#E6F1FF] uppercase ${canViewProfile ? 'group-hover:text-[#00F0FF]' : ''}`}>
+                          {entry.playerNickname}
+                        </div>
+                        <div className="text-xs text-[#7F94B0] font-mono-technical">{entry.playerName}</div>
+                        <span className={`px-2 py-0.5 text-[9px] font-mono-technical uppercase border rounded-full ${rentalClass}`}>
+                          {rentalLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
                 return (
                   <div
                     key={entry.playerId}
-                    className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-7"
+                    className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-3"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-13 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
-                        <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect flex items-center justify-center">
-                          {entry.playerAvatar ? (
-                            <img
-                              src={entry.playerAvatar}
-                              alt={entry.playerNickname}
-                              className="w-full h-full object-cover clip-hexagon-perfect"
-                            />
-                          ) : (
-                            <Users className="w-4 h-4 text-[#7F94B0]" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm text-[#E6F1FF] uppercase">{entry.playerNickname}</div>
-                        <div className="text-xs text-[#7F94B0] font-mono-technical">{entry.playerName}</div>
-                      </div>
-                    </div>
-                    {state.isAdmin ? (
-                      <div className="text-xs font-mono-technical">
-                        {entry.rentEquipment ? (
-                          <span className="flex items-center gap-2 text-[#00F0FF]">
-                            <Crosshair className="w-3 h-3" />
-                            &gt; REQUER KIT (ALUGUEL)
-                          </span>
-                        ) : (
-                          <span className="text-[#7F94B0]">&gt; Equipamento proprio</span>
-                        )}
-                      </div>
-                    ) : null}
-                    <div className="flex flex-wrap items-center gap-3">
+                    {canViewProfile ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/player/${entry.playerId}`)}
+                        className="flex gap-4 text-left group"
+                      >
+                        {identityContent}
+                      </button>
+                    ) : (
+                      <div className="flex items-start gap-4">{identityContent}</div>
+                    )}
+                    <hr className='mb-1! border-[#2D3A52]'/>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       {state.isAdmin && !isFinalized ? (
                         <TacticalButton
                           variant="cyan"
-                          className="!px-3 !py-1 text-[10px] !border-[#FF3B3B] !text-[#FF3B3B] !bg-[#FF3B3B]/10 hover:!bg-[#FF3B3B]/20 hover:!shadow-[0_0_20px_rgba(255,59,59,0.6)]"
+                          className="!px-3 !py-1 h-10 text-[10px] !border-[#FF3B3B] !text-[#FF3B3B] !bg-[#FF3B3B]/10 hover:!bg-[#FF3B3B]/20 hover:!shadow-[0_0_20px_rgba(255,59,59,0.6)]"
                           onClick={() => {
                             setActionError(null);
                             setRemoveTarget(entry);
@@ -536,34 +551,31 @@ export function MatchChecklistPage() {
                         disabled={!canEdit}
                       >
                         <span
-                          className={`relative w-20 h-10 clip-tactical-sm border transition-all ${
-                            isPresent
-                              ? 'border-[#00F0FF] bg-[#00F0FF]/15 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
-                              : isAbsent
-                                ? 'border-[#FF3B3B] bg-[#FF3B3B]/10 shadow-[0_0_15px_rgba(255,59,59,0.45)]'
-                                : 'border-[#2D3A52] bg-[#0F1729]'
-                          }`}
+                          className={`relative w-20 h-11 clip-tactical-sm border transition-all ${isPresent
+                            ? 'border-[#00F0FF] bg-[#00F0FF]/15 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
+                            : isAbsent
+                              ? 'border-[#FF3B3B] bg-[#FF3B3B]/10 shadow-[0_0_15px_rgba(255,59,59,0.45)]'
+                              : 'border-[#2D3A52] bg-[#0F1729]'
+                            }`}
                         >
                           <span
-                            className={`absolute top-1 left-1 w-8 h-8 clip-tactical-sm flex items-center justify-center transition-all ${
-                              isPresent
-                                ? 'bg-[#00F0FF] text-[#0B0E14] translate-x-9'
-                                : isAbsent
-                                  ? 'bg-[#FF3B3B] text-[#0B0E14]'
-                                  : 'bg-[#1F2937] text-[#7F94B0]'
-                            }`}
+                            className={`absolute top-[5px] left-1 w-8 h-8 clip-tactical-sm flex items-center justify-center transition-all ${isPresent
+                              ? 'bg-[#00F0FF] text-[#0B0E14] translate-x-9'
+                              : isAbsent
+                                ? 'bg-[#FF3B3B] text-[#0B0E14]'
+                                : 'bg-[#1F2937] text-[#7F94B0]'
+                              }`}
                           >
                             {isPresent ? <Check className="w-4 h-4" /> : isPending ? <Minus className="w-4 h-4" /> : <X className="w-4 h-4" />}
                           </span>
                         </span>
                         <span
-                          className={`text-[10px] font-mono-technical uppercase ${
-                            isPresent
-                              ? 'text-[#00F0FF]'
-                              : isAbsent
-                                ? 'text-[#FF3B3B]'
-                                : 'text-[#7F94B0]'
-                          }`}
+                          className={`text-[10px] font-mono-technical uppercase ${isPresent
+                            ? 'text-[#00F0FF]'
+                            : isAbsent
+                              ? 'text-[#FF3B3B]'
+                              : 'text-[#7F94B0]'
+                            }`}
                         >
                           [ {isPresent ? 'PRESENTE' : isPending ? 'PENDENTE' : 'AUSENTE'} ]
                         </span>
@@ -660,10 +672,32 @@ export function MatchChecklistPage() {
                 DATA: {dateLabel} // HORA: {timeLabel}
               </div>
             </div>
-            <label className="flex items-center gap-3 text-xs text-[#7F94B0] font-mono-technical">
-              <Checkbox checked={rentEquipment} onCheckedChange={(value) => setRentEquipment(Boolean(value))} />
-              Vou alugar equipamento
-            </label>
+            <button
+              type="button"
+              onClick={() => setRentEquipment((prev) => !prev)}
+              className={`w-full clip-tactical-card border-x-4 p-3 text-left transition-all ${rentEquipment
+                ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
+                : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-md border flex items-center justify-center ${rentEquipment
+                    ? 'border-[#00F0FF] bg-[#00F0FF]/20 text-[#00F0FF]'
+                    : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0]'
+                    }`}
+                >
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-[#E6F1FF] font-mono-technical uppercase">Aluguel de equipamento</div>
+                  <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                    Precisa do kit do campo para jogar?
+                  </div>
+                </div>
+                <Checkbox checked={rentEquipment} className="pointer-events-none" />
+              </div>
+            </button>
             {actionError ? (
               <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
             ) : null}

@@ -20,6 +20,7 @@ export interface PlayerData {
   history: FeedEntry[];
   rankPrestige?: number | null;
   rankShame?: number | null;
+  matchCount?: number | null;
 }
 
 interface MobilePlayerProfileProps {
@@ -346,9 +347,9 @@ export function MobilePlayerProfile({
               ) : null}
               </div>
             )}
-            {(player.rankPrestige || player.rankShame) && (
+            {(player.rankPrestige || player.rankShame || player.matchCount !== null && player.matchCount !== undefined) && (
               <div className="mb-3 space-y-1">
-                <div className="mx-auto flex items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
+                <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
                   {player.rankPrestige ? (
                     <TacticalButton
                       variant="cyan"
@@ -370,6 +371,11 @@ export function MobilePlayerProfile({
                       <span className="text-[#7F94B0]">·</span>
                       <span className="text-[#D4A536]">Infâmia</span>
                     </TacticalButton>
+                  ) : null}
+                  {player.matchCount !== null && player.matchCount !== undefined ? (
+                    <span className="px-3 py-1 text-[10px] uppercase border border-[#2D3A52] rounded-md text-[#7F94B0] bg-[#0B0E14]">
+                      PARTIDAS: {String(player.matchCount).padStart(2, '0')}
+                    </span>
                   ) : null}
                 </div>
               </div>
