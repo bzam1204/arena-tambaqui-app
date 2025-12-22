@@ -484,7 +484,7 @@ export function MatchChecklistPage() {
                 const rentalClass = entry.rentEquipment
                   ? 'border-[#00F0FF]/50 text-[#00F0FF] bg-[#00F0FF]/10'
                   : 'border-[#2D3A52] text-[#7F94B0] bg-[#0B0E14]';
-                const canViewProfile = isFinalized;
+                const canViewProfile = true;
                 const identityContent = (
                   <>
                     <div className="w-16 h-18 bg-[#00F0FF] clip-hexagon-perfect p-[2px]">
@@ -516,27 +516,27 @@ export function MatchChecklistPage() {
                 return (
                   <div
                     key={entry.playerId}
-                    className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-3"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/player/${entry.playerId}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        navigate(`/player/${entry.playerId}`);
+                      }
+                    }}
+                    className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-3 cursor-pointer group"
                   >
-                    {canViewProfile ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/player/${entry.playerId}`)}
-                        className="flex gap-4 text-left group"
-                      >
-                        {identityContent}
-                      </button>
-                    ) : (
-                      <div className="flex items-start gap-4">{identityContent}</div>
-                    )}
+                    <div className="flex items-start gap-4">{identityContent}</div>
                     <hr className='mb-1! border-[#2D3A52]'/>
 
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       {state.isAdmin && !isFinalized ? (
                         <TacticalButton
                           variant="cyan"
-                          className="!px-3 !py-1 h-10 text-[10px] !border-[#FF3B3B] !text-[#FF3B3B] !bg-[#FF3B3B]/10 hover:!bg-[#FF3B3B]/20 hover:!shadow-[0_0_20px_rgba(255,59,59,0.6)]"
-                          onClick={() => {
+                          className="px-3! py-1! h-10 text-[10px] border-[#FF3B3B]! text-[#FF3B3B]! bg-[#FF3B3B]/10! hover:bg-[#FF3B3B]/20! hover:shadow-[0_0_20px_rgba(255,59,59,0.6)]!"
+                          onClick={(event) => {
+                            event.stopPropagation();
                             setActionError(null);
                             setRemoveTarget(entry);
                           }}
@@ -546,12 +546,15 @@ export function MatchChecklistPage() {
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => handleToggle(entry)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleToggle(entry);
+                        }}
                         className="flex items-center gap-2"
                         disabled={!canEdit}
                       >
                         <span
-                          className={`relative w-20 h-11 clip-tactical-sm border transition-all ${isPresent
+                          className={`relative w-20 h-10 clip-tactical-sm border transition-all ${isPresent
                             ? 'border-[#00F0FF] bg-[#00F0FF]/15 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
                             : isAbsent
                               ? 'border-[#FF3B3B] bg-[#FF3B3B]/10 shadow-[0_0_15px_rgba(255,59,59,0.45)]'
@@ -559,7 +562,7 @@ export function MatchChecklistPage() {
                             }`}
                         >
                           <span
-                            className={`absolute top-[5px] left-1 w-8 h-8 clip-tactical-sm flex items-center justify-center transition-all ${isPresent
+                            className={`absolute top-[3px] left-[6px] w-8 h-8 clip-tactical-sm flex items-center justify-center transition-all ${isPresent
                               ? 'bg-[#00F0FF] text-[#0B0E14] translate-x-9'
                               : isAbsent
                                 ? 'bg-[#FF3B3B] text-[#0B0E14]'

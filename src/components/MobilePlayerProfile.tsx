@@ -348,36 +348,38 @@ export function MobilePlayerProfile({
               </div>
             )}
             {(player.rankPrestige || player.rankShame || player.matchCount !== null && player.matchCount !== undefined) && (
-              <div className="mb-3 space-y-1">
-                <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
-                  {player.rankPrestige ? (
-                    <TacticalButton
-                      variant="cyan"
-                      onClick={() => onRankClick?.('prestige')}
-                      className="text-xs !px-3 !py-1"
-                    >
-                      <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige}</span>
-                      <span className="text-[#7F94B0]">·</span>
-                      <span className="text-[#00F0FF]">Prestígio</span>
-                    </TacticalButton>
-                  ) : null}
-                  {player.rankShame ? (
-                    <TacticalButton
-                      variant="amber"
-                      onClick={() => onRankClick?.('shame')}
-                      className="text-xs !px-3 !py-1"
-                    >
-                      <span className="text-[#D4A536] font-semibold">#{player.rankShame}</span>
-                      <span className="text-[#7F94B0]">·</span>
-                      <span className="text-[#D4A536]">Infâmia</span>
-                    </TacticalButton>
-                  ) : null}
-                  {player.matchCount !== null && player.matchCount !== undefined ? (
-                    <span className="px-3 py-1 text-[10px] uppercase border border-[#2D3A52] rounded-md text-[#7F94B0] bg-[#0B0E14]">
-                      PARTIDAS: {String(player.matchCount).padStart(2, '0')}
-                    </span>
-                  ) : null}
-                </div>
+              <div className="mb-3 space-y-2">
+                {player.matchCount !== null && player.matchCount !== undefined ? (
+                  <div className="mx-auto w-fit px-3 py-1 text-[10px] uppercase border border-[#2D3A52] rounded-md text-[#7F94B0] bg-[#0B0E14]">
+                    PARTIDAS: {String(player.matchCount).padStart(2, '0')}
+                  </div>
+                ) : null}
+                {(player.rankPrestige || player.rankShame) ? (
+                  <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
+                    {player.rankPrestige ? (
+                      <TacticalButton
+                        variant="cyan"
+                        onClick={() => onRankClick?.('prestige')}
+                        className="text-xs !px-3 !py-1"
+                      >
+                        <span className="text-[#00F0FF] font-semibold">#{player.rankPrestige}</span>
+                        <span className="text-[#7F94B0]">·</span>
+                        <span className="text-[#00F0FF]">Prestígio</span>
+                      </TacticalButton>
+                    ) : null}
+                    {player.rankShame ? (
+                      <TacticalButton
+                        variant="amber"
+                        onClick={() => onRankClick?.('shame')}
+                        className="text-xs !px-3 !py-1"
+                      >
+                        <span className="text-[#D4A536] font-semibold">#{player.rankShame}</span>
+                        <span className="text-[#7F94B0]">·</span>
+                        <span className="text-[#D4A536]">Infâmia</span>
+                      </TacticalButton>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             )}
 
