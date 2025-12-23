@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Spinner } from './Spinner';
 import { PlayerAvatar } from './PlayerAvatar';
 
-const frameManifest = import.meta.glob('/public/frames/*.{png,jpg,jpeg,webp,svg,gif}', {
+const frameManifest = import.meta.glob('@public/frames/*.{png,jpg,jpeg,webp,svg,gif}', {
   eager: true,
   as: 'url',
 }) as Record<string, string>;
@@ -29,7 +29,7 @@ const formatFrameLabel = (path: string) => {
 
 const frameOptions = (() => {
   const entries = Object.entries(frameManifest);
-  const fallback = entries.length ? entries : [['/public/frames/blue-frame.png', '/frames/blue-frame.png']];
+  const fallback = entries.length ? entries : [['@public/frames/blue-frame.png', '/frames/blue-frame.png']];
   return fallback
     .map(([path, url]) => ({ value: url, label: formatFrameLabel(path) }))
     .sort((a, b) => a.label.localeCompare(b.label));
