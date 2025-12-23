@@ -473,13 +473,6 @@ export function MobilePlayerProfile({
               </div>
             ) : (
               <div className="mb-3 space-y-1">
-                {player.isVip ? (
-                  <div className="flex justify-center mb-2">
-                    <span className="clip-tactical px-3 py-1 border border-[#D4A536] bg-[#D4A536]/10 text-[#D4A536] text-[10px] font-mono-technical uppercase tracking-wider">
-                      VIP
-                    </span>
-                  </div>
-                ) : null}
                 <h2 className="text-4xl break-words w-full max-w-full text-center mb-2 text-[#E6F1FF]">
                   {player.nickname}
                 </h2>
@@ -494,9 +487,14 @@ export function MobilePlayerProfile({
                 ) : null}
               </div>
             )}
-            {(player.rankPrestige || player.rankShame) ? (
+            {(player.isVip || player.rankPrestige || player.rankShame) ? (
               <div className="mb-3 space-y-2">
                 <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
+                  {player.isVip ? (
+                    <span className="clip-tactical px-3 py-1 border border-[#D4A536] bg-[#D4A536]/10 text-[#D4A536] text-[10px] font-mono-technical uppercase tracking-wider">
+                      VIP
+                    </span>
+                  ) : null}
                   {player.rankPrestige ? (
                     <TacticalButton
                       variant="cyan"
