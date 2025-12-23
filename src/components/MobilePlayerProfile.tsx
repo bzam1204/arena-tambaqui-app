@@ -42,6 +42,7 @@ export interface PlayerData {
   avatar?: string;
   avatarFrame?: string | null;
   motto?: string | null;
+  isVip?: boolean;
   reputation: number; // 0-10
   reportCount: number;
   praiseCount: number;
@@ -101,6 +102,7 @@ export function MobilePlayerProfile({
   const [editAvatar, setEditAvatar] = useState(player.avatar);
   const [editAvatarFrame, setEditAvatarFrame] = useState<string | null>(player.avatarFrame ?? null);
   const [editMotto, setEditMotto] = useState(player.motto ?? '');
+  const [editIsVip, setEditIsVip] = useState(Boolean(player.isVip));
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
   const [rawPhotoPreview, setRawPhotoPreview] = useState('');
@@ -245,6 +247,7 @@ export function MobilePlayerProfile({
         avatar: avatarFile ?? editAvatar,
         motto: editMotto.trim().slice(0, 100) || null,
         avatarFrame: editAvatarFrame || null,
+        ...(isAdmin ? { isVip: editIsVip } : {}),
       });
     }
     setIsEditing(false);
@@ -260,6 +263,7 @@ export function MobilePlayerProfile({
     setEditAvatar(player.avatar);
     setEditAvatarFrame(player.avatarFrame ?? null);
     setEditMotto(player.motto ?? '');
+    setEditIsVip(Boolean(player.isVip));
     setAvatarFile(null);
     setRawPhoto(null);
     setRawPhotoPreview('');
@@ -396,6 +400,29 @@ export function MobilePlayerProfile({
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {isAdmin ? (
+                      <div className="clip-tactical-card bg-[#141A26] border border-[#2D3A52] p-4 flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">
+                            Tag VIP
+                          </div>
+                          <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                            Destaque arbitrário para operadores.
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditIsVip((prev) => !prev)}
+                          className={`px-4 py-2 text-[10px] uppercase font-mono-technical border transition-all ${
+                            editIsVip
+                              ? 'border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536]'
+                              : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#D4A536]/40'
+                          }`}
+                        >
+                          {editIsVip ? 'VIP ATIVO' : 'MARCAR VIP'}
+                        </button>
+                      </div>
+                    ) : null}
                     <div className="space-y-2">
                       <div className="text-xs text-[#7F94B0] font-mono-technical uppercase text-center">
                         Selecionar moldura
@@ -446,6 +473,13 @@ export function MobilePlayerProfile({
               </div>
             ) : (
               <div className="mb-3 space-y-1">
+                {player.isVip ? (
+                  <div className="flex justify-center mb-2">
+                    <span className="clip-tactical px-3 py-1 border border-[#D4A536] bg-[#D4A536]/10 text-[#D4A536] text-[10px] font-mono-technical uppercase tracking-wider">
+                      VIP
+                    </span>
+                  </div>
+                ) : null}
                 <h2 className="text-4xl break-words w-full max-w-full text-center mb-2 text-[#E6F1FF]">
                   {player.nickname}
                 </h2>

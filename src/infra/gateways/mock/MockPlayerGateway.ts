@@ -64,12 +64,15 @@ export class MockPlayerGateway implements PlayerGateway {
     player.reputation = calculateReputation({ elogios: praiseCount, denuncias: reportCount });
   }
 
-  updateProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null; avatarFrame?: string | null }) {
+  updateProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null; avatarFrame?: string | null; isVip?: boolean }) {
     const player = this.players[id];
     if (!player) return;
     player.name = input.name;
     player.nickname = input.nickname;
     player.motto = input.motto ?? player.motto ?? null;
+    if (input.isVip !== undefined) {
+      player.isVip = input.isVip;
+    }
     if (input.avatarFrame !== undefined) {
       player.avatarFrame = input.avatarFrame;
     }
@@ -85,12 +88,16 @@ export class MockPlayerGateway implements PlayerGateway {
     avatar?: File | string | null;
     motto?: string | null;
     avatarFrame?: string | null;
+    isVip?: boolean;
   }): Promise<void> {
     const player = this.players[input.playerId];
     if (!player) throw new Error('Jogador não encontrado.');
     player.name = input.name;
     player.nickname = input.nickname;
     player.motto = input.motto ?? null;
+    if (input.isVip !== undefined) {
+      player.isVip = input.isVip;
+    }
     if (input.avatarFrame !== undefined) {
       player.avatarFrame = input.avatarFrame;
     }
@@ -99,7 +106,7 @@ export class MockPlayerGateway implements PlayerGateway {
     }
   }
 
-  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null; avatarFrame?: string | null }): string {
+  upsertFromProfile(id: string, input: { name: string; nickname: string; avatar?: string; motto?: string | null; avatarFrame?: string | null; isVip?: boolean }): string {
     const existing = this.players[id];
     const praiseCount = existing?.praiseCount ?? 0;
     const reportCount = existing?.reportCount ?? 0;
@@ -111,6 +118,7 @@ export class MockPlayerGateway implements PlayerGateway {
       motto: input.motto ?? existing?.motto ?? null,
       avatar: input.avatar ?? existing?.avatar,
       avatarFrame: input.avatarFrame ?? existing?.avatarFrame ?? null,
+      isVip: input.isVip ?? existing?.isVip ?? false,
       elogios: praiseCount,
       denuncias: reportCount,
       praiseCount,

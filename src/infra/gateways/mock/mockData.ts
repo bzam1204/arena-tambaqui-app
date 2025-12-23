@@ -152,6 +152,7 @@ export function createPlayerStore(): MockPlayerStore {
       nickname: p.nickname,
       motto: p.motto ?? null,
       avatar: p.avatar,
+      isVip: (p as { isVip?: boolean }).isVip ?? false,
       elogios: p.praiseCount,
       denuncias: p.reportCount,
       praiseCount: p.praiseCount,

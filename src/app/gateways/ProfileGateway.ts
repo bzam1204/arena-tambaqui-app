@@ -12,6 +12,7 @@ export interface UpdateProfileInput {
   avatar?: File | string | null;
   motto?: string | null;
   avatarFrame?: string | null;
+  isVip?: boolean;
 }
 
 export interface OnboardingStatus {

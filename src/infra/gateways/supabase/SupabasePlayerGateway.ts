@@ -11,6 +11,8 @@ export class SupabasePlayerGateway implements PlayerGateway {
   private readonly avatarBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'avatars';
   private readonly selectColumns =
     'id,nickname,praise_count,report_count,reputation,history,motto, users:users!inner(full_name,avatar,avatar_frame)';
+  private readonly selectColumnsWithVip =
+    'id,nickname,praise_count,report_count,reputation,history,motto,is_vip, users:users!inner(full_name,avatar,avatar_frame)';
   private escapeIlike(term: string) {
     // Escape Postgres ilike wildcards and delimiters used by PostgREST OR clause
     return term.replace(/[%_,]/g, (c) => `\\${c}`);
@@ -19,7 +21,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
   async getPlayer(id: string): Promise<Player | null> {
     const { data, error } = await this.supabase
       .from(this.table)
-      .select(this.selectColumns)
+      .select(this.selectColumnsWithVip)
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
@@ -29,7 +31,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
   async listPlayers(): Promise<Player[]> {
     const { data, error } = await this.supabase
       .from(this.table)
-      .select(this.selectColumns);
+      .select(this.selectColumnsWithVip);
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
   }
@@ -41,7 +43,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const to = from + pageSize - 1;
     const query = this.supabase
       .from(this.table)
-      .select(this.selectColumns)
+      .select(this.selectColumnsWithVip)
       .order(sortField, { ascending: false })
       .range(from, to);
     if (params.kind === 'prestige') query.gt('praise_count', 0);
@@ -55,7 +57,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const pattern = `%${this.escapeIlike(term)}%`;
     const { data, error } = await this.supabase
       .from(this.table)
-      .select(this.selectColumns)
+      .select(this.selectColumnsWithVip)
       .or(`nickname.ilike.${pattern},users(full_name.ilike.${pattern})`);
     if (error) throw error;
     return (data || []).map((row) => this.mapPlayer(row) as Player);
@@ -67,7 +69,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const term = params.term?.trim() ?? '';
     const query = this.supabase
     .from('player_search_view') // Query the view instead
-    .select(this.selectColumns, { count: 'exact' })
+      .select(this.selectColumns, { count: 'exact' })
       .order('nickname', { ascending: true })
       .range(from, to);
     if (term) {
@@ -93,6 +95,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
       avatar: row.users?.avatar ?? null,
       avatarFrame: row.users?.avatar_frame ?? null,
       motto: row.motto ?? null,
+      isVip: row.is_vip ?? row.isVip ?? false,
       elogios: praise,
       denuncias: reports,
       praiseCount: praise,
@@ -109,6 +112,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     avatar?: File | string | null;
     motto?: string | null;
     avatarFrame?: string | null;
+    isVip?: boolean;
   }): Promise<void> {
     const { data: player, error } = await this.supabase
       .from(this.table)
@@ -128,12 +132,16 @@ export class SupabasePlayerGateway implements PlayerGateway {
       .eq('id', player.user_id);
     if (userError) throw userError;
 
+    const playerUpdate: Record<string, string | boolean | null> = {
+      nickname: input.nickname,
+      motto: input.motto ?? null,
+    };
+    if (input.isVip !== undefined) {
+      playerUpdate.is_vip = input.isVip;
+    }
     const { error: playerError } = await this.supabase
       .from(this.table)
-      .update({
-        nickname: input.nickname,
-        motto: input.motto ?? null,
-      })
+      .update(playerUpdate)
       .eq('id', input.playerId);
     if (playerError) throw playerError;
   }

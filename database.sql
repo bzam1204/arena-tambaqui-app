@@ -26,9 +26,10 @@ create table if not exists players (
   user_id uuid not null references users(id) on delete cascade,
   nickname text not null,
   motto text,
+  is_vip boolean not null default false,
   praise_count integer not null default 0,
   report_count integer not null default 0,
-  reputation integer not null default 6 check (reputation between 0 and 10),
+   reputation integer not null default 6 check (reputation between 0 and 10),
   history jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -85,6 +86,9 @@ alter table if exists users
 
 alter table if exists players
   add column if not exists motto text;
+
+alter table if exists players
+  add column if not exists is_vip boolean not null default false;
 
 -- Indexes for search
 create index if not exists idx_players_nickname_lower on players (lower(nickname));

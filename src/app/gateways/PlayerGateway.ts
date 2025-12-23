@@ -5,6 +5,7 @@ export interface Player {
   avatar?: string;
   avatarFrame?: string | null;
   motto?: string | null;
+  isVip?: boolean;
   elogios: number;
   denuncias: number;
   reputation: number;
@@ -39,6 +40,7 @@ export interface PlayerGateway {
     avatar?: File | string | null;
     motto?: string | null;
     avatarFrame?: string | null;
+    isVip?: boolean;
   }): Promise<void>;
   getPlayerRank(playerId: string): Promise<{ prestige: number | null; shame: number | null }>;
 }
