@@ -111,6 +111,7 @@ export function MobilePlayerProfile({
   const [cropping, setCropping] = useState(false);
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
   const [historyTab, setHistoryTab] = useState<'feed' | 'stats'>('feed');
+  const [editTab, setEditTab] = useState<'perfil' | 'personalizacao'>('perfil');
   const openRecropFromCurrent = useCallback(async () => {
     if (!isEditing) return;
     let sourceFile: File | null = avatarFile;
@@ -247,6 +248,7 @@ export function MobilePlayerProfile({
       });
     }
     setIsEditing(false);
+    setEditTab('perfil');
     setAvatarFile(null);
     setRawPhoto(null);
     setRawPhotoPreview('');
@@ -262,6 +264,7 @@ export function MobilePlayerProfile({
     setRawPhoto(null);
     setRawPhotoPreview('');
     setIsEditing(false);
+    setEditTab('perfil');
   };
 
   const status = getReputationStatus();
@@ -282,7 +285,10 @@ export function MobilePlayerProfile({
           {canEditProfile && !isEditing && (
             <div className="flex justify-end mb-4">
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(true);
+                  setEditTab('perfil');
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
               >
                 <Edit className="w-4 h-4" />
@@ -322,79 +328,136 @@ export function MobilePlayerProfile({
 
             {/* Nickname - Editable */}
             {isEditing ? (
-              <div className="w-full mb-4">
-                <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
-                  Codinome Operacional
-                </label>
-                <input
-                  type="text"
-                  value={editNickname}
-                  onChange={(e) => setEditNickname(e.target.value)}
-                  className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                  placeholder='Ex: Carlos "Raptor" Silva'
-                />
-              </div>
-            ) : (
-              <h2 className="text-4xl break-words w-full max-w-full text-center mb-2 text-[#E6F1FF]">{player.nickname}</h2>
-            )}
-
-            {/* Full Name - Editable */}
-            {isEditing ? (
               <div className="w-full mb-4 space-y-4">
-                <div>
-                  <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
-                    Nome Completo
-                  </label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                    placeholder="Nome completo"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
-                    Bordão
-                  </label>
-                  <input
-                    type="text"
-                    value={editMotto}
-                    onChange={(e) => setEditMotto(e.target.value.slice(0, 100))}
-                    className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                    placeholder="Frase curta (opcional)"
-                    maxLength={100}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
-                    Moldura do Perfil
-                  </label>
-                  <select
-                    value={editAvatarFrame ?? ''}
-                    onChange={(e) => setEditAvatarFrame(e.target.value || null)}
-                    className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditTab('perfil')}
+                    className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
+                      editTab === 'perfil'
+                        ? 'border-[#00F0FF] bg-[#00F0FF]/15 text-[#00F0FF]'
+                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#00F0FF]/40'
+                    }`}
                   >
-                    <option value="">Sem moldura</option>
-                    {frameOptions.map((frame) => (
-                      <option key={frame.value} value={frame.value}>
-                        {frame.label}
-                      </option>
-                    ))}
-                  </select>
+                    Perfil
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTab('personalizacao')}
+                    className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
+                      editTab === 'personalizacao'
+                        ? 'border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536]'
+                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#D4A536]/40'
+                    }`}
+                  >
+                    Personalização
+                  </button>
                 </div>
+
+                {editTab === 'perfil' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
+                        Codinome Operacional
+                      </label>
+                      <input
+                        type="text"
+                        value={editNickname}
+                        onChange={(e) => setEditNickname(e.target.value)}
+                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        placeholder='Ex: Carlos "Raptor" Silva'
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
+                        Nome Completo
+                      </label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        placeholder="Nome completo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
+                        Bordão
+                      </label>
+                      <input
+                        type="text"
+                        value={editMotto}
+                        onChange={(e) => setEditMotto(e.target.value.slice(0, 100))}
+                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                        placeholder="Frase curta (opcional)"
+                        maxLength={100}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="text-xs text-[#7F94B0] font-mono-technical uppercase text-center">
+                        Selecionar moldura
+                      </div>
+                      <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                        {[
+                          { value: '', label: 'Sem moldura' },
+                          ...frameOptions,
+                        ].map((frame) => {
+                          const normalized = frame.value || null;
+                          const isActive = normalized === (editAvatarFrame ?? null);
+                          return (
+                            <button
+                              key={frame.value || 'no-frame'}
+                              type="button"
+                              onClick={() => setEditAvatarFrame(normalized)}
+                              className={`flex flex-col items-center gap-2 min-w-[92px] px-3 py-3 rounded-lg border transition-all ${
+                                isActive
+                                  ? 'border-[#00F0FF] bg-[#00F0FF]/10'
+                                  : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/40'
+                              }`}
+                            >
+                              <PlayerAvatar
+                                avatarUrl={editAvatar}
+                                frameUrl={normalized}
+                                alt={frame.label}
+                                sizeClassName="w-12 h-14"
+                                wrapperClassName="w-16 h-16"
+                                paddingClassName="p-[2px]"
+                                frameClassName="scale-[1.2]"
+                                imageClassName="rounded-[2px]"
+                                fallbackIcon={<User className="w-6 h-6 text-[#7F94B0]" />}
+                              />
+                              <span
+                                className={`text-[10px] font-mono-technical uppercase text-center ${
+                                  isActive ? 'text-[#00F0FF]' : 'text-[#7F94B0]'
+                                }`}
+                              >
+                                {frame.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="mb-3 space-y-1">
+                <h2 className="text-4xl break-words w-full max-w-full text-center mb-2 text-[#E6F1FF]">
+                  {player.nickname}
+                </h2>
                 <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
-              {player.motto ? (
-                <p
-                  className={`text-md w-full text-[#7F94B0] font-mono-technical text-center glitch-text ${player.motto.length > 60 && "text-justify!"}`}
-                  data-text={`"${player.motto}"`}
-                >
-                  "{player.motto}"
-                </p>
-              ) : null}
+                {player.motto ? (
+                  <p
+                    className={`text-md w-full text-[#7F94B0] font-mono-technical text-center glitch-text ${player.motto.length > 60 && 'text-justify!'}`}
+                    data-text={`"${player.motto}"`}
+                  >
+                    "{player.motto}"
+                  </p>
+                ) : null}
               </div>
             )}
             {(player.rankPrestige || player.rankShame) ? (
