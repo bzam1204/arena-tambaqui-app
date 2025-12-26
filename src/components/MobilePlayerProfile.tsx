@@ -659,7 +659,6 @@ export function MobilePlayerProfile({
                   </h2>
                   {player.isVip ? <VipBadge /> : null}
                 </div>
-                <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
                 {player.motto ? (
                   <p
                     className={`text-md w-full text-[#7F94B0] font-mono-technical text-center glitch-text ${player.motto.length > 60 && 'text-justify!'}`}

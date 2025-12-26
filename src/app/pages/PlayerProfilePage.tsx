@@ -282,6 +282,14 @@ export function PlayerProfilePage() {
                 </div>
                 {showUserPhoto ? (
                   <div className="space-y-2">
+                    <div className="text-center">
+                      <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">
+                        Nome completo
+                      </div>
+                      <div className="text-sm text-[#E6F1FF] font-mono-technical">
+                        {player.name}
+                      </div>
+                    </div>
                     {userPhotoLoading ? (
                       <div className="flex justify-center">
                         <Spinner inline size="sm" />
