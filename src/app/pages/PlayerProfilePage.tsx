@@ -7,7 +7,8 @@ import { QueryErrorCard } from '@/components/QueryErrorCard';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
-import { Inject, TkPlayerGateway, TkFeedGateway, TkMatchGateway, TkTransmissionGateway } from '@/infra/container';
+import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
+import { Inject, TkPlayerGateway, TkFeedGateway, TkMatchGateway, TkTransmissionGateway, TkProfileGateway } from '@/infra/container';
 import { TransmissionModal, type TransmissionPlayer } from '@/components/TransmissionModal';
 import { useSession } from '@/app/context/session-context';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
@@ -18,6 +19,7 @@ export function PlayerProfilePage() {
   const feedGateway = Inject<FeedGateway>(TkFeedGateway);
   const txGateway = Inject<TransmissionGateway>(TkTransmissionGateway);
   const matchGateway = Inject<MatchGateway>(TkMatchGateway);
+  const profileGateway = Inject<ProfileGateway>(TkProfileGateway);
   const { id } = useParams();
   const { state } = useSession();
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ export function PlayerProfilePage() {
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [editingEntry, setEditingEntry] = useState<FeedEntry | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(false);
+  const [showUserPhoto, setShowUserPhoto] = useState(false);
 
   useEffect(() => {
     if (id && state.playerId && id === state.playerId) {
@@ -82,6 +85,10 @@ export function PlayerProfilePage() {
   }, [id]);
 
   useEffect(() => {
+    setShowUserPhoto(false);
+  }, [id]);
+
+  useEffect(() => {
     const sentinel = document.getElementById('history-sentinel');
     if (!sentinel) return;
     const observer = new IntersectionObserver(
@@ -132,6 +139,17 @@ export function PlayerProfilePage() {
     queryKey: ['player', 'match-count', id],
     queryFn: () => matchGateway.countPlayerMatches({ playerId: id as string }),
     enabled: Boolean(id),
+  });
+
+  const {
+    data: userPhoto,
+    isLoading: userPhotoLoading,
+    isError: userPhotoIsError,
+    error: userPhotoError,
+  } = useQuery({
+    queryKey: ['player', id, 'user-photo'],
+    queryFn: () => (id ? profileGateway.getUserPhoto(id) : Promise.resolve(null)),
+    enabled: Boolean(id) && Boolean(state.userId) && showUserPhoto,
   });
 
   const adminRetract = useMutation({
@@ -238,31 +256,88 @@ export function PlayerProfilePage() {
           setTimeout(() => setPrefillLoading(false), 100);
         }}
         actionsAboveHistory={
-          <div className="px-0">
-            <TacticalButton
-              variant="amber"
-              fullWidth
-              disabled={isSubmitting}
-              onClick={() => {
-                if (!state.userId) {
-                  navigate('/auth');
-                  return;
+          <div className="space-y-3">
+            {state.userId ? (
+              <div className="clip-tactical-card bg-[#141A26] border border-[#2D3A52] p-4 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">
+                      Verificação de identidade
+                      </div>
+                      <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                        Privada · visível apenas sob demanda
+                      </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowUserPhoto((prev) => !prev)}
+                    className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
+                      showUserPhoto
+                        ? 'border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536]'
+                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#D4A536]/40'
+                    }`}
+                  >
+                    {showUserPhoto ? 'Ocultar' : 'Exibir'}
+                  </button>
+                </div>
+                {showUserPhoto ? (
+                  <div className="space-y-2">
+                    {userPhotoLoading ? (
+                      <div className="flex justify-center">
+                        <Spinner inline size="sm" />
+                      </div>
+                    ) : null}
+                    {userPhotoIsError ? (
+                      <p className="text-xs text-[#D4A536] font-mono-technical text-center">
+                        {(userPhotoError as Error)?.message || 'Falha ao carregar a foto.'}
+                      </p>
+                    ) : null}
+                    {!userPhotoLoading && !userPhotoIsError && userPhoto ? (
+                      <img
+                        src={userPhoto}
+                        alt="Foto de identidade"
+                        className="w-full max-w-[260px] mx-auto rounded-md border border-[#2D3A52] object-cover"
+                      />
+                    ) : null}
+                    {!userPhotoLoading && !userPhotoIsError && !userPhoto ? (
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Foto de identidade não disponível no momento.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                    Ative para visualizar a foto de identidade.
+                  </p>
+                )}
+              </div>
+            ) : null}
+            <div className="px-0">
+              <TacticalButton
+                variant="amber"
+                fullWidth
+                disabled={isSubmitting}
+                onClick={() => {
+                  if (!state.userId) {
+                    navigate('/auth');
+                    return;
+                  }
+                  if (!state.playerId) {
+                    navigate('/onboarding');
+                    return;
+                  }
+                  setPlayerSearchTerm(player?.nickname ?? '');
+                  setIsModalOpen(true);
+                }}
+                leftIcon={
+                  isSubmitting ? (
+                    <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
+                  ) : undefined
                 }
-                if (!state.playerId) {
-                  navigate('/onboarding');
-                  return;
-                }
-                setPlayerSearchTerm(player?.nickname ?? '');
-                setIsModalOpen(true);
-              }}
-              leftIcon={
-                isSubmitting ? (
-                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
-                ) : undefined
-              }
-            >
-              {isSubmitting ? '[ TRANSMITINDO... ]' : '[ REPORTAR JOGADOR ]'}
-            </TacticalButton>
+              >
+                {isSubmitting ? '[ TRANSMITINDO... ]' : '[ REPORTAR JOGADOR ]'}
+              </TacticalButton>
+            </div>
           </div>
         }
       />

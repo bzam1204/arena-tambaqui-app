@@ -8,6 +8,7 @@ export class SupabaseProfileGateway implements ProfileGateway {
   private readonly usersTable = 'users';
   private readonly playersTable = 'players';
   private readonly avatarBucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'avatars';
+  private readonly userPhotoBucket = import.meta.env.VITE_SUPABASE_USER_PHOTO_BUCKET || 'user-photos';
 
   async checkCpfExists(cpf: string): Promise<boolean> {
     const { data, error } = await this.supabase
@@ -50,13 +51,20 @@ export class SupabaseProfileGateway implements ProfileGateway {
       throw new Error('CPF já cadastrado.');
     }
 
-    const avatarUrl = input.photo ? await this.uploadAvatar(userId, input.photo) : undefined;
-    const { error } = await this.supabase.from(this.usersTable).upsert({
+    if (input.userPhoto && (!input.userPhotoCaptured || typeof input.userPhoto === 'string')) {
+      throw new Error('Foto para verificação de identidade deve ser capturada em tempo real.');
+    }
+
+    const avatarUrl = input.avatar ? await this.uploadAvatar(userId, input.avatar) : undefined;
+    const userPhotoPath = input.userPhoto ? await this.uploadUserPhoto(userId, input.userPhoto) : undefined;
+    const userPayload: Record<string, string | null | undefined> = {
       id: userId,
       full_name: input.name,
       cpf: input.cpf,
       avatar: avatarUrl,
-    });
+    };
+    if (userPhotoPath) userPayload.user_photo = userPhotoPath;
+    const { error } = await this.supabase.from(this.usersTable).upsert(userPayload);
     if (error) throw error;
 
     // Ensure player row exists with baseline reputation/stats
@@ -111,6 +119,42 @@ export class SupabaseProfileGateway implements ProfileGateway {
     if (playerErr) throw playerErr;
   }
 
+  async getUserPhoto(playerId: string): Promise<string | null> {
+    const { data: player, error } = await this.supabase
+      .from(this.playersTable)
+      .select('user_id')
+      .eq('id', playerId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!player?.user_id) return null;
+    const { data: userRow, error: userErr } = await this.supabase
+      .from(this.usersTable)
+      .select('user_photo')
+      .eq('id', player.user_id)
+      .maybeSingle();
+    if (userErr) throw userErr;
+    const userPhoto = userRow?.user_photo;
+    if (!userPhoto) return null;
+    if (userPhoto.startsWith('http')) return userPhoto;
+    const { data, error: signedError } = await this.supabase.storage
+      .from(this.userPhotoBucket)
+      .createSignedUrl(userPhoto, 60 * 5);
+    if (signedError) throw signedError;
+    return data?.signedUrl ?? null;
+  }
+
+  async updateUserPhoto(userId: string, input: { userPhoto: File; userPhotoCaptured: boolean }): Promise<void> {
+    if (!input.userPhotoCaptured || !(input.userPhoto instanceof File)) {
+      throw new Error('Foto para verificação de identidade deve ser capturada em tempo real.');
+    }
+    const userPhotoPath = await this.uploadUserPhoto(userId, input.userPhoto);
+    const { error } = await this.supabase
+      .from(this.usersTable)
+      .update({ user_photo: userPhotoPath })
+      .eq('id', userId);
+    if (error) throw error;
+  }
+
   private async uploadAvatar(userId: string, avatar: File | string): Promise<string> {
     const normalized = await this.normalizeAvatar(avatar);
     if (!normalized.file && normalized.url) return normalized.url;
@@ -122,6 +166,15 @@ export class SupabaseProfileGateway implements ProfileGateway {
     const { data } = this.supabase.storage.from(this.avatarBucket).getPublicUrl(path);
     if (!data?.publicUrl) throw new Error('Falha ao obter URL público do avatar');
     return data.publicUrl;
+  }
+
+  private async uploadUserPhoto(userId: string, userPhoto: File): Promise<string> {
+    const path = `${userId}/${Date.now()}-${userPhoto.name}`;
+    const { data, error } = await this.supabase.storage
+      .from(this.userPhotoBucket)
+      .upload(path, userPhoto, { upsert: true });
+    if (error) throw error;
+    return data?.path ?? path;
   }
 
   private async normalizeAvatar(avatar: File | string): Promise<{ file?: File; url?: string }> {

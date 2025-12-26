@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { User, AlertTriangle, Award, Edit, X, Check } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { User, AlertTriangle, Award, Edit, X, Check, Camera } from 'lucide-react';
 import Cropper, { type Area } from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 import { MobileFeedCard, type FeedEntry } from './MobileFeedCard';
@@ -59,7 +59,12 @@ interface MobilePlayerProfileProps {
   isOwnProfile?: boolean;
   canEditProfile?: boolean;
   onProfileUpdate?: (data: { name: string; nickname: string; avatar?: File | string | null; motto?: string | null; avatarFrame?: string | null }) => Promise<unknown> | void;
+  onUserPhotoUpdate?: (data: { userPhoto: File; userPhotoCaptured: boolean }) => Promise<unknown> | void;
+  userPhotoUrl?: string | null;
+  isUserPhotoLoading?: boolean;
+  userPhotoFetchError?: string | null;
   isSaving?: boolean;
+  isUserPhotoSaving?: boolean;
   onRetract?: (entryId: string) => void;
   isRetracting?: boolean;
   retractingId?: string | null;
@@ -77,6 +82,10 @@ export function MobilePlayerProfile({
   isOwnProfile = false,
   canEditProfile = false,
   onProfileUpdate,
+  onUserPhotoUpdate,
+  userPhotoUrl = null,
+  isUserPhotoLoading = false,
+  userPhotoFetchError = null,
   onRetract,
   isRetracting = false,
   retractingId = null,
@@ -87,6 +96,7 @@ export function MobilePlayerProfile({
   onAdminRetract,
   onAdminRemove,
   isSaving = false,
+  isUserPhotoSaving = false,
 }: MobilePlayerProfileProps) {
   const hexToRgba = (hex: string, alpha: number) => {
     const clean = hex.replace('#', '');
@@ -108,13 +118,32 @@ export function MobilePlayerProfile({
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
   const [rawPhotoPreview, setRawPhotoPreview] = useState('');
   const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropTarget, setCropTarget] = useState<'avatar' | 'userPhoto' | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [cropping, setCropping] = useState(false);
+  const [userPhotoDialogOpen, setUserPhotoDialogOpen] = useState(false);
+  const [userPhotoStream, setUserPhotoStream] = useState<MediaStream | null>(null);
+  const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null);
+  const [userPhotoPreview, setUserPhotoPreview] = useState('');
+  const [userPhotoError, setUserPhotoError] = useState('');
+  const userPhotoVideoRef = useRef<HTMLVideoElement | null>(null);
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
   const [historyTab, setHistoryTab] = useState<'feed' | 'stats'>('feed');
   const [editTab, setEditTab] = useState<'perfil' | 'personalizacao'>('perfil');
+  const openCropper = useCallback((target: 'avatar' | 'userPhoto', file: File) => {
+    if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
+    const previewUrl = URL.createObjectURL(file);
+    setRawPhoto(file);
+    setRawPhotoPreview(previewUrl);
+    setCropperOpen(true);
+    setCropTarget(target);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  }, [rawPhotoPreview]);
+
   const openRecropFromCurrent = useCallback(async () => {
     if (!isEditing) return;
     let sourceFile: File | null = avatarFile;
@@ -143,14 +172,8 @@ export function MobilePlayerProfile({
     }
 
     if (!sourceFile) return;
-    const previewUrl = URL.createObjectURL(sourceFile);
-    setRawPhoto(sourceFile);
-    setRawPhotoPreview(previewUrl);
-    setCropperOpen(true);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
-  }, [avatarFile, editAvatar, isEditing, player.avatar]);
+    openCropper('avatar', sourceFile);
+  }, [avatarFile, editAvatar, isEditing, openCropper, player.avatar]);
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
@@ -164,15 +187,8 @@ export function MobilePlayerProfile({
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setRawPhoto(file);
-      const previewUrl = URL.createObjectURL(file);
-      setRawPhotoPreview(previewUrl);
-      setCropperOpen(true);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-    }
+    if (!file) return;
+    openCropper('avatar', file);
   };
 
   const onCropComplete = useCallback((_: Area, areaPixels: Area) => {
@@ -221,17 +237,92 @@ export function MobilePlayerProfile({
   const handleConfirmCrop = useCallback(async () => {
     setCropping(true);
     const cropped = await getCroppedPhoto();
-    if (cropped) {
-      if (editAvatar && editAvatar.startsWith('blob:')) URL.revokeObjectURL(editAvatar);
+    if (cropped && cropTarget) {
       const url = URL.createObjectURL(cropped);
-      setAvatarFile(cropped);
-      setEditAvatar(url);
+      if (cropTarget === 'avatar') {
+        if (editAvatar && editAvatar.startsWith('blob:')) URL.revokeObjectURL(editAvatar);
+        setAvatarFile(cropped);
+        setEditAvatar(url);
+      } else {
+        if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+        setUserPhotoFile(cropped);
+        setUserPhotoPreview(url);
+        setUserPhotoError('');
+      }
     }
     setCropping(false);
     setCropperOpen(false);
     setRawPhoto(null);
     setRawPhotoPreview('');
-  }, [editAvatar, getCroppedPhoto]);
+    setCropTarget(null);
+  }, [cropTarget, editAvatar, getCroppedPhoto, userPhotoPreview]);
+
+  const stopUserPhotoCamera = useCallback(() => {
+    if (!userPhotoStream) return;
+    userPhotoStream.getTracks().forEach((track) => track.stop());
+    setUserPhotoStream(null);
+  }, [userPhotoStream]);
+
+  const startUserPhotoCamera = useCallback(async () => {
+    setUserPhotoError('');
+    if (userPhotoStream) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setUserPhotoError('Câmera indisponível neste dispositivo.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+      setUserPhotoStream(stream);
+    } catch {
+      stopUserPhotoCamera();
+      setUserPhotoError('Permissão da câmera negada. A foto é obrigatória para verificação de identidade.');
+    }
+  }, [stopUserPhotoCamera, userPhotoStream]);
+
+  const captureUserPhoto = useCallback(async () => {
+    const video = userPhotoVideoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    const width = video.videoWidth || 720;
+    const height = video.videoHeight || 720;
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(video, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((item) => resolve(item), 'image/jpeg', 0.92),
+    );
+    if (!blob) return;
+    const file = new File([blob], `user-photo-${Date.now()}.jpeg`, { type: 'image/jpeg' });
+    stopUserPhotoCamera();
+    if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+    setUserPhotoFile(null);
+    setUserPhotoPreview('');
+    setUserPhotoError('');
+    openCropper('userPhoto', file);
+  }, [openCropper, stopUserPhotoCamera, userPhotoPreview]);
+
+  const resetUserPhotoCapture = useCallback(() => {
+    if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+    setUserPhotoFile(null);
+    setUserPhotoPreview('');
+    setUserPhotoError('');
+    void startUserPhotoCamera();
+  }, [startUserPhotoCamera, userPhotoPreview]);
+
+  const handleSaveUserPhoto = useCallback(async () => {
+    if (!onUserPhotoUpdate || !userPhotoFile) return;
+    await onUserPhotoUpdate({ userPhoto: userPhotoFile, userPhotoCaptured: true });
+    setUserPhotoDialogOpen(false);
+    setUserPhotoFile(null);
+    if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+    setUserPhotoPreview('');
+    setUserPhotoError('');
+  }, [onUserPhotoUpdate, userPhotoFile, userPhotoPreview]);
 
   useEffect(() => {
     return () => {
@@ -239,6 +330,31 @@ export function MobilePlayerProfile({
       if (editAvatar && editAvatar.startsWith('blob:')) URL.revokeObjectURL(editAvatar);
     };
   }, [editAvatar, rawPhotoPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+    };
+  }, [userPhotoPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (userPhotoStream) {
+        userPhotoStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [userPhotoStream]);
+
+  useEffect(() => {
+    const video = userPhotoVideoRef.current;
+    if (!video) return;
+    if (userPhotoStream) {
+      video.srcObject = userPhotoStream;
+      void video.play().catch(() => undefined);
+      return;
+    }
+    video.srcObject = null;
+  }, [userPhotoStream]);
 
   const handleSave = async () => {
     if (onProfileUpdate) {
@@ -274,6 +390,7 @@ export function MobilePlayerProfile({
 
   const status = getReputationStatus();
   const activeFrame = (isEditing ? editAvatarFrame : player.avatarFrame) ?? null;
+  const canManageIdentity = isOwnProfile && Boolean(onUserPhotoUpdate);
   const glowStyles = {
     ['--glow-border' as any]: hexToRgba(status.glowHex, 0.4),
     ['--glow-inner' as any]: hexToRgba(status.glowHex, 0.7),
@@ -322,8 +439,7 @@ export function MobilePlayerProfile({
                   <Edit className="w-5 h-5 text-[#0B0E14]" />
                   <input
                     type="file"
-                    accept="image/*;capture=camera"
-                    capture="user"
+                    accept="image/*"
                     onChange={handleAvatarChange}
                     className="hidden"
                   />
@@ -375,18 +491,6 @@ export function MobilePlayerProfile({
                     </div>
                     <div>
                       <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
-                        Nome Completo
-                      </label>
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
-                        placeholder="Nome completo"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
                         Bordão
                       </label>
                       <input
@@ -397,6 +501,72 @@ export function MobilePlayerProfile({
                         placeholder="Frase curta (opcional)"
                         maxLength={100}
                       />
+                    </div>
+                    <div className="clip-tactical-card bg-[#141A26] border border-[#2D3A52] p-4 space-y-4">
+                      <div className="text-center space-y-1">
+                        <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">
+                          Verificação de identidade
+                        </div>
+                        <p className="text-[10px] text-[#7F94B0] font-mono-technical">
+                          Privada • Nome real e foto em tempo real
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs text-[#7F94B0] font-mono-technical uppercase mb-2 text-center">
+                          Nome Completo
+                        </label>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full bg-[#0B0E14] border border-[#2D3A52] rounded-lg px-4 py-2 text-[#E6F1FF] text-center font-mono-technical text-sm focus:border-[#00F0FF] focus:outline-none transition-colors"
+                          placeholder="Nome completo"
+                        />
+                        <p className="text-[10px] text-[#7F94B0] font-mono-technical text-center">
+                          Nome real usado para verificação de identidade.
+                        </p>
+                      </div>
+                      {canManageIdentity ? (
+                        <div className="space-y-3 text-center">
+                          <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">
+                            Foto de identidade
+                          </div>
+                          <div className="flex justify-center">
+                            {isUserPhotoLoading ? (
+                              <Spinner inline size="sm" />
+                            ) : null}
+                            {!isUserPhotoLoading && userPhotoFetchError ? (
+                              <p className="text-[10px] text-[#D4A536] font-mono-technical text-center">
+                                {userPhotoFetchError}
+                              </p>
+                            ) : null}
+                            {!isUserPhotoLoading && !userPhotoFetchError && userPhotoUrl ? (
+                              <img
+                                src={userPhotoUrl}
+                                alt="Foto de identidade atual"
+                                className="w-full max-w-[200px] rounded-md border border-[#2D3A52] object-cover"
+                              />
+                            ) : null}
+                            {!isUserPhotoLoading && !userPhotoFetchError && !userPhotoUrl ? (
+                              <p className="text-[10px] text-[#7F94B0] font-mono-technical text-center">
+                                Foto ainda não enviada.
+                              </p>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUserPhotoDialogOpen(true);
+                              void startUserPhotoCamera();
+                            }}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#D4A536]/10 border-2 border-[#D4A536] rounded-lg text-[#D4A536] font-mono-technical text-xs uppercase hover:bg-[#D4A536]/20 transition-all disabled:opacity-60"
+                            disabled={isUserPhotoSaving}
+                          >
+                            {isUserPhotoSaving ? <Spinner inline size="sm" /> : <Camera className="w-4 h-4" />}
+                            {isUserPhotoSaving ? 'SALVANDO...' : 'ATUALIZAR FOTO'}
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : (
@@ -608,6 +778,7 @@ export function MobilePlayerProfile({
             if (!open) {
               setRawPhoto(null);
               setRawPhotoPreview('');
+              setCropTarget(null);
             }
           }}
         >
@@ -678,6 +849,136 @@ export function MobilePlayerProfile({
                 disabled={cropping}
               >
                 {cropping ? <Spinner inline size="sm" label="cortando" /> : '[ CORTAR ]'}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={userPhotoDialogOpen}
+          onOpenChange={(open) => {
+            setUserPhotoDialogOpen(open);
+            if (!open) {
+              stopUserPhotoCamera();
+              if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+              setUserPhotoPreview('');
+              setUserPhotoFile(null);
+              setUserPhotoError('');
+            }
+          }}
+        >
+          <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[90vw]">
+            <DialogHeader>
+              <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
+                [ VERIFICAÇÃO DE IDENTIDADE ]
+              </DialogTitle>
+              <DialogDescription className="text-[#7F94B0] text-xs font-mono-technical">
+                Capture uma foto em tempo real para verificação de identidade. A galeria não é permitida.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {userPhotoPreview ? (
+                <div className="space-y-3">
+                  <img
+                    src={userPhotoPreview}
+                    alt="Pré-visualização da foto de identidade"
+                    className="w-full max-w-[300px] mx-auto rounded-md border border-[#2D3A52] object-cover"
+                  />
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={resetUserPhotoCapture}
+                      className="px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                      disabled={isUserPhotoSaving}
+                    >
+                      [ REFAZER ]
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (userPhotoFile) {
+                          openCropper('userPhoto', userPhotoFile);
+                        }
+                      }}
+                      className="px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                      disabled={!userPhotoFile || isUserPhotoSaving}
+                    >
+                      [ RECORTAR ]
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative w-full overflow-hidden rounded-lg border border-[#2D3A52] bg-[#0B0E14]">
+                    {userPhotoStream ? (
+                      <video
+                        ref={userPhotoVideoRef}
+                        className="w-full h-[240px] object-cover"
+                        autoPlay
+                        playsInline
+                        muted
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-[240px] gap-3">
+                        <Camera className="w-10 h-10 text-[#D4A536]" />
+                        <p className="text-xs text-[#7F94B0] font-mono-technical">
+                          Ative a câmera para capturar a foto.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => void startUserPhotoCamera()}
+                          className="px-4 py-2 bg-[#D4A536]/10 border-2 border-[#D4A536] rounded-lg text-[#D4A536] font-mono-technical text-xs uppercase hover:bg-[#D4A536]/20 transition-all"
+                        >
+                          [ ATIVAR CÂMERA ]
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {userPhotoStream ? (
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void captureUserPhoto()}
+                        className="px-4 py-2 bg-[#D4A536]/10 border-2 border-[#D4A536] rounded-lg text-[#D4A536] font-mono-technical text-xs uppercase hover:bg-[#D4A536]/20 transition-all"
+                      >
+                        [ CAPTURAR ]
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopUserPhotoCamera}
+                        className="px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                      >
+                        [ CANCELAR ]
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+              {userPhotoError ? (
+                <p className="text-xs text-[#D4A536] font-mono-technical text-center">
+                  {userPhotoError}
+                </p>
+              ) : null}
+            </div>
+
+            <DialogFooter className="mt-2 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setUserPhotoDialogOpen(false)}
+                className="px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                disabled={isUserPhotoSaving}
+              >
+                [ FECHAR ]
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveUserPhoto()}
+                className="px-4 py-2 bg-[#D4A536]/10 border-2 border-[#D4A536] rounded-lg text-[#D4A536] font-mono-technical text-xs uppercase hover:bg-[#D4A536]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={!userPhotoFile || isUserPhotoSaving}
+              >
+                {isUserPhotoSaving ? <Spinner inline size="sm" /> : null}
+                {isUserPhotoSaving ? 'SALVANDO...' : '[ SALVAR ]'}
               </button>
             </DialogFooter>
           </DialogContent>

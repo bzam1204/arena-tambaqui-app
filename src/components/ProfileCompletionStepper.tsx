@@ -8,7 +8,15 @@ import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface ProfileCompletionStepperProps {
-  onComplete: (data: { nickname: string; name: string; cpf: string; motto?: string; photo: File | null }) => void;
+  onComplete: (data: {
+    nickname: string;
+    name: string;
+    cpf: string;
+    motto?: string;
+    avatar: File | null;
+    userPhoto: File | null;
+    userPhotoCaptured: boolean;
+  }) => void;
   submitting?: boolean;
   onCheckCpfExists?: (cpf: string) => Promise<boolean>;
 }
@@ -22,30 +30,38 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const [cpfError, setCpfError] = useState('');
   const [cpfExistsError, setCpfExistsError] = useState('');
   const [checkingCpf, setCheckingCpf] = useState(false);
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
-  const [sourcePhoto, setSourcePhoto] = useState<File | null>(null);
-  const [sourcePhotoPreview, setSourcePhotoPreview] = useState<string>('');
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [userPhoto, setUserPhoto] = useState<File | null>(null);
+  const [userPhotoPreview, setUserPhotoPreview] = useState('');
+  const [userPhotoCaptured, setUserPhotoCaptured] = useState(false);
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
   const [rawPhotoPreview, setRawPhotoPreview] = useState<string>('');
+  const [cropTarget, setCropTarget] = useState<'avatar' | 'userPhoto' | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropping, setCropping] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState('');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const hexClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
-  const recropFromExisting = () => {
-    if (!sourcePhoto) return;
-    const freshRawUrl = URL.createObjectURL(sourcePhoto);
-    setRawPhoto(sourcePhoto);
-    setRawPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return freshRawUrl;
-    });
+  const openCropper = (target: 'avatar' | 'userPhoto', file: File) => {
+    if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
+    const rawUrl = URL.createObjectURL(file);
+    setRawPhoto(file);
+    setRawPhotoPreview(rawUrl);
+    setCropTarget(target);
     setCropperOpen(true);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCroppedAreaPixels(null);
+  };
+  const recropFromExisting = (target: 'avatar' | 'userPhoto') => {
+    const file = target === 'avatar' ? avatar : userPhoto;
+    if (!file) return;
+    openCropper(target, file);
   };
 
   const cpfDigits = useMemo(() => cpf.replace(/\D/g, ''), [cpf]);
@@ -112,9 +128,15 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
 
   useEffect(() => {
     return () => {
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     };
-  }, [photoPreview]);
+  }, [avatarPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+    };
+  }, [userPhotoPreview]);
 
   useEffect(() => {
     return () => {
@@ -124,52 +146,122 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
 
   useEffect(() => {
     return () => {
-      if (sourcePhotoPreview) URL.revokeObjectURL(sourcePhotoPreview);
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
     };
-  }, [sourcePhotoPreview]);
+  }, [cameraStream]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (sourcePhotoPreview) URL.revokeObjectURL(sourcePhotoPreview);
-      if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
-      const sourceUrl = URL.createObjectURL(file);
-      const rawUrl = URL.createObjectURL(file);
-      setSourcePhoto(file);
-      setSourcePhotoPreview(sourceUrl);
-      setRawPhoto(file);
-      setRawPhotoPreview(rawUrl);
-      setCropperOpen(true);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-    }
+    if (!file) return;
+    openCropper('avatar', file);
   };
 
+  const stopCamera = useCallback(() => {
+    if (!cameraStream) return;
+    cameraStream.getTracks().forEach((track) => track.stop());
+    setCameraStream(null);
+  }, [cameraStream]);
+
+  const startCamera = useCallback(async () => {
+    setCameraError('');
+    if (cameraStream) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Câmera indisponível neste dispositivo.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+      setCameraStream(stream);
+    } catch (err) {
+      stopCamera();
+      setCameraError('Permissão da câmera negada. A foto é obrigatória para verificação de identidade.');
+    }
+  }, [cameraStream, stopCamera]);
+
+  const captureUserPhoto = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    const width = video.videoWidth || 720;
+    const height = video.videoHeight || 720;
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(video, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((item) => resolve(item), 'image/jpeg', 0.92),
+    );
+    if (!blob) return;
+    const file = new File([blob], `user-photo-${Date.now()}.jpeg`, { type: 'image/jpeg' });
+    setCameraError('');
+    setUserPhotoCaptured(true);
+    stopCamera();
+    openCropper('userPhoto', file);
+  };
+
+  const handleRetakeUserPhoto = () => {
+    if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+    setUserPhoto(null);
+    setUserPhotoPreview('');
+    setUserPhotoCaptured(false);
+    void startCamera();
+  };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (cameraStream) {
+      video.srcObject = cameraStream;
+      void video.play().catch(() => undefined);
+      return;
+    }
+    video.srcObject = null;
+  }, [cameraStream]);
+
+  const nicknameStep = 1;
+  const avatarStep = 2;
+  const userPhotoStep = 3;
+  const nameStep = 4;
+  const mottoStep = 5;
+  const cpfStep = 6;
+  const finalStep = cpfStep;
+
   const canProceed = () => {
-    if (currentStep === 1) return nickname.trim().length >= 3;
-    if (currentStep === 2) return name.trim().length >= 3;
-    if (currentStep === 3) return true;
-    if (currentStep === 4) return cpfDigits.length === 11 && isCpfValid() && !cpfError && !cpfExistsError && !checkingCpf;
-    if (currentStep === 5) return photo !== null;
+    if (currentStep === nicknameStep) return nickname.trim().length >= 3;
+    if (currentStep === avatarStep) return avatar !== null;
+    if (currentStep === userPhotoStep) return userPhoto !== null && userPhotoCaptured && !cameraError;
+    if (currentStep === nameStep) return name.trim().length >= 3;
+    if (currentStep === mottoStep) return true;
+    if (currentStep === cpfStep) return cpfDigits.length === 11 && isCpfValid() && !cpfError && !cpfExistsError && !checkingCpf;
     return false;
   };
 
+  useEffect(() => {
+    if (currentStep !== userPhotoStep) {
+      stopCamera();
+    }
+  }, [currentStep, stopCamera, userPhotoStep]);
+
   const getCroppedPhoto = useCallback(async (): Promise<File | null> => {
-    const sourceFile = rawPhoto ?? sourcePhoto ?? photo;
-    const sourcePreview = rawPhotoPreview || sourcePhotoPreview || photoPreview;
-    if (!croppedAreaPixels || !sourcePreview || !sourceFile) return sourceFile ?? null;
+    if (!rawPhoto || !rawPhotoPreview) return rawPhoto ?? null;
+    if (!croppedAreaPixels) return rawPhoto;
 
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = reject;
-      img.src = sourcePreview;
+      img.src = rawPhotoPreview;
     });
 
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    if (!context) return photo;
+    if (!context) return rawPhoto;
 
     canvas.width = croppedAreaPixels.width;
     canvas.height = croppedAreaPixels.height;
@@ -188,54 +280,68 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {
-        if (!blob) return resolve(photo);
-        const baseName = sourceFile?.name ? sourceFile.name.replace(/\.[^.]+$/, '') : 'avatar';
+        if (!blob) return resolve(rawPhoto);
+        const baseName = rawPhoto?.name ? rawPhoto.name.replace(/\.[^.]+$/, '') : 'photo';
         const file = new File([blob], `${baseName}-cropped.jpeg`, { type: 'image/jpeg' });
         resolve(file);
       }, 'image/jpeg');
     });
-  }, [croppedAreaPixels, photo, photoPreview, rawPhoto, rawPhotoPreview, sourcePhoto, sourcePhotoPreview]);
+  }, [croppedAreaPixels, rawPhoto, rawPhotoPreview]);
 
   const handleNext = async () => {
     if (submitting) return;
-    if (currentStep < 5) {
-      if (currentStep === 4 && (!isCpfValid() || cpfError || cpfExistsError || checkingCpf)) {
-        setCpfError('CPF inválido');
-        return;
-      }
+    if (currentStep < finalStep) {
       setCurrentStep(currentStep + 1);
-    } else if (currentStep === 5 && canProceed()) {
+    } else if (currentStep === finalStep && canProceed()) {
       if (!isCpfValid()) {
         setCpfError('CPF inválido');
-        setCurrentStep(4);
+        setCurrentStep(cpfStep);
         return;
       }
       const finalPhoto = await getCroppedPhoto();
-      onComplete({ nickname, name, cpf, motto: motto.trim().slice(0, 100) || undefined, photo: finalPhoto ?? photo });
+      onComplete({
+        nickname,
+        name,
+        cpf,
+        motto: motto.trim().slice(0, 100) || undefined,
+        avatar,
+        userPhoto: finalPhoto ?? userPhoto,
+        userPhotoCaptured,
+      });
     }
   };
 
   const handleConfirmCrop = useCallback(async () => {
     setCropping(true);
     const cropped = await getCroppedPhoto();
-    if (cropped) {
-      if (photoPreview && photoPreview !== rawPhotoPreview) URL.revokeObjectURL(photoPreview);
+    if (cropped && cropTarget) {
       const url = URL.createObjectURL(cropped);
-      setPhoto(cropped);
-      setPhotoPreview(url);
+      if (cropTarget === 'avatar') {
+        if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+        setAvatar(cropped);
+        setAvatarPreview(url);
+      } else {
+        if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
+        setUserPhoto(cropped);
+        setUserPhotoPreview(url);
+        setUserPhotoCaptured(true);
+        setCameraError('');
+      }
     }
     setCropping(false);
     setCropperOpen(false);
     setRawPhoto(null);
     setRawPhotoPreview('');
-  }, [getCroppedPhoto, photoPreview]);
+    setCropTarget(null);
+  }, [avatarPreview, cropTarget, getCroppedPhoto, userPhotoPreview]);
 
   const steps = [
     { number: 1, title: 'Codinome', icon: User, field: 'nickname' },
-    { number: 2, title: 'Nome', icon: FileText, field: 'name' },
-    { number: 3, title: 'Bordão', icon: FileText, field: 'motto' },
-    { number: 4, title: 'CPF', icon: CreditCard, field: 'cpf' },
-    { number: 5, title: 'Foto', icon: Camera, field: 'photo' },
+    { number: 2, title: 'Avatar', icon: User, field: 'avatar' },
+    { number: 3, title: 'Identidade', icon: Camera, field: 'userPhoto' },
+    { number: 4, title: 'Nome', icon: FileText, field: 'name' },
+    { number: 5, title: 'Bordão', icon: FileText, field: 'motto' },
+    { number: 6, title: 'CPF', icon: CreditCard, field: 'cpf' },
   ];
 
   return (
@@ -305,7 +411,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
 
               <div className="relative z-10">
                 {/* Step 1: Nickname */}
-                {currentStep === 1 && (
+                {currentStep === nicknameStep && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
@@ -336,8 +442,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </div>
                 )}
 
-                {/* Step 2: Full Name */}
-                {currentStep === 2 && (
+                {/* Step 4: Full Name */}
+                {currentStep === nameStep && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
@@ -368,8 +474,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </div>
                 )}
 
-                {/* Step 3: Motto */}
-                {currentStep === 3 && (
+                {/* Step 5: Motto */}
+                {currentStep === mottoStep && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
@@ -401,8 +507,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </div>
                 )}
 
-                {/* Step 4: CPF */}
-                {currentStep === 4 && (
+                {/* Step 6: CPF */}
+                {currentStep === cpfStep && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
@@ -453,28 +559,28 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                   </div>
                 )}
 
-                {/* Step 5: Photo */}
-                {currentStep === 5 && (
+                {/* Step 2: Avatar */}
+                {currentStep === avatarStep && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center mb-6">
                       <div className="w-16 h-16 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center mb-4">
-                        <Camera className="w-8 h-8 text-[#00F0FF]" />
+                        <User className="w-8 h-8 text-[#00F0FF]" />
                       </div>
-                      <h2 className="text-lg text-[#E6F1FF] mb-2">Foto do Rosto</h2>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">Avatar do Operador</h2>
                       <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                        Foto clara do seu rosto para identificação
+                        Imagem pública exibida em todo o app
                       </p>
                     </div>
 
                     {/* Photo Preview or Upload Area */}
-                    {photoPreview ? (
+                    {avatarPreview ? (
                       <div className="space-y-4">
                         <div className="relative">
                           <div className="w-48 h-52 mx-auto bg-[#00F0FF] clip-hexagon-perfect p-[3px]">
                             <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect overflow-hidden">
                               <img
-                                src={photoPreview}
-                                alt="Preview"
+                                src={avatarPreview}
+                                alt="Avatar selecionado"
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -485,20 +591,19 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                         <div className="text-center flex items-center justify-center">
                           <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all cursor-pointer">
                             <Upload className="w-4 h-4" />
-                            [ ALTERAR FOTO ]
+                            [ ALTERAR AVATAR ]
                             <input
                               type="file"
-                              accept="image/*;capture=camera"
-                              capture="user"
-                              onChange={handlePhotoChange}
+                              accept="image/*"
+                              onChange={handleAvatarChange}
                               className="hidden"
                             />
                           </label>
                           <button
                             type="button"
-                            onClick={recropFromExisting}
+                            onClick={() => recropFromExisting('avatar')}
                             className="ml-3 inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
-                            disabled={!photoPreview}
+                            disabled={!avatarPreview}
                           >
                             [ RECORTAR NOVAMENTE ]
                           </button>
@@ -513,19 +618,18 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                             </div>
                             <div className="text-center">
                               <p className="text-sm text-[#E6F1FF] font-mono-technical mb-1">
-                                [ SELECIONAR FOTO ]
+                                [ SELECIONAR AVATAR ]
                               </p>
                               <p className="text-xs text-[#7F94B0] font-mono-technical">
-                                Toque para escolher uma imagem
+                                Escolha da galeria ou câmera
                               </p>
                             </div>
                           </div>
                         </div>
                         <input
                           type="file"
-                          accept="image/*;capture=camera"
-                          capture="user"
-                          onChange={handlePhotoChange}
+                          accept="image/*"
+                          onChange={handleAvatarChange}
                           className="hidden"
                         />
                       </label>
@@ -534,7 +638,123 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                     {/* Info Notice */}
                     <div className="bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg p-4 mt-4">
                       <p className="text-xs text-[#00F0FF] font-mono-technical leading-relaxed">
-                        ℹ DICA: Use uma foto clara e recente do seu rosto. Essa foto será usada no seu perfil operacional.
+                        ℹ DICA: Este avatar é público e pode ser estilizado ou real.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: User Photo */}
+                {currentStep === userPhotoStep && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-16 h-16 bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-full flex items-center justify-center mb-4">
+                        <Camera className="w-8 h-8 text-[#D4A536]" />
+                      </div>
+                      <h2 className="text-lg text-[#E6F1FF] mb-2">Verificação de identidade</h2>
+                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                        Foto em tempo real obrigatória para verificação de identidade
+                      </p>
+                    </div>
+
+                    {userPhotoPreview ? (
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <div className="w-48 h-52 mx-auto bg-[#D4A536] clip-hexagon-perfect p-[3px]">
+                            <div className="w-full h-full bg-[#0B0E14] clip-hexagon-perfect overflow-hidden">
+                              <img
+                                src={userPhotoPreview}
+                                alt="Foto de identidade"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
+                          <div className="absolute inset-0 bg-[#D4A536] blur-xl opacity-10 clip-hexagon-perfect mx-auto w-48" />
+                        </div>
+
+                        <div className="text-center flex flex-wrap items-center justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleRetakeUserPhoto}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                          >
+                            <Camera className="w-4 h-4" />
+                            [ CAPTURAR NOVAMENTE ]
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => recropFromExisting('userPhoto')}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                          >
+                            [ RECORTAR NOVAMENTE ]
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="border-2 border-dashed border-[#2D3A52] rounded-lg p-4 bg-[#0B0E14]/50">
+                          {cameraStream ? (
+                            <div className="space-y-3">
+                              <div className="relative w-full overflow-hidden rounded-lg border border-[#2D3A52]">
+                                <video
+                                  ref={videoRef}
+                                  className="w-full h-[240px] object-cover"
+                                  autoPlay
+                                  playsInline
+                                  muted
+                                />
+                              </div>
+                              <div className="flex flex-wrap items-center justify-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => void captureUserPhoto()}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#D4A536]/10 border-2 border-[#D4A536] rounded-lg text-[#D4A536] font-mono-technical text-xs uppercase hover:bg-[#D4A536]/20 transition-all"
+                                >
+                                  [ CAPTURAR ]
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={stopCamera}
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                                >
+                                  [ CANCELAR ]
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-3 py-6">
+                              <div className="w-20 h-20 bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-full flex items-center justify-center">
+                                <Camera className="w-10 h-10 text-[#D4A536]" />
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm text-[#E6F1FF] font-mono-technical mb-1">
+                                  [ FOTO EM TEMPO REAL ]
+                                </p>
+                                <p className="text-xs text-[#7F94B0] font-mono-technical">
+                                  A galeria não é permitida nesta etapa
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void startCamera()}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#D4A536]/10 border-2 border-[#D4A536] rounded-lg text-[#D4A536] font-mono-technical text-xs uppercase hover:bg-[#D4A536]/20 transition-all"
+                              >
+                                [ ATIVAR CÂMERA ]
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {cameraError ? (
+                          <p className="text-xs text-[#D4A536] font-mono-technical text-center">
+                            {cameraError}
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+
+                    <div className="bg-[#D4A536]/10 border border-[#D4A536]/30 rounded-lg p-4">
+                      <p className="text-xs text-[#D4A536] font-mono-technical leading-relaxed">
+                        Foto em tempo real • Obrigatória para verificação de identidade • Privada • Apenas câmera
                       </p>
                     </div>
                   </div>
@@ -545,8 +765,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
             {/* Navigation Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-                disabled={currentStep === 1}
+                onClick={() => setCurrentStep(Math.max(nicknameStep, currentStep - 1))}
+                disabled={currentStep === nicknameStep}
                 className="px-6 py-4 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-sm uppercase hover:bg-[#1A2332] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 [ VOLTAR ]
@@ -556,7 +776,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                 disabled={!canProceed() || submitting}
                 className="px-4 text-center py-4 text-nowrap bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-sm uppercase hover:bg-[#00F0FF]/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:border-[#2D3A52] disabled:text-[#7F94B0] flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.3)]"
               >
-                {currentStep === 5 ? (
+                {currentStep === finalStep ? (
                   submitting
                     ? <Spinner inline size="sm" />
                     : '[ FINALIZAR ]'
@@ -573,7 +793,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
           {/* Step Info */}
           <div className="mt-6 text-center">
             <p className="text-xs text-[#7F94B0] font-mono-technical">
-              PASSO {currentStep} DE 5 // {Math.round((currentStep / 5) * 100)}% COMPLETO
+              PASSO {currentStep} DE {steps.length} // {Math.round((currentStep / steps.length) * 100)}% COMPLETO
             </p>
           </div>
         </div>
@@ -586,6 +806,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
           if (!open) {
             setRawPhoto(null);
             setRawPhotoPreview('');
+            setCropTarget(null);
           }
         }}
       >
@@ -595,14 +816,14 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
               [ RECORTAR FOTO ]
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Ajuste o corte e o zoom para salvar a nova foto de perfil.
+              Ajuste o corte e o zoom para salvar a imagem.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="relative h-[360px] w-full rounded-xl overflow-hidden border border-[#2D3A52] bg-[#0B0E14]">
               <Cropper
-                image={rawPhotoPreview || photoPreview}
+                image={rawPhotoPreview || undefined}
                 crop={crop}
                 zoom={zoom}
                 aspect={1}

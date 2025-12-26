@@ -13,6 +13,7 @@ create table if not exists users (
   full_name text not null,
   avatar text,
   avatar_frame text,
+  user_photo text,
   is_admin boolean,
   email text unique,
   cpf text not null unique,
@@ -84,6 +85,9 @@ alter table if exists users
 alter table if exists users
   add column if not exists avatar_frame text;
 
+alter table if exists users
+  add column if not exists user_photo text;
+
 alter table if exists players
   add column if not exists motto text;
 
@@ -103,3 +107,37 @@ create index if not exists idx_match_subscriptions_match on match_subscriptions 
 create index if not exists idx_match_subscriptions_player on match_subscriptions (player_id);
 create index if not exists idx_match_attendance_match on match_attendance (match_id);
 create index if not exists idx_match_attendance_player on match_attendance (player_id);
+
+-- Storage policies for user verification photos (bucket: user-photos)
+create policy "user-photos insert own"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'user-photos'
+  and auth.uid() = (storage.foldername(name))[1]::uuid
+);
+
+create policy "user-photos read"
+on storage.objects
+for select
+to authenticated
+using (bucket_id = 'user-photos');
+
+create policy "user-photos update own"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'user-photos'
+  and auth.uid() = (storage.foldername(name))[1]::uuid
+);
+
+create policy "user-photos delete own"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'user-photos'
+  and auth.uid() = (storage.foldername(name))[1]::uuid
+);

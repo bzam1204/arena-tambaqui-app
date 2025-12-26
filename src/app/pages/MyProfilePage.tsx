@@ -62,6 +62,17 @@ export function MyProfilePage({ userId, playerId }: Props) {
     queryFn: () => matchGateway.countPlayerMatches({ playerId }),
     enabled: Boolean(playerId),
   });
+
+  const {
+    data: userPhoto,
+    isLoading: userPhotoLoading,
+    isError: userPhotoIsError,
+    error: userPhotoError,
+  } = useQuery({
+    queryKey: ['player', playerId, 'user-photo'],
+    queryFn: () => profileGateway.getUserPhoto(playerId),
+    enabled: Boolean(playerId),
+  });
   const retractMutation = useMutation({
     mutationFn: (entryId: string) => feedGateway.retract(entryId, playerId),
     onMutate: (entryId) => setRetractingId(entryId),
@@ -79,6 +90,14 @@ export function MyProfilePage({ userId, playerId }: Props) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['player', playerId] });
       await queryClient.invalidateQueries({ queryKey: ['players'] });
+    },
+  });
+
+  const updateUserPhoto = useMutation({
+    mutationFn: (data: { userPhoto: File; userPhotoCaptured: boolean }) =>
+      profileGateway.updateUserPhoto(userId, data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['player', playerId, 'user-photo'] });
     },
   });
 
@@ -134,8 +153,13 @@ export function MyProfilePage({ userId, playerId }: Props) {
       }}
       isOwnProfile
       canEditProfile
+      userPhotoUrl={userPhoto}
+      isUserPhotoLoading={userPhotoLoading}
+      userPhotoFetchError={userPhotoIsError ? (userPhotoError as Error)?.message : null}
       onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
       isSaving={updateProfile.isPending}
+      onUserPhotoUpdate={(data) => updateUserPhoto.mutateAsync(data)}
+      isUserPhotoSaving={updateUserPhoto.isPending}
       onRetract={(id) => retractMutation.mutate(id)}
       isRetracting={retractMutation.isPending}
       retractingId={retractingId}
