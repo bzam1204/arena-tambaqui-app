@@ -1,0 +1,121 @@
+# React + Tailwind (v4) Standards
+
+## Component Architecture
+
+### Component Type
+
+- Use functional components only
+- Leverage React Hooks for state and lifecycle
+
+### File Structure
+
+- TypeScript with `.tsx` for all React components
+- One component per file (preferred)
+- Group related components by feature
+
+## State Management
+
+### Principles
+
+- Keep state near usage
+- Lift state only when necessary
+- Prefer local component state; use Context sparingly for cross-cutting concerns
+
+### Props Passing
+
+- Pass props explicitly; avoid spread for props
+
+```tsx
+<UserProfile name={user.name} email={user.email} avatar={user.avatar} />
+```
+
+## Code Organization
+
+### Component Size
+
+- Keep components under 300 lines
+- Extract logic into custom hooks
+- Split large components into smaller ones
+
+## Styling
+
+### Tailwind CSS v4
+
+- Use utility classes; avoid CSS-in-JS
+- Co-locate minor component-specific styles if needed
+
+## Data Fetching
+
+### API Communication
+
+- Use **React Query** (TanStack Query) for API calls and caching
+- Use native `fetch` inside `queryFn`; throw on non-2xx responses
+
+Provider setup (e.g., `src/providers.tsx`):
+
+```tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 5 * 60 * 1000, retry: 1 },
+  },
+});
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+```
+
+Usage in hooks/components:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+
+function useUsers() {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as User[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+```
+
+## Performance
+
+- Use `useMemo` and `useCallback` for expensive computations and stable callbacks
+- Consider `React.memo` for frequently re-rendered leaf components
+
+## Custom Hooks
+
+- Prefix with `use` and keep focused responsibilities
+
+## UI Components
+
+- Prefer existing components in `src/components/ui` and related folders
+- Follow existing design tokens and patterns
+
+## Tooling
+
+### Linting
+
+- ESLint is configured via `eslint.config.js`; keep rules aligned with TypeScript and React 19
+
+## TypeScript Integration
+
+- Define interfaces for all props; avoid `any`
+- Reuse utility types where available
+
+## Best Practices Summary
+
+- Functional components with TypeScript
+- Tailwind for styling
+- React Query for data fetching and caching
+- Keep components small and cohesive
+- Strong type safety
