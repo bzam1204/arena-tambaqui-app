@@ -2,6 +2,7 @@ import { Check, Minus, Users, X } from 'lucide-react';
 import type { MatchAttendanceEntry } from '@/app/gateways/MatchGateway';
 import { TacticalButton } from '@/components/TacticalButton';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { VipBadge } from '@/components/VipBadge';
 
 type MatchChecklistAttendanceListProps = {
   entries: MatchAttendanceEntry[];
@@ -72,8 +73,9 @@ export function MatchChecklistAttendanceList({
               />
               <div className="flex-1">
                 <div className="flex flex-col flex-wrap items-start justify-start gap-2 mb-3">
-                  <div className="text-sm text-[#E6F1FF] uppercase group-hover:text-[#00F0FF]">
-                    {entry.playerNickname}
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-[#E6F1FF] uppercase group-hover:text-[#00F0FF]">
+                    <span>{entry.playerNickname}</span>
+                    {entry.playerIsVip ? <VipBadge size="xs" /> : null}
                   </div>
                   <div className="text-xs text-[#7F94B0] font-mono-technical">{entry.playerName}</div>
                   <span className={`px-2 py-0.5 text-[9px] font-mono-technical uppercase border rounded-full ${rentalClass}`}>

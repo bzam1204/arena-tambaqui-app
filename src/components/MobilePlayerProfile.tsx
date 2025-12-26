@@ -8,6 +8,7 @@ import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Spinner } from './Spinner';
 import { PlayerAvatar } from './PlayerAvatar';
+import { VipBadge } from './VipBadge';
 
 const frameManifest = import.meta.glob('@public/frames/*.{png,jpg,jpeg,webp,svg,gif}', {
   eager: true,
@@ -473,9 +474,12 @@ export function MobilePlayerProfile({
               </div>
             ) : (
               <div className="mb-3 space-y-1">
-                <h2 className="text-4xl break-words w-full max-w-full text-center mb-2 text-[#E6F1FF]">
-                  {player.nickname}
-                </h2>
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
+                  <h2 className="text-4xl break-words max-w-full text-center text-[#E6F1FF]">
+                    {player.nickname}
+                  </h2>
+                  {player.isVip ? <VipBadge /> : null}
+                </div>
                 <p className="text-lg mb-3 text-[#7F94B0] font-mono-technical text-center">{player.name}</p>
                 {player.motto ? (
                   <p
@@ -487,14 +491,9 @@ export function MobilePlayerProfile({
                 ) : null}
               </div>
             )}
-            {(player.isVip || player.rankPrestige || player.rankShame) ? (
+            {(player.rankPrestige || player.rankShame) ? (
               <div className="mb-3 space-y-2">
                 <div className="mx-auto flex flex-wrap items-center justify-center gap-2 text-center text-sm font-mono-technical text-[#E6F1FF]">
-                  {player.isVip ? (
-                    <span className="clip-tactical px-3 py-1 border border-[#D4A536] bg-[#D4A536]/10 text-[#D4A536] text-[10px] font-mono-technical uppercase tracking-wider">
-                      VIP
-                    </span>
-                  ) : null}
                   {player.rankPrestige ? (
                     <TacticalButton
                       variant="cyan"

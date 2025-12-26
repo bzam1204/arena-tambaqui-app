@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { TacticalButton } from './TacticalButton';
 import { Spinner } from './Spinner';
 import { PlayerAvatar } from './PlayerAvatar';
+import { VipBadge } from './VipBadge';
 import type { MatchGateway, MatchOption } from '@/app/gateways/MatchGateway';
 import type { TransmissionGateway } from '@/app/gateways/TransmissionGateway';
 import { Inject, TkMatchGateway, TkTransmissionGateway } from '@/infra/container';
@@ -14,6 +15,7 @@ export interface TransmissionPlayer {
   nickname: string;
   avatar?: string;
   avatarFrame?: string | null;
+  isVip?: boolean;
 }
 
 interface TransmissionModalProps {
@@ -161,6 +163,7 @@ export function TransmissionModal({
         nickname: entry.playerNickname,
         avatar: entry.playerAvatar ?? undefined,
         avatarFrame: entry.playerAvatarFrame ?? null,
+        isVip: entry.playerIsVip ?? false,
       }))
       .filter((player) => player.id !== submitterId);
   }, [matchAttendance, players, requireMatch, submitterId]);
@@ -422,7 +425,10 @@ export function TransmissionModal({
                         fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
                       />
                       <div className="flex-1">
-                        <div className="text-sm text-[#9CA3AF]">{lockedTargetDisplay.nickname}</div>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-[#9CA3AF]">
+                          <span>{lockedTargetDisplay.nickname}</span>
+                          {lockedTargetDisplay.isVip ? <VipBadge size="xs" /> : null}
+                        </div>
                         <div className="text-xs text-[#6B7280] font-mono-technical">{lockedTargetDisplay.name}</div>
                       </div>
                       <div className="ml-auto text-xs text-[#6B7280] font-mono-technical">Alvo bloqueado</div>
@@ -466,7 +472,10 @@ export function TransmissionModal({
                               fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
                             />
                             <div>
-                              <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
+                              <div className="flex flex-wrap items-center gap-2 text-sm text-[#E6F1FF]">
+                                <span>{player.nickname}</span>
+                                {player.isVip ? <VipBadge size="xs" /> : null}
+                              </div>
                               <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
                             </div>
                           </button>
@@ -522,7 +531,10 @@ export function TransmissionModal({
                   fallbackIcon={<User className="w-5 h-5 text-[#7F94B0]" />}
                 />
                 <div className="flex-1">
-                  <div className="text-sm text-[#E6F1FF]">{selectedTarget?.nickname}</div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-[#E6F1FF]">
+                    <span>{selectedTarget?.nickname}</span>
+                    {selectedTarget?.isVip ? <VipBadge size="xs" /> : null}
+                  </div>
                   <div className="text-xs text-[#7F94B0] font-mono-technical">{selectedTarget?.name}</div>
                 </div>
                 {!lockedTarget && !lockedTargetId && (

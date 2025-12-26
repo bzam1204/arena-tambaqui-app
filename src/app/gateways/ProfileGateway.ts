@@ -19,6 +19,7 @@ export interface OnboardingStatus {
   onboarded: boolean;
   playerId: string | null;
   isAdmin: boolean;
+  isVip: boolean;
 }
 
 export interface ProfileGateway {

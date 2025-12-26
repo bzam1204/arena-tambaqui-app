@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TacticalButton } from './TacticalButton';
 import { PlayerAvatar } from './PlayerAvatar';
+import { VipBadge } from './VipBadge';
 
 export interface FeedEntry {
   id: string;
@@ -12,6 +13,7 @@ export interface FeedEntry {
   targetName: string;
   targetAvatar?: string;
   targetAvatarFrame?: string | null;
+  targetIsVip?: boolean;
   content: string;
   date: string;
   time: string;
@@ -165,7 +167,7 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
 
             <div className="space-y-2">
               <div
-                className="flex items-center gap-2 cursor-pointer group"
+                className="flex flex-wrap items-center gap-2 cursor-pointer group"
                 onClick={(event) => {
                   event.stopPropagation();
                   onTargetClick(entry.targetId);
@@ -173,6 +175,7 @@ export function MobileFeedCard({ entry, onTargetClick, isAdmin, onRetract, onRem
               >
                 <p className="text-xs text-[#7F94B0] font-mono-technical uppercase">Alvo:</p>
                 <p className="group-hover:text-[#00F0FF] transition-colors text-xs wrap-break-word uppercase">{entry.targetName}</p>
+                {entry.targetIsVip ? <VipBadge size="xs" /> : null}
               </div>
               <p className={`text-sm text-[#E6F1FF] ${entry.isRetracted ? 'line-through opacity-50' : ''}`}>
                 {displayedContent}

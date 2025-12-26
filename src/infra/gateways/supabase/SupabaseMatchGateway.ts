@@ -142,7 +142,7 @@ export class SupabaseMatchGateway implements MatchGateway {
     const { data: subs, error } = await this.supabase
       .from(this.subscriptionsTable)
       .select(
-        'id,match_id,player_id,rent_equipment,players:players(id,nickname,users:users(full_name,avatar,avatar_frame))',
+        'id,match_id,player_id,rent_equipment,players:players(id,nickname,is_vip,users:users(full_name,avatar,avatar_frame))',
       )
       .eq('match_id', matchId)
       .order('created_at', { ascending: true });
@@ -171,6 +171,7 @@ export class SupabaseMatchGateway implements MatchGateway {
         playerNickname: player.nickname ?? player.users?.full_name ?? 'Operador',
         playerAvatar: player.users?.avatar ?? null,
         playerAvatarFrame: player.users?.avatar_frame ?? null,
+        playerIsVip: player.is_vip ?? false,
         rentEquipment: Boolean(row.rent_equipment),
         attended: attendanceByPlayer.get(row.player_id) ?? false,
         marked: attendanceMarked.has(row.player_id),

@@ -69,7 +69,7 @@ export class SupabasePlayerGateway implements PlayerGateway {
     const term = params.term?.trim() ?? '';
     const query = this.supabase
     .from('player_search_view') // Query the view instead
-      .select(this.selectColumns, { count: 'exact' })
+      .select(this.selectColumnsWithVip, { count: 'exact' })
       .order('nickname', { ascending: true })
       .range(from, to);
     if (term) {

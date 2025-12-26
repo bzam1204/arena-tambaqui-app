@@ -1,5 +1,6 @@
 import { Search, User, Filter } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
+import { VipBadge } from './VipBadge';
 
 export interface SearchPlayer {
   id: string;
@@ -8,6 +9,7 @@ export interface SearchPlayer {
   avatar?: string;
   avatarFrame?: string | null;
   motto?: string | null;
+  isVip?: boolean;
   reputation: number;
   elogios: number;
   denuncias: number;
@@ -101,7 +103,10 @@ export function SearchPage({
 
                     {/* Player Info */}
                     <div className="flex-1 text-left">
-                      <div className="text-sm text-[#E6F1FF] mb-1 uppercase">{player.nickname}</div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-[#E6F1FF] mb-1 uppercase">
+                        <span>{player.nickname}</span>
+                        {player.isVip ? <VipBadge size="xs" /> : null}
+                      </div>
                       <div className="text-xs text-[#7F94B0] font-mono-technical mb-1">{player.name}</div>
                       <div
                         className="text-[10px] text-[#7F94B0] font-mono-technical mb-2 min-h-[14px] glitch-text text-justify"

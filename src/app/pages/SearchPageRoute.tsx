@@ -61,6 +61,7 @@ export function SearchPageRoute() {
           avatar: p.avatar,
           avatarFrame: p.avatarFrame ?? null,
           motto: p.motto ?? null,
+          isVip: p.isVip ?? false,
           reputation: p.reputation,
           elogios: p.elogios,
           denuncias: p.denuncias,

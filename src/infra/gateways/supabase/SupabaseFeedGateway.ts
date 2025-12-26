@@ -20,6 +20,7 @@ export class SupabaseFeedGateway implements FeedGateway {
     target:players!feed_target_player_id_fkey(
       id,
       nickname,
+      is_vip,
       users:users(
         full_name,
         avatar,
@@ -38,6 +39,7 @@ export class SupabaseFeedGateway implements FeedGateway {
       targetName: target.nickname ?? 'Jogador Desconhecido',
       targetAvatar: target.users?.avatar ?? null,
       targetAvatarFrame: target.users?.avatar_frame ?? null,
+      targetIsVip: target.is_vip ?? false,
       content: row.content,
       date: format(created, 'date'),
       time: format(created, 'time'),

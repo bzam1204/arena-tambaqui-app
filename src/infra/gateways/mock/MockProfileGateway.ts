@@ -11,7 +11,12 @@ export class MockProfileGateway implements ProfileGateway {
 
   async isOnboarded(userId: string): Promise<OnboardingStatus> {
     const player = await this.playerGateway.getPlayer(userId);
-    return { onboarded: Boolean(player), playerId: player?.id ?? null, isAdmin: userId === '1' };
+    return {
+      onboarded: Boolean(player),
+      playerId: player?.id ?? null,
+      isAdmin: userId === '1',
+      isVip: Boolean(player?.isVip),
+    };
   }
 
   async completeProfile(userId: string, input: CompleteProfileInput): Promise<string> {

@@ -40,6 +40,8 @@ export class MockTransmissionGateway implements TransmissionGateway {
       targetId: input.targetId,
       targetName: player?.nickname || 'Jogador Desconhecido',
       targetAvatar: player?.avatar,
+      targetAvatarFrame: player?.avatarFrame ?? null,
+      targetIsVip: player?.isVip ?? false,
       content: input.content,
       date: now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.'),
       time: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),

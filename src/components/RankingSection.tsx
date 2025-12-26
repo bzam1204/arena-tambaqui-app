@@ -1,5 +1,6 @@
 import { User } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
+import { VipBadge } from './VipBadge';
 
 export interface RankingPlayer {
   id: string;
@@ -7,6 +8,7 @@ export interface RankingPlayer {
   nickname: string;
   avatar?: string;
   avatarFrame?: string | null;
+  isVip?: boolean;
   elogios: number;
   denuncias: number;
 }
@@ -56,7 +58,10 @@ export function RankingSection({ players, variant, onPlayerClick, highlightId }:
 
               {/* Player Info */}
               <div className="flex-1 text-left">
-                <div className="text-sm text-[#E6F1FF]">{player.nickname}</div>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-[#E6F1FF]">
+                  <span>{player.nickname}</span>
+                  {player.isVip ? <VipBadge size="xs" /> : null}
+                </div>
                 <div className="text-xs text-[#7F94B0] font-mono-technical">{player.name}</div>
               </div>
 

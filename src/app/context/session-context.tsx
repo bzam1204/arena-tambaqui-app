@@ -9,6 +9,7 @@ export type SessionState = {
   onboarded: boolean;
   isCompleteProfile: boolean;
   isAdmin: boolean;
+  isVip: boolean;
 };
 
 type SessionContextValue = {
@@ -32,6 +33,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     onboarded: false,
     isCompleteProfile: false,
     isAdmin: false,
+    isVip: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -45,9 +47,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         onboarded: status.onboarded,
         isCompleteProfile: status.onboarded,
         isAdmin: status.isAdmin,
+        isVip: status.isVip,
       });
     } else {
-      setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false, isAdmin: false });
+      setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false, isAdmin: false, isVip: false });
     }
   };
 
@@ -65,13 +68,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       onboarded: status.onboarded,
       isCompleteProfile: status.onboarded,
       isAdmin: status.isAdmin,
+      isVip: status.isVip,
     });
     return s;
   };
 
   const logout = async () => {
     await auth.logout();
-    setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false, isAdmin: false });
+    setState({ userId: null, playerId: null, onboarded: false, isCompleteProfile: false, isAdmin: false, isVip: false });
   };
 
   const markOnboarded = (playerId?: string) => {

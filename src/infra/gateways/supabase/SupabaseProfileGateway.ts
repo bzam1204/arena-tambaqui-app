@@ -21,11 +21,20 @@ export class SupabaseProfileGateway implements ProfileGateway {
   }
 
   async isOnboarded(userId: string): Promise<OnboardingStatus> {
-    const { data: player, error } = await this.supabase.from(this.playersTable).select('id').eq('user_id', userId).maybeSingle();
+    const { data: player, error } = await this.supabase
+      .from(this.playersTable)
+      .select('id,is_vip')
+      .eq('user_id', userId)
+      .maybeSingle();
     if (error) throw error;
     const { data: userRow, error: userErr } = await this.supabase.from(this.usersTable).select('is_admin').eq('id', userId).maybeSingle();
     if (userErr) throw userErr;
-    return { onboarded: Boolean(player?.id), playerId: player?.id ?? null, isAdmin: Boolean(userRow?.is_admin) };
+    return {
+      onboarded: Boolean(player?.id),
+      playerId: player?.id ?? null,
+      isAdmin: Boolean(userRow?.is_admin),
+      isVip: Boolean(player?.is_vip),
+    };
   }
 
   async completeProfile(userId: string, input: CompleteProfileInput): Promise<string> {

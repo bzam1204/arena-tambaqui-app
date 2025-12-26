@@ -21,6 +21,7 @@ export interface FeedEntry {
   targetName: string;
   targetAvatar?: string;
   targetAvatarFrame?: string | null;
+  targetIsVip?: boolean;
   content: string;
   date: string;
   time: string;

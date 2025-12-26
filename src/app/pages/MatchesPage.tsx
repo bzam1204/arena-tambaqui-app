@@ -32,7 +32,7 @@ function formatDateTime(value: string) {
 }
 
 export function MatchesPage() {
-  const matchGateway = Inject<MatchGateway>(TkMatchGateway);
+  const matchGateway = useMemo(() => Inject<MatchGateway>(TkMatchGateway), []);
   const { state, loading } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -47,6 +47,7 @@ export function MatchesPage() {
   const [matchDate, setMatchDate] = useState<Date | null>(null);
   const [matchTime, setMatchTime] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionInfo, setActionInfo] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>('open');
   const [mineTab, setMineTab] = useState<MineTabKey>('upcoming');
   const [finalizedPage, setFinalizedPage] = useState(1);
@@ -93,6 +94,7 @@ export function MatchesPage() {
     if (!container) return;
     container.scrollTo({ left: mineTab === 'upcoming' ? 0 : container.scrollWidth, behavior: 'smooth' });
   }, [mineTab]);
+
 
   const {
     data: matches = [],
@@ -151,25 +153,36 @@ export function MatchesPage() {
       setMatchDate(null);
       setMatchTime('');
       setActionError(null);
+      setActionInfo(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
     onError: (err) => setActionError((err as Error).message),
   });
-
-  const subscribe = useMutation({
+  const subscribeMutation = useMutation({
     mutationFn: async () => {
-      if (!state.playerId) throw new Error('Complete seu perfil para participar.');
       if (!subscribeMatch) throw new Error('Selecione uma partida.');
+      if (!state.userId) {
+        navigate('/auth');
+        return;
+      }
+      if (!state.playerId) {
+        navigate('/onboarding');
+        return;
+      }
       await matchGateway.subscribe({
         matchId: subscribeMatch.id,
         playerId: state.playerId,
         rentEquipment,
       });
     },
+    onMutate: () => {
+      setActionError(null);
+      setActionInfo(null);
+    },
     onSuccess: async () => {
       setSubscribeMatch(null);
       setRentEquipment(false);
-      setActionError(null);
+      setActionInfo('Inscrição confirmada.');
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
     onError: (err) => setActionError((err as Error).message),
@@ -183,6 +196,7 @@ export function MatchesPage() {
     onSuccess: async () => {
       setCancelMatch(null);
       setActionError(null);
+      setActionInfo(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
     onError: (err) => setActionError((err as Error).message),
@@ -192,24 +206,24 @@ export function MatchesPage() {
     const now = new Date();
     return matches
       .map((match) => {
-      const startAt = new Date(match.startAt);
-      const isClosed = startAt <= now;
-      const isFinalized = Boolean(match.finalizedAt);
-      const { dateLabel, timeLabel } = formatDateTime(match.startAt);
-      const statusLabel = isFinalized
-        ? 'Finalizada'
-        : isClosed
-          ? 'Inscrições encerradas'
-          : 'Inscrições abertas';
-      return {
-        match,
-        dateLabel,
-        timeLabel,
-        isClosed,
-        isFinalized,
-        statusLabel,
-      };
-    })
+        const startAt = new Date(match.startAt);
+        const isClosed = startAt <= now;
+        const isFinalized = Boolean(match.finalizedAt);
+        const { dateLabel, timeLabel } = formatDateTime(match.startAt);
+        const statusLabel = isFinalized
+          ? 'Finalizada'
+          : isClosed
+            ? 'Inscrições encerradas'
+            : 'Inscrições abertas';
+        return {
+          match,
+          dateLabel,
+          timeLabel,
+          isClosed,
+          isFinalized,
+          statusLabel,
+        };
+      })
       .sort((a, b) => new Date(b.match.startAt).getTime() - new Date(a.match.startAt).getTime());
   }, [matches]);
 
@@ -295,6 +309,7 @@ export function MatchesPage() {
         {state.isAdmin ? (
           <TacticalButton fullWidth variant="cyan" onClick={() => {
             setActionError(null);
+            setActionInfo(null);
             setCreateOpen(true);
           }}>
             [ CRIAR PARTIDA ]
@@ -332,11 +347,10 @@ export function MatchesPage() {
           ref={(el) => {
             tabButtonRefs.current.open = el;
           }}
-          className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
-            tab === 'open'
+          className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${tab === 'open'
               ? 'border-[#00F0FF] bg-[#00F0FF]/20'
               : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
-          }`}
+            }`}
         >
           <span className={`font-mono-technical text-xs uppercase ${tab === 'open' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
             Abertas
@@ -348,11 +362,10 @@ export function MatchesPage() {
             ref={(el) => {
               tabButtonRefs.current.mine = el;
             }}
-            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
-              tab === 'mine'
+            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${tab === 'mine'
                 ? 'border-[#D4A536] bg-[#D4A536]/20'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
-            }`}
+              }`}
           >
             <span className={`font-mono-technical text-xs uppercase ${tab === 'mine' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
               Minhas Partidas
@@ -365,11 +378,10 @@ export function MatchesPage() {
             ref={(el) => {
               tabButtonRefs.current.pending = el;
             }}
-            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
-              tab === 'pending'
+            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${tab === 'pending'
                 ? 'border-[#D4A536] bg-[#D4A536]/20'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#D4A536]/50'
-            }`}
+              }`}
           >
             <span className={`font-mono-technical text-xs uppercase ${tab === 'pending' ? 'text-[#D4A536]' : 'text-[#7F94B0]'}`}>
               Pendentes
@@ -382,11 +394,10 @@ export function MatchesPage() {
             ref={(el) => {
               tabButtonRefs.current.finalized = el;
             }}
-            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${
-              tab === 'finalized'
+            className={`clip-tactical shrink-0 p-3 border-2 transition-all rounded-lg ${tab === 'finalized'
                 ? 'border-[#00F0FF] bg-[#00F0FF]/20'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
-            }`}
+              }`}
           >
             <span className={`font-mono-technical text-xs uppercase ${tab === 'finalized' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
               Finalizadas
@@ -423,11 +434,10 @@ export function MatchesPage() {
         >
           <button
             onClick={() => setMineTab('upcoming')}
-            className={`clip-tactical shrink-0 p-2 border transition-all rounded-lg ${
-              mineTab === 'upcoming'
+            className={`clip-tactical shrink-0 p-2 border transition-all rounded-lg ${mineTab === 'upcoming'
                 ? 'border-[#00F0FF] bg-[#00F0FF]/15'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
-            }`}
+              }`}
           >
             <span className={`font-mono-technical text-[10px] uppercase ${mineTab === 'upcoming' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
               Próximas Missões
@@ -435,11 +445,10 @@ export function MatchesPage() {
           </button>
           <button
             onClick={() => setMineTab('finalized')}
-            className={`clip-tactical shrink-0 p-2 border transition-all rounded-lg ${
-              mineTab === 'finalized'
+            className={`clip-tactical shrink-0 p-2 border transition-all rounded-lg ${mineTab === 'finalized'
                 ? 'border-[#00F0FF] bg-[#00F0FF]/15'
                 : 'border-[#2D3A52] bg-[#0B0E14] hover:border-[#00F0FF]/50'
-            }`}
+              }`}
           >
             <span className={`font-mono-technical text-[10px] uppercase ${mineTab === 'finalized' ? 'text-[#00F0FF]' : 'text-[#7F94B0]'}`}>
               Finalizadas
@@ -448,6 +457,11 @@ export function MatchesPage() {
         </div>
       ) : null}
 
+      {actionInfo && !createOpen && !subscribeMatch && !cancelMatch ? (
+        <div className="bg-[#0F1E2B] border border-[#00F0FF] text-[#00F0FF] text-xs font-mono-technical rounded-lg p-3">
+          {actionInfo}
+        </div>
+      ) : null}
       {actionError && !createOpen && !subscribeMatch && !cancelMatch ? (
         <div className="bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
           {actionError}
@@ -465,9 +479,8 @@ export function MatchesPage() {
               return (
                 <div
                   key={match.id}
-                  className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-6 ${
-                    canOpenDetails ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
-                  }`}
+                  className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 space-y-6 ${canOpenDetails ? 'cursor-pointer hover:shadow-[0_0_18px_rgba(0,240,255,0.15)] transition-shadow' : ''
+                    }`}
                   role={canOpenDetails ? 'button' : undefined}
                   tabIndex={canOpenDetails ? 0 : undefined}
                   onClick={canOpenDetails ? () => navigate(`/partidas/${match.id}`) : undefined}
@@ -486,13 +499,12 @@ export function MatchesPage() {
                       </div>
                     </div>
                     <span
-                      className={`text-xs font-mono-technical uppercase ${
-                        isFinalized
+                      className={`text-xs font-mono-technical uppercase ${isFinalized
                           ? 'text-[#00F0FF]'
                           : isClosed
                             ? 'text-[#D4A536]'
                             : 'text-[#7F94B0]'
-                      }`}
+                        }`}
                     >
                       {statusLabel}
                     </span>
@@ -526,6 +538,7 @@ export function MatchesPage() {
                           }
                           setRentEquipment(Boolean(match.rentEquipment));
                           setActionError(null);
+                          setActionInfo(null);
                           setSubscribeMatch(match);
                         }}
                       >
@@ -549,6 +562,7 @@ export function MatchesPage() {
                             return;
                           }
                           setActionError(null);
+                          setActionInfo(null);
                           setCancelMatch(match);
                         }}
                       >
@@ -615,6 +629,7 @@ export function MatchesPage() {
           setMatchDate(null);
           setMatchTime('');
           setActionError(null);
+          setActionInfo(null);
         }
         setCreateOpen(open);
       }}>
@@ -737,13 +752,14 @@ export function MatchesPage() {
           setSubscribeMatch(null);
           setRentEquipment(false);
           setActionError(null);
+          setActionInfo(null);
         }
       }}>
         <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
           <DialogHeader>
             <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Confirmar Participação ]</DialogTitle>
             <DialogDescription className="text-[#7F94B0]">
-              Confirme sua inscrição para a partida.
+              Confirme sua inscrição na partida.
             </DialogDescription>
           </DialogHeader>
 
@@ -759,19 +775,17 @@ export function MatchesPage() {
               <button
                 type="button"
                 onClick={() => setRentEquipment((prev) => !prev)}
-                className={`w-full clip-tactical-card border-x-4 p-3 text-left transition-all ${
-                  rentEquipment
+                className={`w-full clip-tactical-card border-x-4 p-3 text-left transition-all ${rentEquipment
                     ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
                     : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-10 h-10 rounded-md border flex items-center justify-center ${
-                      rentEquipment
+                    className={`w-10 h-10 rounded-md border flex items-center justify-center ${rentEquipment
                         ? 'border-[#00F0FF] bg-[#00F0FF]/20 text-[#00F0FF]'
                         : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0]'
-                    }`}
+                      }`}
                   >
                     <Shield className="w-4 h-4" />
                   </div>
@@ -796,15 +810,15 @@ export function MatchesPage() {
             </TacticalButton>
             <TacticalButton
               variant="amber"
-              onClick={() => subscribe.mutate()}
-              disabled={subscribe.isPending}
+              onClick={() => subscribeMutation.mutate()}
+              disabled={subscribeMutation.isPending}
               leftIcon={
-                subscribe.isPending ? (
+                subscribeMutation.isPending ? (
                   <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
                 ) : undefined
               }
             >
-              {subscribe.isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR PARTICIPAÇÃO ]'}
+              {subscribeMutation.isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR INSCRIÇÃO ]'}
             </TacticalButton>
           </DialogFooter>
         </DialogContent>
@@ -814,6 +828,7 @@ export function MatchesPage() {
         if (!open) {
           setCancelMatch(null);
           setActionError(null);
+          setActionInfo(null);
         }
       }}>
         <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">

@@ -24,6 +24,7 @@ export interface MatchAttendanceEntry {
   playerNickname: string;
   playerAvatar?: string;
   playerAvatarFrame?: string | null;
+  playerIsVip?: boolean;
   rentEquipment: boolean;
   attended: boolean;
   marked: boolean;

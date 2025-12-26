@@ -26,7 +26,7 @@ function formatDateTime(value: string) {
     .replace(/\//g, '.');
   const timeLabel = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return { dateLabel, timeLabel };
-};
+}
 
 export function MatchChecklistPage() {
   const matchGateway = Inject<MatchGateway>(TkMatchGateway);
@@ -189,16 +189,15 @@ export function MatchChecklistPage() {
         navigate('/onboarding');
         return;
       }
-      await matchGateway.subscribe({
-        matchId,
-        playerId: state.playerId,
-        rentEquipment,
-      });
+      if (!matchId) throw new Error('Partida inválida.');
+      await matchGateway.subscribe({ matchId, playerId: state.playerId, rentEquipment });
+    },
+    onMutate: () => {
+      setActionError(null);
     },
     onSuccess: async () => {
       setSubscribeOpen(false);
       setRentEquipment(false);
-      setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
     },

@@ -78,7 +78,7 @@ export function SubscribeMatchDialog({
         <DialogHeader>
           <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Confirmar Participação ]</DialogTitle>
           <DialogDescription className="text-[#7F94B0]">
-            Confirme sua inscrição para a partida.
+            Confirme sua inscrição na partida.
           </DialogDescription>
         </DialogHeader>
 
@@ -136,7 +136,7 @@ export function SubscribeMatchDialog({
               ) : undefined
             }
           >
-            {isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR PARTICIPAÇÃO ]'}
+            {isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR INSCRIÇÃO ]'}
           </TacticalButton>
         </DialogFooter>
       </DialogContent>

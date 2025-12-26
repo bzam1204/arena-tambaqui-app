@@ -280,6 +280,7 @@ export function PlayerProfilePage() {
                 nickname: player.nickname,
                 avatar: player.avatar,
                 avatarFrame: player.avatarFrame ?? null,
+                isVip: player.isVip ?? false,
               } as TransmissionPlayer,
             ]
             : []
@@ -315,6 +316,7 @@ export function PlayerProfilePage() {
               nickname: editingEntry.targetName,
               avatar: editingEntry.targetAvatar,
               avatarFrame: editingEntry.targetAvatarFrame ?? null,
+              isVip: editingEntry.targetIsVip ?? false,
             }
             : {
               id: player.id,
@@ -322,6 +324,7 @@ export function PlayerProfilePage() {
               nickname: player.nickname,
               avatar: player.avatar,
               avatarFrame: player.avatarFrame ?? null,
+              isVip: player.isVip ?? false,
             }
         }
         lockedTargetId={editingEntry?.targetId ?? player?.id ?? undefined}
