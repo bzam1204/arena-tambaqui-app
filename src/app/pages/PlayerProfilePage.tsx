@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
@@ -28,7 +29,7 @@ export function PlayerProfilePage() {
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [editingEntry, setEditingEntry] = useState<FeedEntry | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(false);
-  const [showUserPhoto, setShowUserPhoto] = useState(false);
+  const [identityModalOpen, setIdentityModalOpen] = useState(false);
 
   useEffect(() => {
     if (id && state.playerId && id === state.playerId) {
@@ -85,7 +86,7 @@ export function PlayerProfilePage() {
   }, [id]);
 
   useEffect(() => {
-    setShowUserPhoto(false);
+    setIdentityModalOpen(false);
   }, [id]);
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export function PlayerProfilePage() {
   } = useQuery({
     queryKey: ['player', id, 'user-photo'],
     queryFn: () => (id ? profileGateway.getUserPhoto(id) : Promise.resolve(null)),
-    enabled: Boolean(id) && Boolean(state.userId) && showUserPhoto,
+    enabled: Boolean(id) && Boolean(state.userId) && identityModalOpen,
   });
 
   const adminRetract = useMutation({
@@ -260,64 +261,25 @@ export function PlayerProfilePage() {
             {state.userId ? (
               <div className="clip-tactical-card bg-[#141A26] border border-[#2D3A52] p-4 space-y-3">
                 <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">
+                  <div>
+                    <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">
                       Verificação de identidade
-                      </div>
-                      <div className="text-[10px] text-[#7F94B0] font-mono-technical">
-                        Privada · visível apenas sob demanda
-                      </div>
+                    </div>
+                    <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                      Privada · visível apenas sob demanda
+                    </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowUserPhoto((prev) => !prev)}
-                    className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
-                      showUserPhoto
-                        ? 'border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536]'
-                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#D4A536]/40'
-                    }`}
+                    onClick={() => setIdentityModalOpen(true)}
+                    className="clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536] hover:border-[#F1C36B]"
                   >
-                    {showUserPhoto ? 'Ocultar' : 'Exibir'}
+                    Exibir
                   </button>
                 </div>
-                {showUserPhoto ? (
-                  <div className="space-y-2">
-                    <div className="text-center">
-                      <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">
-                        Nome completo
-                      </div>
-                      <div className="text-sm text-[#E6F1FF] font-mono-technical">
-                        {player.name}
-                      </div>
-                    </div>
-                    {userPhotoLoading ? (
-                      <div className="flex justify-center">
-                        <Spinner inline size="sm" />
-                      </div>
-                    ) : null}
-                    {userPhotoIsError ? (
-                      <p className="text-xs text-[#D4A536] font-mono-technical text-center">
-                        {(userPhotoError as Error)?.message || 'Falha ao carregar a foto.'}
-                      </p>
-                    ) : null}
-                    {!userPhotoLoading && !userPhotoIsError && userPhoto ? (
-                      <img
-                        src={userPhoto}
-                        alt="Foto de identidade"
-                        className="w-full max-w-[260px] mx-auto rounded-md border border-[#2D3A52] object-cover"
-                      />
-                    ) : null}
-                    {!userPhotoLoading && !userPhotoIsError && !userPhoto ? (
-                      <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                        Foto de identidade não disponível no momento.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                    Ative para visualizar a foto de identidade.
-                  </p>
-                )}
+                <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
+                  Exibe a credencial militar com foto e nome completos.
+                </p>
               </div>
             ) : null}
             <div className="px-0">
@@ -418,6 +380,68 @@ export function PlayerProfilePage() {
         eligibleMatchesLoading={eligibleMatchesLoading}
         requireMatch={!editingEntry}
       />
+      <Dialog open={identityModalOpen} onOpenChange={setIdentityModalOpen}>
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[92vw]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
+              [ CREDENCIAL MILITAR ]
+            </DialogTitle>
+            <DialogDescription className="text-[#7F94B0] text-xs font-mono-technical">
+              Documento interno para verificação de identidade.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="clip-tactical-card border border-[#D4A536]/60 bg-gradient-to-br from-[#141A26] via-[#0B0E14] to-[#1A2233] p-5 space-y-4">
+            <div className="flex items-center justify-between text-[10px] font-mono-technical uppercase text-[#D4A536]">
+              <span>Identidade Operacional</span>
+              <span className="text-[#7F94B0]">Nível de acesso: Restrito</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[140px_1fr] items-center">
+              <div className="relative w-full max-w-[140px] mx-auto sm:mx-0">
+                <div className="clip-tactical border-2 border-[#D4A536]/70 bg-[#0B0E14] p-1">
+                  <div className="clip-tactical bg-[#0B0E14] border border-[#2D3A52] overflow-hidden">
+                    {userPhotoLoading ? (
+                      <div className="h-[160px] w-full flex items-center justify-center">
+                        <Spinner inline size="sm" />
+                      </div>
+                    ) : null}
+                    {!userPhotoLoading && userPhotoIsError ? (
+                      <div className="h-[160px] w-full flex items-center justify-center text-[10px] text-[#D4A536] font-mono-technical px-2 text-center">
+                        {(userPhotoError as Error)?.message || 'Falha ao carregar a foto.'}
+                      </div>
+                    ) : null}
+                    {!userPhotoLoading && !userPhotoIsError && userPhoto ? (
+                      <img
+                        src={userPhoto}
+                        alt="Foto de identidade"
+                        className="h-[160px] w-full object-cover"
+                      />
+                    ) : null}
+                    {!userPhotoLoading && !userPhotoIsError && !userPhoto ? (
+                      <div className="h-[160px] w-full flex items-center justify-center text-[10px] text-[#7F94B0] font-mono-technical px-2 text-center">
+                        Foto não disponível.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">Nome completo</div>
+                  <div className="text-lg text-[#E6F1FF] font-mono-technical">{player.name}</div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono-technical uppercase text-[#7F94B0]">
+                  <span className="px-2 py-1 border border-[#2D3A52] bg-[#0B0E14]">Verificação ativa</span>
+                  <span className="px-2 py-1 border border-[#2D3A52] bg-[#0B0E14]">Uso interno</span>
+                </div>
+                <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#D4A536] to-transparent opacity-60" />
+                <p className="text-[10px] text-[#7F94B0] font-mono-technical">
+                  Credencial emitida para conferência visual de identidade. Compartilhamento proibido.
+                </p>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
