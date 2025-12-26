@@ -115,6 +115,7 @@ export function MobilePlayerProfile({
   const [editMotto, setEditMotto] = useState(player.motto ?? '');
   const [editIsVip, setEditIsVip] = useState(Boolean(player.isVip));
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarSourceFile, setAvatarSourceFile] = useState<File | null>(null);
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
   const [rawPhotoPreview, setRawPhotoPreview] = useState('');
   const [cropperOpen, setCropperOpen] = useState(false);
@@ -126,6 +127,7 @@ export function MobilePlayerProfile({
   const [userPhotoDialogOpen, setUserPhotoDialogOpen] = useState(false);
   const [userPhotoStream, setUserPhotoStream] = useState<MediaStream | null>(null);
   const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null);
+  const [userPhotoSourceFile, setUserPhotoSourceFile] = useState<File | null>(null);
   const [userPhotoPreview, setUserPhotoPreview] = useState('');
   const [userPhotoError, setUserPhotoError] = useState('');
   const userPhotoVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -146,7 +148,7 @@ export function MobilePlayerProfile({
 
   const openRecropFromCurrent = useCallback(async () => {
     if (!isEditing) return;
-    let sourceFile: File | null = avatarFile;
+    let sourceFile: File | null = avatarSourceFile;
 
     const buildFromUrl = async (url: string) => {
       const response = await fetch(url);
@@ -172,8 +174,9 @@ export function MobilePlayerProfile({
     }
 
     if (!sourceFile) return;
+    setAvatarSourceFile(sourceFile);
     openCropper('avatar', sourceFile);
-  }, [avatarFile, editAvatar, isEditing, openCropper, player.avatar]);
+  }, [avatarSourceFile, editAvatar, isEditing, openCropper, player.avatar]);
 
   const getReputationStatus = () => {
     if (player.reputation >= 8) {
@@ -188,6 +191,7 @@ export function MobilePlayerProfile({
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAvatarSourceFile(file);
     openCropper('avatar', file);
   };
 
@@ -301,6 +305,7 @@ export function MobilePlayerProfile({
     stopUserPhotoCamera();
     if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
     setUserPhotoFile(null);
+    setUserPhotoSourceFile(file);
     setUserPhotoPreview('');
     setUserPhotoError('');
     openCropper('userPhoto', file);
@@ -309,6 +314,7 @@ export function MobilePlayerProfile({
   const resetUserPhotoCapture = useCallback(() => {
     if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
     setUserPhotoFile(null);
+    setUserPhotoSourceFile(null);
     setUserPhotoPreview('');
     setUserPhotoError('');
     void startUserPhotoCamera();
@@ -319,6 +325,7 @@ export function MobilePlayerProfile({
     await onUserPhotoUpdate({ userPhoto: userPhotoFile, userPhotoCaptured: true });
     setUserPhotoDialogOpen(false);
     setUserPhotoFile(null);
+    setUserPhotoSourceFile(null);
     if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
     setUserPhotoPreview('');
     setUserPhotoError('');
@@ -370,6 +377,7 @@ export function MobilePlayerProfile({
     setIsEditing(false);
     setEditTab('perfil');
     setAvatarFile(null);
+    setAvatarSourceFile(null);
     setRawPhoto(null);
     setRawPhotoPreview('');
   };
@@ -382,6 +390,7 @@ export function MobilePlayerProfile({
     setEditMotto(player.motto ?? '');
     setEditIsVip(Boolean(player.isVip));
     setAvatarFile(null);
+    setAvatarSourceFile(null);
     setRawPhoto(null);
     setRawPhotoPreview('');
     setIsEditing(false);
@@ -863,6 +872,7 @@ export function MobilePlayerProfile({
               if (userPhotoPreview) URL.revokeObjectURL(userPhotoPreview);
               setUserPhotoPreview('');
               setUserPhotoFile(null);
+              setUserPhotoSourceFile(null);
               setUserPhotoError('');
             }
           }}
@@ -897,12 +907,12 @@ export function MobilePlayerProfile({
                     <button
                       type="button"
                       onClick={() => {
-                        if (userPhotoFile) {
-                          openCropper('userPhoto', userPhotoFile);
+                        if (userPhotoSourceFile) {
+                          openCropper('userPhoto', userPhotoSourceFile);
                         }
                       }}
                       className="px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
-                      disabled={!userPhotoFile || isUserPhotoSaving}
+                      disabled={!userPhotoSourceFile || isUserPhotoSaving}
                     >
                       [ RECORTAR ]
                     </button>

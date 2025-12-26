@@ -32,9 +32,11 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const [checkingCpf, setCheckingCpf] = useState(false);
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarSourceFile, setAvatarSourceFile] = useState<File | null>(null);
   const [userPhoto, setUserPhoto] = useState<File | null>(null);
   const [userPhotoPreview, setUserPhotoPreview] = useState('');
   const [userPhotoCaptured, setUserPhotoCaptured] = useState(false);
+  const [userPhotoSourceFile, setUserPhotoSourceFile] = useState<File | null>(null);
   const [rawPhoto, setRawPhoto] = useState<File | null>(null);
   const [rawPhotoPreview, setRawPhotoPreview] = useState<string>('');
   const [cropTarget, setCropTarget] = useState<'avatar' | 'userPhoto' | null>(null);
@@ -59,7 +61,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
     setCroppedAreaPixels(null);
   };
   const recropFromExisting = (target: 'avatar' | 'userPhoto') => {
-    const file = target === 'avatar' ? avatar : userPhoto;
+    const file = target === 'avatar' ? avatarSourceFile : userPhotoSourceFile;
     if (!file) return;
     openCropper(target, file);
   };
@@ -155,6 +157,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAvatarSourceFile(file);
     openCropper('avatar', file);
   };
 
@@ -202,6 +205,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
     setCameraError('');
     setUserPhotoCaptured(true);
     stopCamera();
+    setUserPhotoSourceFile(file);
     openCropper('userPhoto', file);
   };
 
@@ -210,6 +214,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
     setUserPhoto(null);
     setUserPhotoPreview('');
     setUserPhotoCaptured(false);
+    setUserPhotoSourceFile(null);
     void startCamera();
   };
 
@@ -603,7 +608,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                             type="button"
                             onClick={() => recropFromExisting('avatar')}
                             className="ml-3 inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
-                            disabled={!avatarPreview}
+                            disabled={!avatarSourceFile}
                           >
                             [ RECORTAR NOVAMENTE ]
                           </button>
@@ -684,7 +689,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                           <button
                             type="button"
                             onClick={() => recropFromExisting('userPhoto')}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
+                            disabled={!userPhotoSourceFile}
                           >
                             [ RECORTAR NOVAMENTE ]
                           </button>
