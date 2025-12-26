@@ -48,6 +48,8 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const avatarCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarGalleryInputRef = useRef<HTMLInputElement | null>(null);
   const hexClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
   const openCropper = (target: 'avatar' | 'userPhoto', file: File) => {
     if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
@@ -593,21 +595,27 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                           <div className="absolute inset-0 bg-[#00F0FF] blur-xl opacity-10 clip-hexagon-perfect mx-auto w-48" />
                         </div>
 
-                        <div className="text-center flex items-center justify-center">
-                          <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all cursor-pointer">
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => avatarCameraInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+                          >
+                            <Camera className="w-4 h-4" />
+                            [ CÂMERA ]
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => avatarGalleryInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                          >
                             <Upload className="w-4 h-4" />
-                            [ ALTERAR AVATAR ]
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleAvatarChange}
-                              className="hidden"
-                            />
-                          </label>
+                            [ GALERIA ]
+                          </button>
                           <button
                             type="button"
                             onClick={() => recropFromExisting('avatar')}
-                            className="ml-3 inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
                             disabled={!avatarSourceFile}
                           >
                             [ RECORTAR NOVAMENTE ]
@@ -615,7 +623,7 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                         </div>
                       </div>
                     ) : (
-                      <label className="block cursor-pointer">
+                      <div className="block">
                         <div className="border-2 border-dashed border-[#2D3A52] rounded-lg p-8 hover:border-[#00F0FF]/50 transition-all bg-[#0B0E14]/50">
                           <div className="flex flex-col items-center gap-4">
                             <div className="w-20 h-20 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-full flex items-center justify-center">
@@ -626,19 +634,46 @@ export function ProfileCompletionStepper({ onComplete, submitting = false, onChe
                                 [ SELECIONAR AVATAR ]
                               </p>
                               <p className="text-xs text-[#7F94B0] font-mono-technical">
-                                Escolha da galeria ou câmera
+                                Escolha como enviar sua foto
                               </p>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => avatarCameraInputRef.current?.click()}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+                              >
+                                <Camera className="w-4 h-4" />
+                                [ CÂMERA ]
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => avatarGalleryInputRef.current?.click()}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+                              >
+                                <Upload className="w-4 h-4" />
+                                [ GALERIA ]
+                              </button>
                             </div>
                           </div>
                         </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarChange}
-                          className="hidden"
-                        />
-                      </label>
+                      </div>
                     )}
+                    <input
+                      ref={avatarCameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="user"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    <input
+                      ref={avatarGalleryInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
 
                     {/* Info Notice */}
                     <div className="bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded-lg p-4 mt-4">

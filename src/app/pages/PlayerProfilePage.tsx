@@ -384,7 +384,7 @@ export function PlayerProfilePage() {
         <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[92vw]">
           <DialogHeader>
             <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
-              [ CREDENCIAL MILITAR ]
+              [ CREDENCIAL DE IDENTIFICAÇÃO ]
             </DialogTitle>
             <DialogDescription className="text-[#7F94B0] text-xs font-mono-technical">
               Documento interno para verificação de identidade.
@@ -428,6 +428,10 @@ export function PlayerProfilePage() {
                 <div>
                   <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">Nome completo</div>
                   <div className="text-lg text-[#E6F1FF] font-mono-technical">{player.name}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">Codinome</div>
+                  <div className="text-base text-[#D4A536] font-mono-technical">{player.nickname}</div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono-technical uppercase text-[#7F94B0]">
                   <span className="px-2 py-1 border border-[#2D3A52] bg-[#0B0E14]">Verificação ativa</span>

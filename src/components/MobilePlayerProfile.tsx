@@ -131,9 +131,12 @@ export function MobilePlayerProfile({
   const [userPhotoPreview, setUserPhotoPreview] = useState('');
   const [userPhotoError, setUserPhotoError] = useState('');
   const userPhotoVideoRef = useRef<HTMLVideoElement | null>(null);
+  const avatarCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarGalleryInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarSourceDialogOpen, setAvatarSourceDialogOpen] = useState(false);
   const [confirmRetractId, setConfirmRetractId] = useState<string | null>(null);
   const [historyTab, setHistoryTab] = useState<'feed' | 'stats'>('feed');
-  const [editTab, setEditTab] = useState<'perfil' | 'personalizacao'>('perfil');
+  const [editTab, setEditTab] = useState<'perfil' | 'personalizacao' | 'identidade'>('perfil');
   const openCropper = useCallback((target: 'avatar' | 'userPhoto', file: File) => {
     if (rawPhotoPreview) URL.revokeObjectURL(rawPhotoPreview);
     const previewUrl = URL.createObjectURL(file);
@@ -444,15 +447,13 @@ export function MobilePlayerProfile({
                 fallbackIcon={<User className="w-16 h-16 text-[#7F94B0]" />}
               />
               {canEditProfile && isEditing && (
-                <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#00F0FF] rounded-full flex items-center justify-center border-2 border-[#0B0E14] hover:bg-[#00F0FF]/80 transition-colors cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setAvatarSourceDialogOpen(true)}
+                  className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#00F0FF] rounded-full flex items-center justify-center border-2 border-[#0B0E14] hover:bg-[#00F0FF]/80 transition-colors"
+                >
                   <Edit className="w-5 h-5 text-[#0B0E14]" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                </label>
+                </button>
               )}
             </div>
 
@@ -470,6 +471,17 @@ export function MobilePlayerProfile({
                     }`}
                   >
                     Perfil
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTab('identidade')}
+                    className={`clip-tactical px-3 py-1 border transition-all text-[10px] uppercase font-mono-technical ${
+                      editTab === 'identidade'
+                        ? 'border-[#D4A536] bg-[#D4A536]/15 text-[#D4A536]'
+                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0] hover:border-[#D4A536]/40'
+                    }`}
+                  >
+                    Identidade
                   </button>
                   <button
                     type="button"
@@ -511,6 +523,9 @@ export function MobilePlayerProfile({
                         maxLength={100}
                       />
                     </div>
+                  </div>
+                ) : editTab === 'identidade' ? (
+                  <div className="space-y-4">
                     <div className="clip-tactical-card bg-[#141A26] border border-[#2D3A52] p-4 space-y-4">
                       <div className="text-center space-y-1">
                         <div className="text-xs text-[#7F94B0] font-mono-technical uppercase">
@@ -790,7 +805,7 @@ export function MobilePlayerProfile({
             }
           }}
         >
-          <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[90vw]">
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-xl w-[90vw]">
             <DialogHeader>
               <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
                 [ RECORTAR FOTO ]
@@ -859,12 +874,76 @@ export function MobilePlayerProfile({
                 {cropping ? <Spinner inline size="sm" label="cortando" /> : '[ CORTAR ]'}
               </button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        </DialogContent>
+      </Dialog>
 
-        <Dialog
-          open={userPhotoDialogOpen}
-          onOpenChange={(open) => {
+      <Dialog open={avatarSourceDialogOpen} onOpenChange={setAvatarSourceDialogOpen}>
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] text-[#E6F1FF] max-w-md w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase text-sm">
+              [ FOTO DO OPERADOR ]
+            </DialogTitle>
+            <DialogDescription className="text-[#7F94B0] text-xs font-mono-technical">
+              Escolha como enviar o avatar: câmera ou galeria.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setAvatarSourceDialogOpen(false);
+                avatarCameraInputRef.current?.click();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#00F0FF]/10 border-2 border-[#00F0FF] rounded-lg text-[#00F0FF] font-mono-technical text-xs uppercase hover:bg-[#00F0FF]/20 transition-all"
+            >
+              <Camera className="w-4 h-4" />
+              [ CÂMERA ]
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAvatarSourceDialogOpen(false);
+                avatarGalleryInputRef.current?.click();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#141A26] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all"
+            >
+              <Edit className="w-4 h-4" />
+              [ GALERIA ]
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAvatarSourceDialogOpen(false);
+                void openRecropFromCurrent();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#0B0E14] border border-[#2D3A52] rounded-lg text-[#7F94B0] font-mono-technical text-xs uppercase hover:bg-[#1A2332] transition-all disabled:opacity-50"
+              disabled={!avatarSourceFile && !editAvatar}
+            >
+              [ RECORTAR ]
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <input
+        ref={avatarCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={handleAvatarChange}
+        className="hidden"
+      />
+      <input
+        ref={avatarGalleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleAvatarChange}
+        className="hidden"
+      />
+
+      <Dialog
+        open={userPhotoDialogOpen}
+        onOpenChange={(open) => {
             setUserPhotoDialogOpen(open);
             if (!open) {
               stopUserPhotoCamera();
