@@ -278,7 +278,7 @@ export function PlayerProfilePage() {
                   </button>
                 </div>
                 <p className="text-xs text-[#7F94B0] font-mono-technical text-center">
-                  Exibe a credencial militar com foto e nome completos.
+                  Exibe a credencial de identificação com foto e nome completos.
                 </p>
               </div>
             ) : null}
