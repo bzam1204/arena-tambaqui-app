@@ -9,6 +9,7 @@ import { useSession } from '@/app/context/session-context';
 import { TacticalButton } from '@/components/TacticalButton';
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
+import { PixPaymentDialog } from '@/components/PixPaymentDialog';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MatchPaymentCalculator } from '@/domain/payment';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -36,11 +38,13 @@ export function MatchesPage() {
   const { state, loading } = useSession();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const paymentCalculator = useMemo(() => new MatchPaymentCalculator(), []);
   type TabKey = 'open' | 'mine' | 'pending' | 'finalized';
   type MineTabKey = 'upcoming' | 'finalized';
 
   const [createOpen, setCreateOpen] = useState(false);
   const [subscribeMatch, setSubscribeMatch] = useState<MatchSummary | null>(null);
+  const [paymentMatch, setPaymentMatch] = useState<MatchSummary | null>(null);
   const [cancelMatch, setCancelMatch] = useState<MatchSummary | null>(null);
   const [rentEquipment, setRentEquipment] = useState(false);
   const [matchName, setMatchName] = useState('');
@@ -57,6 +61,11 @@ export function MatchesPage() {
   const tabButtonRefs = useRef<Partial<Record<TabKey, HTMLButtonElement | null>>>({});
   const mineTabRef = useRef<HTMLDivElement | null>(null);
   const mineTouchRef = useRef<{ x: number; y: number } | null>(null);
+
+  const paymentPricing = useMemo(
+    () => paymentCalculator.calculate({ isVip: state.isVip, rentEquipment }),
+    [paymentCalculator, rentEquipment, state.isVip],
+  );
 
   useEffect(() => {
     if (!state.userId && tab !== 'open') {
@@ -160,7 +169,7 @@ export function MatchesPage() {
   });
   const subscribeMutation = useMutation({
     mutationFn: async () => {
-      if (!subscribeMatch) throw new Error('Selecione uma partida.');
+      if (!paymentMatch) throw new Error('Selecione uma partida.');
       if (!state.userId) {
         navigate('/auth');
         return;
@@ -170,7 +179,7 @@ export function MatchesPage() {
         return;
       }
       await matchGateway.subscribe({
-        matchId: subscribeMatch.id,
+        matchId: paymentMatch.id,
         playerId: state.playerId,
         rentEquipment,
       });
@@ -180,8 +189,9 @@ export function MatchesPage() {
       setActionInfo(null);
     },
     onSuccess: async () => {
-      setSubscribeMatch(null);
+      setPaymentMatch(null);
       setRentEquipment(false);
+      setActionError(null);
       setActionInfo('Inscrição confirmada.');
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
@@ -457,12 +467,12 @@ export function MatchesPage() {
         </div>
       ) : null}
 
-      {actionInfo && !createOpen && !subscribeMatch && !cancelMatch ? (
+      {actionInfo && !createOpen && !subscribeMatch && !paymentMatch && !cancelMatch ? (
         <div className="bg-[#0F1E2B] border border-[#00F0FF] text-[#00F0FF] text-xs font-mono-technical rounded-lg p-3">
           {actionInfo}
         </div>
       ) : null}
-      {actionError && !createOpen && !subscribeMatch && !cancelMatch ? (
+      {actionError && !createOpen && !subscribeMatch && !paymentMatch && !cancelMatch ? (
         <div className="bg-[#2E2819] border border-[#D4A536] text-[#D4A536] text-xs font-mono-technical rounded-lg p-3">
           {actionError}
         </div>
@@ -759,7 +769,7 @@ export function MatchesPage() {
           <DialogHeader>
             <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Confirmar Participação ]</DialogTitle>
             <DialogDescription className="text-[#7F94B0]">
-              Confirme sua inscrição na partida.
+              Escolha o aluguel e avance para o pagamento.
             </DialogDescription>
           </DialogHeader>
 
@@ -772,10 +782,18 @@ export function MatchesPage() {
                   {formatDateTime(subscribeMatch.startAt).timeLabel}
                 </div>
               </div>
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
+                aria-pressed={rentEquipment}
                 onClick={() => setRentEquipment((prev) => !prev)}
-                className={`w-full clip-tactical-card border-x-4 p-3 text-left transition-all ${rentEquipment
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setRentEquipment((prev) => !prev);
+                  }
+                }}
+                className={`w-full cursor-pointer clip-tactical-card border-x-4 p-3 text-left transition-all ${rentEquipment
                     ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
                     : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
                   }`}
@@ -797,7 +815,14 @@ export function MatchesPage() {
                   </div>
                   <Checkbox checked={rentEquipment} className="pointer-events-none" />
                 </div>
-              </button>
+              </div>
+              {paymentPricing.benefits.length > 0 ? (
+                <div className="bg-[#0F1E2B] border border-[#00F0FF] text-[#00F0FF] text-[10px] font-mono-technical uppercase rounded-lg p-3 space-y-1">
+                  {paymentPricing.benefits.map((benefit) => (
+                    <div key={benefit}>{benefit}</div>
+                  ))}
+                </div>
+              ) : null}
               {actionError ? (
                 <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
               ) : null}
@@ -810,19 +835,38 @@ export function MatchesPage() {
             </TacticalButton>
             <TacticalButton
               variant="amber"
-              onClick={() => subscribeMutation.mutate()}
-              disabled={subscribeMutation.isPending}
-              leftIcon={
-                subscribeMutation.isPending ? (
-                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent border-l-transparent rounded-full animate-spin" />
-                ) : undefined
-              }
+              className="px-3! py4! text-[14px]"
+              onClick={() => {
+                if (!subscribeMatch) return;
+                setActionError(null);
+                setPaymentMatch(subscribeMatch);
+                setSubscribeMatch(null);
+              }}
             >
-              {subscribeMutation.isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR INSCRIÇÃO ]'}
+              [ CONTINUAR PARA PAGAMENTO ]
             </TacticalButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PixPaymentDialog
+        open={Boolean(paymentMatch)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPaymentMatch(null);
+            setRentEquipment(false);
+            setActionError(null);
+            setActionInfo(null);
+          }
+        }}
+        matchName={paymentMatch?.name ?? 'Partida'}
+        transactionId={paymentMatch?.id ?? 'ARENATAMBAQUI'}
+        message={`Pagamento ${paymentMatch?.name ?? 'Partida'}`}
+        pricing={paymentPricing}
+        onConfirm={() => subscribeMutation.mutate()}
+        isPending={subscribeMutation.isPending}
+        errorMessage={actionError}
+      />
 
       <Dialog open={Boolean(cancelMatch)} onOpenChange={(open) => {
         if (!open) {

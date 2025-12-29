@@ -142,7 +142,7 @@ export class SupabaseMatchGateway implements MatchGateway {
     const { data: subs, error } = await this.supabase
       .from(this.subscriptionsTable)
       .select(
-        'id,match_id,player_id,rent_equipment,players:players(id,nickname,is_vip,users:users(full_name,avatar,avatar_frame))',
+        'id,match_id,player_id,rent_equipment,paid,paid_marked_at,players:players(id,nickname,is_vip,users:users(full_name,avatar,avatar_frame))',
       )
       .eq('match_id', matchId)
       .order('created_at', { ascending: true });
@@ -175,6 +175,8 @@ export class SupabaseMatchGateway implements MatchGateway {
         rentEquipment: Boolean(row.rent_equipment),
         attended: attendanceByPlayer.get(row.player_id) ?? false,
         marked: attendanceMarked.has(row.player_id),
+        paid: Boolean(row.paid),
+        paymentMarked: Boolean(row.paid_marked_at),
       } satisfies MatchAttendanceEntry;
     });
   }
@@ -201,6 +203,24 @@ export class SupabaseMatchGateway implements MatchGateway {
       },
       { onConflict: 'match_id,player_id' },
     );
+    if (error) throw error;
+  }
+
+  async updatePayment(input: { matchId: string; playerId: string; paid: boolean }): Promise<void> {
+    const { data: match, error: matchError } = await this.supabase
+      .from(this.matchesTable)
+      .select('start_at,finalized_at')
+      .eq('id', input.matchId)
+      .maybeSingle();
+    if (matchError) throw matchError;
+    if (!match) throw new Error('Partida não encontrada.');
+    if (match.finalized_at) throw new Error('Partida já finalizada.');
+
+    const { error } = await this.supabase
+      .from(this.subscriptionsTable)
+      .update({ paid: input.paid, paid_marked_at: new Date().toISOString() })
+      .eq('match_id', input.matchId)
+      .eq('player_id', input.playerId);
     if (error) throw error;
   }
 

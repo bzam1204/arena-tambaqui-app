@@ -52,6 +52,8 @@ create table if not exists match_subscriptions (
   match_id uuid not null references matches(id) on delete cascade,
   player_id uuid not null references players(id) on delete cascade,
   rent_equipment boolean not null default false,
+  paid boolean not null default false,
+  paid_marked_at timestamptz,
   created_at timestamptz not null default now(),
   unique (match_id, player_id)
 );
@@ -78,6 +80,12 @@ create table if not exists feed (
 
 alter table if exists feed
   add column if not exists match_id uuid references matches(id) on delete set null;
+
+alter table if exists match_subscriptions
+  add column if not exists paid boolean not null default false;
+
+alter table if exists match_subscriptions
+  add column if not exists paid_marked_at timestamptz;
 
 alter table if exists users
   add column if not exists email text;

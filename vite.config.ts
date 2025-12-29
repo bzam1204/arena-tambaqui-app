@@ -52,6 +52,7 @@ export default defineConfig({
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
+      buffer: 'buffer/',
       'vaul@1.1.2': 'vaul',
       'sonner@2.0.3': 'sonner',
       'recharts@2.15.2': 'recharts',
@@ -93,6 +94,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@public': path.resolve(__dirname, './public'),
     },
+  },
+  optimizeDeps: {
+    include: ['buffer'],
   },
   build: {
     target: 'esnext',

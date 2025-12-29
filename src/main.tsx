@@ -1,5 +1,6 @@
 import './styles/globals.css'
 import 'reflect-metadata';
+import { Buffer } from 'buffer';
 import { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -11,6 +12,11 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
 import { registerSW } from 'virtual:pwa-register';
+
+const globalBuffer = globalThis as typeof globalThis & { Buffer?: typeof Buffer };
+if (!globalBuffer.Buffer) {
+  globalBuffer.Buffer = Buffer;
+}
 
 const ReactQueryDevtools =
   import.meta.env.DEV

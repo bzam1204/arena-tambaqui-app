@@ -55,6 +55,7 @@ type SubscribeMatchDialogProps = BaseDialogProps & {
   timeLabel: string;
   rentEquipment: boolean;
   onRentEquipmentChange: (next: boolean) => void;
+  benefits?: string[];
   actionError?: string | null;
   isPending: boolean;
   onConfirm: () => void;
@@ -68,6 +69,7 @@ export function SubscribeMatchDialog({
   timeLabel,
   rentEquipment,
   onRentEquipmentChange,
+  benefits = [],
   actionError,
   isPending,
   onConfirm,
@@ -78,7 +80,7 @@ export function SubscribeMatchDialog({
         <DialogHeader>
           <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Confirmar Participação ]</DialogTitle>
           <DialogDescription className="text-[#7F94B0]">
-            Confirme sua inscrição na partida.
+            Escolha o aluguel e avance para o pagamento.
           </DialogDescription>
         </DialogHeader>
 
@@ -89,10 +91,18 @@ export function SubscribeMatchDialog({
               DATA: {dateLabel} // HORA: {timeLabel}
             </div>
           </div>
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
+            aria-pressed={rentEquipment}
             onClick={() => onRentEquipmentChange(!rentEquipment)}
-            className={`w-full clip-tactical-card border-x-4 p-3 text-left transition-all ${
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onRentEquipmentChange(!rentEquipment);
+              }
+            }}
+            className={`w-full cursor-pointer clip-tactical-card border-x-4 p-3 text-left transition-all ${
               rentEquipment
                 ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
                 : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
@@ -116,7 +126,14 @@ export function SubscribeMatchDialog({
               </div>
               <Checkbox checked={rentEquipment} className="pointer-events-none" />
             </div>
-          </button>
+          </div>
+          {benefits.length > 0 ? (
+            <div className="bg-[#0F1E2B] border border-[#00F0FF] text-[#00F0FF] text-[10px] font-mono-technical uppercase rounded-lg p-3 space-y-1">
+              {benefits.map((benefit) => (
+                <div key={benefit}>{benefit}</div>
+              ))}
+            </div>
+          ) : null}
           {actionError ? (
             <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
           ) : null}
@@ -128,6 +145,7 @@ export function SubscribeMatchDialog({
           </TacticalButton>
           <TacticalButton
             variant="amber"
+            className="px-3! py4! text-[14px]"
             onClick={onConfirm}
             disabled={isPending}
             leftIcon={
@@ -136,7 +154,7 @@ export function SubscribeMatchDialog({
               ) : undefined
             }
           >
-            {isPending ? '[ CONFIRMANDO... ]' : '[ CONFIRMAR INSCRIÇÃO ]'}
+            {isPending ? '[ PROCESSANDO... ]' : '[ CONTINUAR PARA PAGAMENTO ]'}
           </TacticalButton>
         </DialogFooter>
       </DialogContent>

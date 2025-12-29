@@ -28,6 +28,8 @@ export interface MatchAttendanceEntry {
   rentEquipment: boolean;
   attended: boolean;
   marked: boolean;
+  paid: boolean;
+  paymentMarked: boolean;
 }
 
 export interface CreateMatchInput {
@@ -46,6 +48,7 @@ export interface MatchGateway {
   deleteMatch(input: { matchId: string }): Promise<void>;
   listAttendance(matchId: string): Promise<MatchAttendanceEntry[]>;
   updateAttendance(input: { matchId: string; playerId: string; attended: boolean }): Promise<void>;
+  updatePayment(input: { matchId: string; playerId: string; paid: boolean }): Promise<void>;
   finalizeMatch(input: { matchId: string; adminId: string }): Promise<void>;
   listEligibleMatchesForTransmission(input: { playerId: string }): Promise<MatchOption[]>;
   countPlayerMatches(input: { playerId: string }): Promise<number>;

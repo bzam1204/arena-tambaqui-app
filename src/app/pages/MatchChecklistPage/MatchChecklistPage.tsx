@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
+import { PixPaymentDialog } from '@/components/PixPaymentDialog';
 import { MatchChecklistHeader } from './_components/MatchChecklistHeader';
 import { MatchChecklistStatsCard } from './_components/MatchChecklistStatsCard';
 import { MatchChecklistFixedActions } from './_components/MatchChecklistFixedActions';
@@ -15,6 +16,7 @@ import { useSession } from '@/app/context/session-context';
 
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
+import { MatchPaymentCalculator } from '@/domain/payment';
 
 import { Inject, TkMatchGateway } from '@/infra/container';
 
@@ -35,6 +37,7 @@ export function MatchChecklistPage() {
   const queryClient = useQueryClient();
   const { id } = useParams();
   const matchId = id ?? '';
+  const paymentCalculator = useMemo(() => new MatchPaymentCalculator(), []);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
@@ -47,16 +50,20 @@ export function MatchChecklistPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<MatchAttendanceEntry | null>(null);
   const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [rentEquipment, setRentEquipment] = useState(false);
   const [localAttendance, setLocalAttendance] = useState<Record<string, boolean>>({});
+  const [localPayments, setLocalPayments] = useState<Record<string, boolean>>({});
   const autoMarkedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     autoMarkedRef.current = new Set();
     setLocalAttendance({});
+    setLocalPayments({});
     setActionError(null);
     setSubscribeOpen(false);
+    setPaymentOpen(false);
     setCancelOpen(false);
     setDeleteOpen(false);
     setEditOpen(false);
@@ -92,6 +99,10 @@ export function MatchChecklistPage() {
     }
     return options;
   }, []);
+  const paymentPricing = useMemo(
+    () => paymentCalculator.calculate({ isVip: state.isVip, rentEquipment }),
+    [paymentCalculator, rentEquipment, state.isVip],
+  );
 
   useEffect(() => {
     if (!match) return;
@@ -117,6 +128,17 @@ export function MatchChecklistPage() {
     mutationFn: (input: { matchId: string; playerId: string; attended: boolean }) => {
       if (!state.isAdmin) throw new Error('Apenas administradores podem marcar presença.');
       return matchGateway.updateAttendance(input);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
+    },
+    onError: (err) => setActionError((err as Error).message),
+  });
+
+  const updatePayment = useMutation({
+    mutationFn: (input: { matchId: string; playerId: string; paid: boolean }) => {
+      if (!state.isAdmin) throw new Error('Apenas administradores podem marcar pagamento.');
+      return matchGateway.updatePayment(input);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
@@ -197,7 +219,9 @@ export function MatchChecklistPage() {
     },
     onSuccess: async () => {
       setSubscribeOpen(false);
+      setPaymentOpen(false);
       setRentEquipment(false);
+      setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
     },
@@ -312,6 +336,7 @@ export function MatchChecklistPage() {
   const isLocked = startAt <= now && !match.finalizedAt;
   const isFinalized = Boolean(match.finalizedAt);
   const canEdit = state.isAdmin && isLocked && !isFinalized;
+  const canEditPayment = state.isAdmin && !isFinalized;
   const canEditMatch = state.isAdmin && !isFinalized;
   const canSubscribe = !isLocked && !isFinalized;
   const showEditAction = canEditMatch;
@@ -335,6 +360,29 @@ export function MatchChecklistPage() {
       {
         onError: () => {
           setLocalAttendance((prev) => ({ ...prev, [entry.playerId]: current }));
+        },
+      },
+    );
+  };
+
+  const handlePaymentToggle = (entry: MatchAttendanceEntry) => {
+    if (!canEditPayment) return;
+    const current = localPayments[entry.playerId] ?? (entry.paymentMarked ? entry.paid : null);
+    const next = current === null ? true : !current;
+    setLocalPayments((prev) => ({ ...prev, [entry.playerId]: next }));
+    updatePayment.mutate(
+      { matchId: entry.matchId, playerId: entry.playerId, paid: next },
+      {
+        onError: () => {
+          setLocalPayments((prev) => {
+            const nextState = { ...prev };
+            if (current === null) {
+              delete nextState[entry.playerId];
+            } else {
+              nextState[entry.playerId] = current;
+            }
+            return nextState;
+          });
         },
       },
     );
@@ -380,10 +428,13 @@ export function MatchChecklistPage() {
           <MatchChecklistAttendanceList
             entries={attendanceList}
             localAttendance={localAttendance}
+            localPayments={localPayments}
             isAdmin={state.isAdmin}
             isFinalized={isFinalized}
             canEdit={canEdit}
+            canEditPayment={canEditPayment}
             onToggle={handleToggle}
+            onTogglePayment={handlePaymentToggle}
             onRemove={(entry) => {
               setActionError(null);
               setRemoveTarget(entry);
@@ -391,7 +442,7 @@ export function MatchChecklistPage() {
             onPlayerClick={(playerId) => navigate(`/player/${playerId}`)}
           />
         )}
-        {actionError && !subscribeOpen && !cancelOpen && !deleteOpen && !editOpen && !removeTarget ? (
+        {actionError && !subscribeOpen && !paymentOpen && !cancelOpen && !deleteOpen && !editOpen && !removeTarget ? (
           <div className="text-xs text-[#FF6B00] font-mono-technical">{actionError}</div>
         ) : null}
       </div>
@@ -464,9 +515,34 @@ export function MatchChecklistPage() {
         timeLabel={timeLabel}
         rentEquipment={rentEquipment}
         onRentEquipmentChange={setRentEquipment}
+        benefits={paymentPricing.benefits}
         actionError={actionError}
-        isPending={subscribeMatch.isPending}
+        isPending={false}
+        onConfirm={() => {
+          setActionError(null);
+          setSubscribeOpen(false);
+          setPaymentOpen(true);
+        }}
+      />
+
+      <PixPaymentDialog
+        open={paymentOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPaymentOpen(false);
+            setRentEquipment(false);
+            setActionError(null);
+          } else {
+            setPaymentOpen(true);
+          }
+        }}
+        matchName={match.name}
+        transactionId={matchId}
+        message={`Pagamento ${match.name}`}
+        pricing={paymentPricing}
         onConfirm={() => subscribeMatch.mutate()}
+        isPending={subscribeMatch.isPending}
+        errorMessage={actionError}
       />
 
       <CancelSubscriptionDialog

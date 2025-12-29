@@ -27,6 +27,8 @@ interface SubscriptionRecord {
   playerId: string;
   rentEquipment: boolean;
   createdAt: string;
+  paid: boolean;
+  paidMarkedAt?: string | null;
 }
 
 interface AttendanceRecord {
@@ -142,6 +144,8 @@ export class MockMatchGateway implements MatchGateway {
         playerId: input.playerId,
         rentEquipment: input.rentEquipment,
         createdAt: iso(new Date()),
+        paid: false,
+        paidMarkedAt: null,
       },
     ];
   }
@@ -198,6 +202,8 @@ export class MockMatchGateway implements MatchGateway {
         rentEquipment: sub.rentEquipment,
         attended: attendanceMap.get(sub.playerId) ?? false,
         marked: markedSet.has(sub.playerId),
+        paid: sub.paid,
+        paymentMarked: Boolean(sub.paidMarkedAt),
       } satisfies MatchAttendanceEntry;
     });
   }
@@ -223,6 +229,19 @@ export class MockMatchGateway implements MatchGateway {
         },
       ];
     }
+  }
+
+  async updatePayment(input: { matchId: string; playerId: string; paid: boolean }): Promise<void> {
+    const match = this.matches.find((m) => m.id === input.matchId);
+    if (!match) throw new Error('Partida não encontrada.');
+    if (match.finalizedAt) throw new Error('Partida já finalizada.');
+
+    const subscription = this.subscriptions.find(
+      (sub) => sub.matchId === input.matchId && sub.playerId === input.playerId,
+    );
+    if (!subscription) throw new Error('Inscrição não encontrada.');
+    subscription.paid = input.paid;
+    subscription.paidMarkedAt = iso(new Date());
   }
 
   async finalizeMatch(input: { matchId: string; adminId: string }): Promise<void> {
