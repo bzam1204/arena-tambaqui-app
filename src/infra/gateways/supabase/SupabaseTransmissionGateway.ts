@@ -1,8 +1,18 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import type { TransmissionGateway, CreateTransmissionInput } from '@/app/gateways/TransmissionGateway';
 import type { Player } from '@/app/gateways/PlayerGateway';
+import type { NotificationGateway, NotificationType } from '@/app/gateways/NotificationGateway';
+import { TkNotificationGateway } from '@/app/gateways/NotificationGateway';
 import { getSupabaseClient } from '@/infra/supabase/client';
 import { calculateReputation } from '@/domain/reputation';
+
+function buildNotificationMessage(type: NotificationType, matchName?: string) {
+  const label = type === 'praise' ? 'elogio' : 'denúncia';
+  if (!matchName) {
+    return `Você recebeu um ${label} em uma partida.`;
+  }
+  return `Você recebeu um ${label} na Partida ${matchName}`;
+}
 
 @injectable()
 export class SupabaseTransmissionGateway implements TransmissionGateway {
@@ -13,6 +23,10 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
   private readonly subscriptionsTable = 'match_subscriptions';
   private readonly attendanceTable = 'match_attendance';
 
+  constructor(
+    @inject(TkNotificationGateway) private readonly notificationGateway: NotificationGateway,
+  ) {}
+
   async createTransmission(input: CreateTransmissionInput): Promise<void> {
     if (input.targetId === input.submitterId) {
       throw new Error('Não é possível denunciar a si mesmo.');
@@ -20,7 +34,7 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
     if (!input.matchId) {
       throw new Error('Selecione uma partida válida.');
     }
-    await this.assertEligibleMatch(input.matchId, input.submitterId);
+    const matchName = await this.assertEligibleMatch(input.matchId, input.submitterId);
     await this.assertUniqueTransmission(input.matchId, input.submitterId, input.targetId);
     const player = await this.fetchPlayer(input.targetId);
     if (!player) {
@@ -55,6 +69,13 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
         .eq('id', player.id);
       if (playerErr) throw playerErr;
     }
+
+    await this.notificationGateway.createNotification({
+      playerId: input.targetId,
+      type: input.type,
+      message: buildNotificationMessage(input.type, matchName),
+      matchId: input.matchId,
+    });
   }
 
   async listTransmittedTargets(input: { submitterId: string; matchId: string }): Promise<string[]> {
@@ -92,10 +113,10 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
     };
   }
 
-  private async assertEligibleMatch(matchId: string, playerId: string): Promise<void> {
+  private async assertEligibleMatch(matchId: string, playerId: string): Promise<string | undefined> {
     const { data: match, error: matchError } = await this.supabase
       .from(this.matchesTable)
-      .select('id,start_at,finalized_at')
+      .select('id,name,start_at,finalized_at')
       .eq('id', matchId)
       .maybeSingle();
     if (matchError) throw matchError;
@@ -132,6 +153,8 @@ export class SupabaseTransmissionGateway implements TransmissionGateway {
     if (!attendance?.attended) {
       throw new Error('Presença não confirmada para esta partida.');
     }
+
+    return match.name ?? undefined;
   }
 
   private async assertUniqueTransmission(matchId: string, submitterId: string, targetId: string): Promise<void> {

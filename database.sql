@@ -78,6 +78,17 @@ create table if not exists feed (
   match_id uuid references matches(id) on delete set null
 );
 
+-- Notifications: in-app alerts for transmissions.
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  player_id uuid not null references players(id) on delete cascade,
+  type feed_type not null,
+  message text not null,
+  match_id uuid references matches(id) on delete set null,
+  created_at timestamptz not null default now(),
+  read_at timestamptz
+);
+
 alter table if exists feed
   add column if not exists match_id uuid references matches(id) on delete set null;
 
@@ -110,6 +121,9 @@ create index if not exists idx_users_email_lower on users (lower(email));
 create index if not exists idx_feed_created_at on feed (created_at desc);
 create index if not exists idx_feed_target_player on feed (target_player_id);
 create index if not exists idx_feed_match on feed (match_id);
+create index if not exists idx_notifications_player on notifications (player_id);
+create index if not exists idx_notifications_read_at on notifications (read_at);
+create index if not exists idx_notifications_created_at on notifications (created_at desc);
 create index if not exists idx_matches_start_at on matches (start_at desc);
 create index if not exists idx_match_subscriptions_match on match_subscriptions (match_id);
 create index if not exists idx_match_subscriptions_player on match_subscriptions (player_id);

@@ -4,4 +4,5 @@ export * from './MockPlayerGateway';
 export * from './MockFeedGateway';
 export * from './MockTransmissionGateway';
 export * from './MockMatchGateway';
+export * from './MockNotificationGateway';
 export * from './mockData';

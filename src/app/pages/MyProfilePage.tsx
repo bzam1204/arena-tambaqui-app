@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MobilePlayerProfile } from '@/components/MobilePlayerProfile';
 import { Spinner } from '@/components/Spinner';
+import { TacticalButton } from '@/components/TacticalButton';
 import type { Player, PlayerGateway, FeedEntry } from '@/app/gateways/PlayerGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import type { ProfileGateway } from '@/app/gateways/ProfileGateway';
 import type { FeedGateway } from '@/app/gateways/FeedGateway';
+import { useSession } from '@/app/context/session-context';
 import { Inject, TkPlayerGateway, TkProfileGateway, TkFeedGateway, TkMatchGateway } from '@/infra/container';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
 
@@ -23,6 +25,7 @@ export function MyProfilePage({ userId, playerId }: Props) {
   const queryClient = useQueryClient();
   const [retractingId, setRetractingId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { logout } = useSession();
 
   const {
     data: player,
@@ -130,39 +133,53 @@ export function MyProfilePage({ userId, playerId }: Props) {
 
   if (!player) return <Spinner fullScreen label="carregando perfil" />;
   return (
-    <MobilePlayerProfile
-      player={{
-        ...player,
-        history,
-        rankPrestige: ranks?.prestige ?? null,
-        rankShame: ranks?.shame ?? null,
-        matchCount: matchCount ?? null,
-      }}
-      onTargetClick={(targetId) => {
-        if (targetId === playerId) return;
-        navigate(`/player/${targetId}`);
-      }}
-      onRankClick={(kind) => {
-        const slug = kind === 'prestige' ? 'prestigio' : 'vergonha';
-        const rank = kind === 'prestige' ? ranks?.prestige : ranks?.shame;
-        const params = new URLSearchParams();
-        params.set('focus', playerId);
-        if (rank && rank > 0) params.set('rank', String(rank));
-        const query = params.toString();
-        navigate(`/mural/rankings/${slug}${query ? `?${query}` : ''}`);
-      }}
-      isOwnProfile
-      canEditProfile
-      userPhotoUrl={userPhoto}
-      isUserPhotoLoading={userPhotoLoading}
-      userPhotoFetchError={userPhotoIsError ? (userPhotoError as Error)?.message : null}
-      onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
-      isSaving={updateProfile.isPending}
-      onUserPhotoUpdate={(data) => updateUserPhoto.mutateAsync(data)}
-      isUserPhotoSaving={updateUserPhoto.isPending}
-      onRetract={(id) => retractMutation.mutate(id)}
-      isRetracting={retractMutation.isPending}
-      retractingId={retractingId}
-    />
+    <>
+      <MobilePlayerProfile
+        player={{
+          ...player,
+          history,
+          rankPrestige: ranks?.prestige ?? null,
+          rankShame: ranks?.shame ?? null,
+          matchCount: matchCount ?? null,
+        }}
+        onTargetClick={(targetId) => {
+          if (targetId === playerId) return;
+          navigate(`/player/${targetId}`);
+        }}
+        onRankClick={(kind) => {
+          const slug = kind === 'prestige' ? 'prestigio' : 'vergonha';
+          const rank = kind === 'prestige' ? ranks?.prestige : ranks?.shame;
+          const params = new URLSearchParams();
+          params.set('focus', playerId);
+          if (rank && rank > 0) params.set('rank', String(rank));
+          const query = params.toString();
+          navigate(`/mural/rankings/${slug}${query ? `?${query}` : ''}`);
+        }}
+        isOwnProfile
+        canEditProfile
+        userPhotoUrl={userPhoto}
+        isUserPhotoLoading={userPhotoLoading}
+        userPhotoFetchError={userPhotoIsError ? (userPhotoError as Error)?.message : null}
+        onProfileUpdate={(data) => updateProfile.mutateAsync(data)}
+        isSaving={updateProfile.isPending}
+        onUserPhotoUpdate={(data) => updateUserPhoto.mutateAsync(data)}
+        isUserPhotoSaving={updateUserPhoto.isPending}
+        onRetract={(id) => retractMutation.mutate(id)}
+        isRetracting={retractMutation.isPending}
+        retractingId={retractingId}
+      />
+      <div className="px-6 pb-24">
+        <TacticalButton
+          variant="amber"
+          fullWidth
+          onClick={async () => {
+            await logout();
+            window.location.href = '/auth';
+          }}
+        >
+          [ SAIR ]
+        </TacticalButton>
+      </div>
+    </>
   );
 }

@@ -19,6 +19,9 @@ begin
   if to_regclass('public.feed') is not null then
     execute 'truncate table public.feed restart identity cascade';
   end if;
+  if to_regclass('public.notifications') is not null then
+    execute 'truncate table public.notifications restart identity cascade';
+  end if;
   if to_regclass('public.players') is not null then
     execute 'truncate table public.players restart identity cascade';
   end if;

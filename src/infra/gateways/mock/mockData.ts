@@ -1,4 +1,5 @@
 import type { FeedEntry, Player } from '@/app/gateways/PlayerGateway';
+import type { Notification } from '@/app/gateways/NotificationGateway';
 import { calculateReputation } from '@/domain/reputation';
 
 // Seed data adapted from the original in-memory state
@@ -141,6 +142,7 @@ const playersSeed = {
 };
 
 export type MockPlayerStore = Record<string, Player>;
+export type MockNotificationRecord = Notification & { playerId: string };
 
 export function createPlayerStore(): MockPlayerStore {
   const store: MockPlayerStore = {};
@@ -166,4 +168,37 @@ export function createPlayerStore(): MockPlayerStore {
 
 export function createFeedStore(): FeedEntry[] {
   return [...feedSeed];
+}
+
+export function createNotificationStore(): MockNotificationRecord[] {
+  const now = new Date();
+  return [
+    {
+      id: 'notif-1',
+      playerId: '1',
+      type: 'praise',
+      message: 'Você recebeu um elogio na Partida Treino Tático',
+      matchId: 'match-3',
+      createdAt: new Date(now.getTime() - 45 * 60 * 1000).toISOString(),
+      readAt: null,
+    },
+    {
+      id: 'notif-2',
+      playerId: '1',
+      type: 'report',
+      message: 'Você recebeu uma denúncia na Partida Missão Noturna',
+      matchId: 'match-2',
+      createdAt: new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString(),
+      readAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'notif-3',
+      playerId: '2',
+      type: 'report',
+      message: 'Você recebeu uma denúncia na Partida Operação Trovão',
+      matchId: 'match-1',
+      createdAt: new Date(now.getTime() - 22 * 60 * 60 * 1000).toISOString(),
+      readAt: null,
+    },
+  ];
 }

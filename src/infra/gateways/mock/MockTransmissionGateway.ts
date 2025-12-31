@@ -7,6 +7,16 @@ import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import { TkPlayerGateway } from '@/app/gateways/PlayerGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { TkMatchGateway } from '@/app/gateways/MatchGateway';
+import type { NotificationGateway, NotificationType } from '@/app/gateways/NotificationGateway';
+import { TkNotificationGateway } from '@/app/gateways/NotificationGateway';
+
+function buildNotificationMessage(type: NotificationType, matchName?: string) {
+  const label = type === 'praise' ? 'elogio' : 'denúncia';
+  if (!matchName) {
+    return `Você recebeu um ${label} em uma partida.`;
+  }
+  return `Você recebeu um ${label} na Partida ${matchName}`;
+}
 
 @injectable()
 export class MockTransmissionGateway implements TransmissionGateway {
@@ -14,6 +24,7 @@ export class MockTransmissionGateway implements TransmissionGateway {
     @inject(TkFeedGateway) private readonly feedGateway: FeedGateway,
     @inject(TkPlayerGateway) private readonly playerGateway: PlayerGateway,
     @inject(TkMatchGateway) private readonly matchGateway: MatchGateway,
+    @inject(TkNotificationGateway) private readonly notificationGateway: NotificationGateway,
   ) {}
 
   async createTransmission(input: CreateTransmissionInput): Promise<void> {
@@ -59,6 +70,14 @@ export class MockTransmissionGateway implements TransmissionGateway {
       submitterId: input.submitterId,
       matchId: input.matchId,
     } as any);
+
+    const matchName = await this.resolveMatchName(input.matchId);
+    await this.notificationGateway.createNotification({
+      playerId: input.targetId,
+      type: input.type,
+      message: buildNotificationMessage(input.type, matchName),
+      matchId: input.matchId,
+    });
   }
 
   async listTransmittedTargets(input: { submitterId: string; matchId: string }): Promise<string[]> {
@@ -67,5 +86,10 @@ export class MockTransmissionGateway implements TransmissionGateway {
       .filter((entry: any) => entry.matchId === input.matchId)
       .map((entry) => entry.targetId)
       .filter(Boolean);
+  }
+
+  private async resolveMatchName(matchId: string): Promise<string> {
+    const matches = await this.matchGateway.listMatches({});
+    return matches.find((match) => match.id === matchId)?.name;
   }
 }
