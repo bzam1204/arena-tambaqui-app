@@ -35,7 +35,7 @@ export function PixPaymentDialog({
   isPending,
   errorMessage,
 }: PixPaymentDialogProps) {
-  const { subscriptionCents, rentCents, discountCents, totalCents, benefits } = pricing;
+  const { subscriptionCents, rentCents, discountCents, totalCents, benefits, guestItems, includePlayer } = pricing;
   const hasPayment = totalCents > 0;
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [payload, setPayload] = useState('');
@@ -117,21 +117,40 @@ export function PixPaymentDialog({
               <div className="text-sm text-[#E6F1FF] uppercase">{matchName}</div>
             </div>
             <div className="bg-[#0F1729] border border-[#2D3A52] rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between text-xs text-[#7F94B0] font-mono-technical uppercase">
-                <span>Inscricao</span>
-                <span>{formatCurrency(subscriptionCents)}</span>
-              </div>
-              {rentCents > 0 ? (
+              {includePlayer ? (
+                <div className="flex items-center justify-between text-xs text-[#7F94B0] font-mono-technical uppercase">
+                  <span>Inscricao</span>
+                  <span>{formatCurrency(subscriptionCents)}</span>
+                </div>
+              ) : null}
+              {includePlayer && rentCents > 0 ? (
                 <div className="flex items-center justify-between text-xs text-[#7F94B0] font-mono-technical uppercase">
                   <span>Aluguel de equipamento</span>
                   <span>{formatCurrency(rentCents)}</span>
                 </div>
               ) : null}
-              {discountCents > 0 ? (
+              {includePlayer && discountCents > 0 ? (
                 <div className="flex items-center justify-between text-xs text-[#2EEB77] font-mono-technical uppercase">
                   <span>Desconto VIP</span>
                   <span>-{formatCurrency(discountCents)}</span>
                 </div>
+              ) : null}
+              {guestItems.length > 0 ? (
+                <>
+                  {includePlayer ? <div className="h-px bg-[#2D3A52]" /> : null}
+                  {guestItems.map((guest) => (
+                    <div
+                      key={guest.id}
+                      className="flex items-center justify-between text-[10px] text-[#7F94B0] font-mono-technical uppercase"
+                    >
+                      <span>
+                        {guest.name}
+                        {guest.rentEquipment ? ' (aluguel)' : ''}
+                      </span>
+                      <span>{formatCurrency(guest.totalCents)}</span>
+                    </div>
+                  ))}
+                </>
               ) : null}
               <div className="h-px bg-[#2D3A52]" />
               <div className="flex items-center justify-between text-sm text-[#E6F1FF] font-mono-technical uppercase">

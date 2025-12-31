@@ -10,13 +10,24 @@ import { MatchChecklistHeader } from './_components/MatchChecklistHeader';
 import { MatchChecklistStatsCard } from './_components/MatchChecklistStatsCard';
 import { MatchChecklistFixedActions } from './_components/MatchChecklistFixedActions';
 import { MatchChecklistAttendanceList } from './_components/MatchChecklistAttendanceList';
-import { CancelSubscriptionDialog, DeleteMatchDialog, EditMatchDialog, FinalizeMatchDialog, RemovePlayerDialog, SubscribeMatchDialog } from './_components/MatchChecklistDialogs';
+import {
+  CancelSubscriptionDialog,
+  DeleteMatchDialog,
+  EditMatchDialog,
+  FinalizeMatchDialog,
+  RemovePlayerDialog,
+  SubscribeMatchDialog,
+  GuestDetailsDialog,
+} from './_components/MatchChecklistDialogs';
 
 import { useSession } from '@/app/context/session-context';
 
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
+import type { MatchGuestInput } from '@/app/gateways/MatchGateway';
 import { MatchPaymentCalculator } from '@/domain/payment';
+import { buildMatchShareText } from '@/domain/share';
+import type { MatchGuestDraft } from '@/components/MatchGuestForm';
 
 import { Inject, TkMatchGateway } from '@/infra/container';
 
@@ -52,8 +63,13 @@ export function MatchChecklistPage() {
   const [subscribeOpen, setSubscribeOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [rentEquipment, setRentEquipment] = useState(false);
+  const [pendingGuests, setPendingGuests] = useState<MatchGuestDraft[]>([]);
+  const [guestFlow, setGuestFlow] = useState<'subscribe' | 'add-guest' | null>(null);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
   const [localAttendance, setLocalAttendance] = useState<Record<string, boolean>>({});
   const [localPayments, setLocalPayments] = useState<Record<string, boolean>>({});
+  const [guestDetails, setGuestDetails] = useState<MatchAttendanceEntry | null>(null);
   const autoMarkedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -68,10 +84,15 @@ export function MatchChecklistPage() {
     setDeleteOpen(false);
     setEditOpen(false);
     setRentEquipment(false);
+    setPendingGuests([]);
+    setGuestFlow(null);
+    setShareFeedback(null);
+    setRemovingGuestId(null);
     setEditName('');
     setEditDate(null);
     setEditTime('');
     setRemoveTarget(null);
+    setGuestDetails(null);
     setActionsOpen(true);
   }, [matchId]);
 
@@ -99,9 +120,20 @@ export function MatchChecklistPage() {
     }
     return options;
   }, []);
+  const includePlayer = guestFlow !== 'add-guest';
   const paymentPricing = useMemo(
-    () => paymentCalculator.calculate({ isVip: state.isVip, rentEquipment }),
-    [paymentCalculator, rentEquipment, state.isVip],
+    () =>
+      paymentCalculator.calculate({
+        isVip: state.isVip,
+        rentEquipment,
+        includePlayer,
+        guests: pendingGuests.map((guest) => ({
+          id: guest.id,
+          name: guest.fullName,
+          rentEquipment: guest.rentEquipment,
+        })),
+      }),
+    [paymentCalculator, rentEquipment, state.isVip, pendingGuests, includePlayer],
   );
 
   useEffect(() => {
@@ -123,6 +155,19 @@ export function MatchChecklistPage() {
     queryFn: () => matchGateway.listAttendance(matchId),
     enabled: Boolean(matchId),
   });
+
+  const existingGuests = useMemo(() => {
+    if (!state.playerId) return [];
+    return attendanceList
+      .filter((entry) => entry.isGuest && entry.invitedByPlayerId === state.playerId)
+      .map((entry) => ({
+        id: entry.playerId,
+        fullName: entry.playerName,
+        age: entry.guestAge ?? null,
+        rentEquipment: entry.rentEquipment,
+        guardianConfirmed: Boolean(entry.guardianConfirmed),
+      }));
+  }, [attendanceList, state.playerId]);
 
   const updateAttendance = useMutation({
     mutationFn: (input: { matchId: string; playerId: string; attended: boolean }) => {
@@ -212,7 +257,23 @@ export function MatchChecklistPage() {
         return;
       }
       if (!matchId) throw new Error('Partida inválida.');
-      await matchGateway.subscribe({ matchId, playerId: state.playerId, rentEquipment });
+      const guestsPayload: MatchGuestInput[] = pendingGuests.map((guest) => ({
+        fullName: guest.fullName,
+        age: guest.age,
+        rentEquipment: guest.rentEquipment,
+        guardianConfirmed: guest.guardianConfirmed,
+      }));
+      if (guestFlow === 'add-guest') {
+        if (!guestsPayload.length) return;
+        await matchGateway.addGuests({ matchId, playerId: state.playerId, guests: guestsPayload });
+        return;
+      }
+      await matchGateway.subscribe({
+        matchId,
+        playerId: state.playerId,
+        rentEquipment,
+        guests: guestsPayload.length ? guestsPayload : undefined,
+      });
     },
     onMutate: () => {
       setActionError(null);
@@ -221,6 +282,9 @@ export function MatchChecklistPage() {
       setSubscribeOpen(false);
       setPaymentOpen(false);
       setRentEquipment(false);
+      setPendingGuests([]);
+      setGuestFlow(null);
+      setShareFeedback(null);
       setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
@@ -269,6 +333,20 @@ export function MatchChecklistPage() {
     },
     onSuccess: async () => {
       setRemoveTarget(null);
+      setActionError(null);
+      await queryClient.invalidateQueries({ queryKey: ['matches'] });
+      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
+    },
+    onError: (err) => setActionError((err as Error).message),
+  });
+
+  const removeGuest = useMutation({
+    mutationFn: async (guestId: string) => {
+      if (!state.userId) throw new Error('Faça login para remover.');
+      if (!state.playerId) throw new Error('Complete seu perfil para remover convidados.');
+      await matchGateway.removeGuest({ matchId, playerId: state.playerId, guestId });
+    },
+    onSuccess: async () => {
       setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
@@ -339,16 +417,37 @@ export function MatchChecklistPage() {
   const canEditPayment = state.isAdmin && !isFinalized;
   const canEditMatch = state.isAdmin && !isFinalized;
   const canSubscribe = !isLocked && !isFinalized;
+  const isGuestOnly = guestFlow === 'add-guest';
   const showEditAction = canEditMatch;
   const showSubscribeAction = canSubscribe && !match.isSubscribed;
+  const showAddGuestAction = canSubscribe && match.isSubscribed;
   const showCancelSubscription = canSubscribe && match.isSubscribed;
   const showAdminActions = state.isAdmin && !isFinalized;
+  const showShareAction = Boolean(match);
 
   const statusMessage = isFinalized
     ? 'Partida já finalizada.'
     : !isLocked
       ? 'Partida ainda não iniciou.'
       : null;
+
+  const handleShare = async () => {
+    const matchLink = `${window.location.origin}/partidas/${matchId}`;
+    const shareText = buildMatchShareText({ matchName: match.name, dateLabel, timeLabel, matchLink });
+    try {
+      if (navigator.share) {
+        await navigator.share({ text: shareText, title: match.name });
+        setShareFeedback('Partida compartilhada.');
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        setShareFeedback('Texto copiado.');
+      }
+    } catch {
+      setShareFeedback('Não foi possível compartilhar.');
+    } finally {
+      window.setTimeout(() => setShareFeedback(null), 2000);
+    }
+  };
 
   const handleToggle = (entry: MatchAttendanceEntry) => {
     if (!canEdit) return;
@@ -389,7 +488,7 @@ export function MatchChecklistPage() {
   };
 
   return (
-    <div className={`relative transition-all ${actionsOpen && (state.isAdmin ? 'pb-80!' : 'pb-28!')}`}>
+    <div className={`relative transition-all ${actionsOpen && (state.isAdmin ? 'pb-[428px]!' : 'pb-52!')}`}>
       <div className="px-4 pt-6 pb-8 space-y-4">
         <MatchChecklistHeader name={match.name} dateLabel={dateLabel} timeLabel={timeLabel} />
         <MatchChecklistStatsCard
@@ -440,6 +539,13 @@ export function MatchChecklistPage() {
               setRemoveTarget(entry);
             }}
             onPlayerClick={(playerId) => navigate(`/player/${playerId}`)}
+            onGuestClick={
+              state.isAdmin
+                ? (entry) => {
+                    setGuestDetails(entry);
+                  }
+                : undefined
+            }
           />
         )}
         {actionError && !subscribeOpen && !paymentOpen && !cancelOpen && !deleteOpen && !editOpen && !removeTarget ? (
@@ -452,10 +558,13 @@ export function MatchChecklistPage() {
         onToggleOpen={() => setActionsOpen((prev) => !prev)}
         showEditAction={showEditAction}
         showSubscribeAction={showSubscribeAction}
+        showAddGuestAction={showAddGuestAction}
         showCancelSubscription={showCancelSubscription}
+        showShareAction={showShareAction}
         showAdminActions={showAdminActions}
         isLocked={isLocked}
         isFinalized={isFinalized}
+        shareFeedback={shareFeedback}
         deletePending={deleteMatch.isPending}
         finalizePending={finalizeMatch.isPending}
         cancelPending={cancelSubscription.isPending}
@@ -473,6 +582,25 @@ export function MatchChecklistPage() {
             return;
           }
           setRentEquipment(Boolean(match.rentEquipment));
+          setPendingGuests([]);
+          setGuestFlow('subscribe');
+          setShareFeedback(null);
+          setActionError(null);
+          setSubscribeOpen(true);
+        }}
+        onAddGuest={() => {
+          if (!state.userId) {
+            navigate('/auth');
+            return;
+          }
+          if (!state.playerId) {
+            navigate('/onboarding');
+            return;
+          }
+          setRentEquipment(false);
+          setPendingGuests([]);
+          setGuestFlow('add-guest');
+          setShareFeedback(null);
           setActionError(null);
           setSubscribeOpen(true);
         }}
@@ -487,6 +615,10 @@ export function MatchChecklistPage() {
           }
           setActionError(null);
           setCancelOpen(true);
+        }}
+        onShare={() => {
+          if (!match) return;
+          void handleShare();
         }}
         onDelete={() => setDeleteOpen(true)}
         onFinalize={() => setConfirmOpen(true)}
@@ -503,8 +635,13 @@ export function MatchChecklistPage() {
         open={subscribeOpen}
         onOpenChange={(open) => {
           if (!open) {
+            if (paymentOpen) return;
             setSubscribeOpen(false);
             setRentEquipment(false);
+            setPendingGuests([]);
+            setGuestFlow(null);
+            setShareFeedback(null);
+            setRemovingGuestId(null);
             setActionError(null);
           } else {
             setSubscribeOpen(true);
@@ -515,6 +652,21 @@ export function MatchChecklistPage() {
         timeLabel={timeLabel}
         rentEquipment={rentEquipment}
         onRentEquipmentChange={setRentEquipment}
+        includePlayer={!isGuestOnly}
+        pendingGuests={pendingGuests}
+        onPendingGuestsChange={setPendingGuests}
+        existingGuests={isGuestOnly ? existingGuests : []}
+        onRemoveExistingGuest={
+          isGuestOnly
+            ? (guestId) => {
+                setRemovingGuestId(guestId);
+                removeGuest.mutate(guestId, {
+                  onSettled: () => setRemovingGuestId(null),
+                });
+              }
+            : undefined
+        }
+        removingGuestId={removingGuestId}
         benefits={paymentPricing.benefits}
         actionError={actionError}
         isPending={false}
@@ -523,6 +675,10 @@ export function MatchChecklistPage() {
           setSubscribeOpen(false);
           setPaymentOpen(true);
         }}
+        shareFeedback={shareFeedback}
+        title={isGuestOnly ? '[ Adicionar Convidados ]' : undefined}
+        description={isGuestOnly ? 'Inclua convidados e avance para o pagamento.' : undefined}
+        confirmLabel={isGuestOnly ? '[ CONTINUAR PARA PAGAMENTO ]' : undefined}
       />
 
       <PixPaymentDialog
@@ -531,6 +687,10 @@ export function MatchChecklistPage() {
           if (!open) {
             setPaymentOpen(false);
             setRentEquipment(false);
+            setPendingGuests([]);
+            setGuestFlow(null);
+            setShareFeedback(null);
+            setRemovingGuestId(null);
             setActionError(null);
           } else {
             setPaymentOpen(true);
@@ -594,6 +754,12 @@ export function MatchChecklistPage() {
         onConfirm={() => {
           if (removeTarget) removePlayer.mutate(removeTarget);
         }}
+      />
+
+      <GuestDetailsDialog
+        open={Boolean(guestDetails)}
+        onOpenChange={(open) => !open && setGuestDetails(null)}
+        guest={guestDetails}
       />
 
       <DeleteMatchDialog

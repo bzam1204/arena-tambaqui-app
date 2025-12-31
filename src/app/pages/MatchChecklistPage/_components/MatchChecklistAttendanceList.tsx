@@ -16,6 +16,7 @@ type MatchChecklistAttendanceListProps = {
   onTogglePayment: (entry: MatchAttendanceEntry) => void;
   onRemove: (entry: MatchAttendanceEntry) => void;
   onPlayerClick: (playerId: string) => void;
+  onGuestClick?: (entry: MatchAttendanceEntry) => void;
 };
 
 export function MatchChecklistAttendanceList({
@@ -30,6 +31,7 @@ export function MatchChecklistAttendanceList({
   onTogglePayment,
   onRemove,
   onPlayerClick,
+  onGuestClick,
 }: MatchChecklistAttendanceListProps) {
   if (entries.length === 0) {
     return (
@@ -42,6 +44,9 @@ export function MatchChecklistAttendanceList({
   return (
     <div className="space-y-3">
       {entries.map((entry) => {
+        const isGuest = Boolean(entry.isGuest);
+        const inviterLabel = entry.invitedByNickname || entry.invitedByName;
+        const canOpenDetails = isGuest ? Boolean(onGuestClick) : true;
         const displayState = isAdmin
           ? (localAttendance[entry.playerId] ?? (entry.marked ? entry.attended : true))
           : (entry.marked ? entry.attended : null);
@@ -62,16 +67,36 @@ export function MatchChecklistAttendanceList({
         return (
           <div
             key={entry.playerId}
-            role="button"
-            tabIndex={0}
-            onClick={() => onPlayerClick(entry.playerId)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onPlayerClick(entry.playerId);
-              }
-            }}
-            className="clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-3 cursor-pointer group"
+            role={canOpenDetails ? 'button' : undefined}
+            tabIndex={canOpenDetails ? 0 : undefined}
+            onClick={
+              canOpenDetails
+                ? () => {
+                    if (isGuest) {
+                      onGuestClick?.(entry);
+                    } else {
+                      onPlayerClick(entry.playerId);
+                    }
+                  }
+                : undefined
+            }
+            onKeyDown={
+              canOpenDetails
+                ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      if (isGuest) {
+                        onGuestClick?.(entry);
+                      } else {
+                        onPlayerClick(entry.playerId);
+                      }
+                    }
+                  }
+                : undefined
+            }
+            className={`clip-tactical-card bg-[#141A26] border-x-4 border-[#2D3A52] p-4 flex flex-col gap-3 ${
+              canOpenDetails ? 'cursor-pointer group' : ''
+            }`}
           >
             <div className="flex items-start gap-4">
               <PlayerAvatar
@@ -87,9 +112,16 @@ export function MatchChecklistAttendanceList({
                 <div className="flex flex-col flex-wrap items-start justify-start gap-2 mb-3">
                   <div className="flex flex-wrap items-center gap-2 text-sm text-[#E6F1FF] uppercase group-hover:text-[#00F0FF]">
                     <span>{entry.playerNickname}</span>
-                    {entry.playerIsVip ? <VipBadge size="xs" /> : null}
+                    {!isGuest && entry.playerIsVip ? <VipBadge size="xs" /> : null}
+                    {isGuest ? (
+                      <span className="px-2 py-0.5 text-[9px] font-mono-technical uppercase border border-[#00F0FF]/50 text-[#00F0FF] rounded-full">
+                        Convidado
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="text-xs text-[#7F94B0] font-mono-technical">{entry.playerName}</div>
+                  <div className="text-xs text-[#7F94B0] font-mono-technical">
+                    {isGuest && inviterLabel ? `Convidado de ${inviterLabel}` : entry.playerName}
+                  </div>
                   <span className={`px-2 py-0.5 text-[9px] font-mono-technical uppercase border rounded-full ${rentalClass}`}>
                     {rentalLabel}
                   </span>

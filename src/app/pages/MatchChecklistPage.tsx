@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { MatchAttendanceEntry, MatchSummary } from '@/app/gateways/MatchGateway';
+import type { MatchAttendanceEntry, MatchSummary, MatchGuestInput } from '@/app/gateways/MatchGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { Inject, TkMatchGateway } from '@/infra/container';
 import { useSession } from '@/app/context/session-context';
@@ -19,6 +19,7 @@ import {
   RemovePlayerDialog,
   SubscribeMatchDialog,
 } from './MatchChecklistPage/_components/MatchChecklistDialogs';
+import type { MatchGuestDraft } from '@/components/MatchGuestForm';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -46,6 +47,7 @@ export function MatchChecklistPage() {
   const [subscribeOpen, setSubscribeOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [rentEquipment, setRentEquipment] = useState(false);
+  const [pendingGuests, setPendingGuests] = useState<MatchGuestDraft[]>([]);
   const [removeTarget, setRemoveTarget] = useState<MatchAttendanceEntry | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [localAttendance, setLocalAttendance] = useState<Record<string, boolean>>({});
@@ -62,6 +64,7 @@ export function MatchChecklistPage() {
     setDeleteOpen(false);
     setEditOpen(false);
     setRentEquipment(false);
+    setPendingGuests([]);
     setEditName('');
     setEditDate(null);
     setEditTime('');
@@ -190,15 +193,23 @@ export function MatchChecklistPage() {
         navigate('/onboarding');
         return;
       }
+      const guestsPayload: MatchGuestInput[] = pendingGuests.map((guest) => ({
+        fullName: guest.fullName,
+        age: guest.age,
+        rentEquipment: guest.rentEquipment,
+        guardianConfirmed: guest.guardianConfirmed,
+      }));
       await matchGateway.subscribe({
         matchId,
         playerId: state.playerId,
         rentEquipment,
+        guests: guestsPayload.length ? guestsPayload : undefined,
       });
     },
     onSuccess: async () => {
       setSubscribeOpen(false);
       setRentEquipment(false);
+      setPendingGuests([]);
       setActionError(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
       await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', matchId] });
@@ -410,7 +421,9 @@ export function MatchChecklistPage() {
         onToggleOpen={() => setActionsOpen((prev) => !prev)}
         showEditAction={showEditAction}
         showSubscribeAction={showSubscribeAction}
+        showAddGuestAction={false}
         showCancelSubscription={showCancelSubscription}
+        showShareAction={false}
         showAdminActions={showAdminActions}
         isLocked={isLocked}
         isFinalized={isFinalized}
@@ -434,6 +447,7 @@ export function MatchChecklistPage() {
           setActionError(null);
           setSubscribeOpen(true);
         }}
+        onAddGuest={() => {}}
         onCancelSubscription={() => {
           if (!state.userId) {
             navigate('/auth');
@@ -446,6 +460,7 @@ export function MatchChecklistPage() {
           setActionError(null);
           setCancelOpen(true);
         }}
+        onShare={() => {}}
         onDelete={() => setDeleteOpen(true)}
         onFinalize={() => setConfirmOpen(true)}
       />
@@ -463,6 +478,7 @@ export function MatchChecklistPage() {
           if (!open) {
             setSubscribeOpen(false);
             setRentEquipment(false);
+            setPendingGuests([]);
             setActionError(null);
           } else {
             setSubscribeOpen(true);
@@ -473,6 +489,8 @@ export function MatchChecklistPage() {
         timeLabel={timeLabel}
         rentEquipment={rentEquipment}
         onRentEquipmentChange={setRentEquipment}
+        pendingGuests={pendingGuests}
+        onPendingGuestsChange={setPendingGuests}
         actionError={actionError}
         isPending={subscribeMatch.isPending}
         onConfirm={() => subscribeMatch.mutate()}

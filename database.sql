@@ -66,6 +66,21 @@ create table if not exists match_attendance (
   primary key (match_id, player_id)
 );
 
+create table if not exists match_guests (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references matches(id) on delete cascade,
+  invited_by_player_id uuid not null references players(id) on delete cascade,
+  full_name text not null,
+  age integer,
+  rent_equipment boolean not null default false,
+  guardian_confirmed boolean not null default false,
+  attended boolean not null default false,
+  marked_at timestamptz,
+  paid boolean not null default false,
+  paid_marked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 -- Feed: transmissions (praise/report). Submitter is a player (anonymous to other users).
 create table if not exists feed (
   id uuid primary key default gen_random_uuid(),
@@ -129,6 +144,8 @@ create index if not exists idx_match_subscriptions_match on match_subscriptions 
 create index if not exists idx_match_subscriptions_player on match_subscriptions (player_id);
 create index if not exists idx_match_attendance_match on match_attendance (match_id);
 create index if not exists idx_match_attendance_player on match_attendance (player_id);
+create index if not exists idx_match_guests_match on match_guests (match_id);
+create index if not exists idx_match_guests_inviter on match_guests (invited_by_player_id);
 
 -- Storage policies for user verification photos (bucket: user-photos)
 create policy "user-photos insert own"

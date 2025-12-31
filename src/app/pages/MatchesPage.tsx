@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Clock, Shield, Users } from 'lucide-react';
-import type { MatchSummary } from '@/app/gateways/MatchGateway';
+import { CalendarDays, Clock, Shield, Users, Share2, UserPlus } from 'lucide-react';
+import type { MatchSummary, MatchGuestInput } from '@/app/gateways/MatchGateway';
 import type { MatchGateway } from '@/app/gateways/MatchGateway';
 import { Inject, TkMatchGateway } from '@/infra/container';
 import { useSession } from '@/app/context/session-context';
@@ -10,6 +10,7 @@ import { TacticalButton } from '@/components/TacticalButton';
 import { Spinner } from '@/components/Spinner';
 import { QueryErrorCard } from '@/components/QueryErrorCard';
 import { PixPaymentDialog } from '@/components/PixPaymentDialog';
+import { MatchGuestForm, type MatchGuestDraft } from '@/components/MatchGuestForm';
 import {
   Dialog,
   DialogContent,
@@ -18,11 +19,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MatchPaymentCalculator } from '@/domain/payment';
+import { buildMatchShareText } from '@/domain/share';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -47,6 +55,11 @@ export function MatchesPage() {
   const [paymentMatch, setPaymentMatch] = useState<MatchSummary | null>(null);
   const [cancelMatch, setCancelMatch] = useState<MatchSummary | null>(null);
   const [rentEquipment, setRentEquipment] = useState(false);
+  const [pendingGuests, setPendingGuests] = useState<MatchGuestDraft[]>([]);
+  const [guestFlow, setGuestFlow] = useState<'subscribe' | 'add-guest' | null>(null);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
   const [matchName, setMatchName] = useState('');
   const [matchDate, setMatchDate] = useState<Date | null>(null);
   const [matchTime, setMatchTime] = useState('');
@@ -62,10 +75,23 @@ export function MatchesPage() {
   const mineTabRef = useRef<HTMLDivElement | null>(null);
   const mineTouchRef = useRef<{ x: number; y: number } | null>(null);
 
+  const includePlayer = guestFlow !== 'add-guest';
   const paymentPricing = useMemo(
-    () => paymentCalculator.calculate({ isVip: state.isVip, rentEquipment }),
-    [paymentCalculator, rentEquipment, state.isVip],
+    () =>
+      paymentCalculator.calculate({
+        isVip: state.isVip,
+        rentEquipment,
+        includePlayer,
+        guests: pendingGuests.map((guest) => ({
+          id: guest.id,
+          name: guest.fullName,
+          rentEquipment: guest.rentEquipment,
+        })),
+    }),
+    [paymentCalculator, rentEquipment, state.isVip, pendingGuests, includePlayer],
   );
+  const isGuestOnly = guestFlow === 'add-guest';
+  const isGuestAccordionOpen = showGuestForm;
 
   useEffect(() => {
     if (!state.userId && tab !== 'open') {
@@ -116,6 +142,25 @@ export function MatchesPage() {
     queryFn: () => matchGateway.listMatches({ playerId: state.playerId ?? undefined }),
     enabled: !loading,
   });
+
+  const { data: guestAttendance = [] } = useQuery({
+    queryKey: ['matches', 'attendance', subscribeMatch?.id, state.playerId],
+    queryFn: () => matchGateway.listAttendance(subscribeMatch?.id ?? ''),
+    enabled: Boolean(subscribeMatch?.id && guestFlow === 'add-guest'),
+  });
+
+  const existingGuests = useMemo(() => {
+    if (!state.playerId) return [];
+    return guestAttendance
+      .filter((entry) => entry.isGuest && entry.invitedByPlayerId === state.playerId)
+      .map((entry) => ({
+        id: entry.playerId,
+        fullName: entry.playerName,
+        age: entry.guestAge ?? null,
+        rentEquipment: entry.rentEquipment,
+        guardianConfirmed: Boolean(entry.guardianConfirmed),
+      }));
+  }, [guestAttendance, state.playerId]);
 
   const timeOptions = useMemo(() => {
     const options: string[] = [];
@@ -178,10 +223,26 @@ export function MatchesPage() {
         navigate('/onboarding');
         return;
       }
+      const guestsPayload: MatchGuestInput[] = pendingGuests.map((guest) => ({
+        fullName: guest.fullName,
+        age: guest.age,
+        rentEquipment: guest.rentEquipment,
+        guardianConfirmed: guest.guardianConfirmed,
+      }));
+      if (guestFlow === 'add-guest') {
+        if (!guestsPayload.length) return;
+        await matchGateway.addGuests({
+          matchId: paymentMatch.id,
+          playerId: state.playerId,
+          guests: guestsPayload,
+        });
+        return;
+      }
       await matchGateway.subscribe({
         matchId: paymentMatch.id,
         playerId: state.playerId,
         rentEquipment,
+        guests: guestsPayload.length ? guestsPayload : undefined,
       });
     },
     onMutate: () => {
@@ -189,10 +250,15 @@ export function MatchesPage() {
       setActionInfo(null);
     },
     onSuccess: async () => {
+      const successMessage = guestFlow === 'add-guest' ? 'Convidados adicionados.' : 'Inscrição confirmada.';
       setPaymentMatch(null);
       setRentEquipment(false);
+      setPendingGuests([]);
+      setGuestFlow(null);
+      setShareFeedback(null);
+      setRemovingGuestId(null);
       setActionError(null);
-      setActionInfo('Inscrição confirmada.');
+      setActionInfo(successMessage);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
     },
     onError: (err) => setActionError((err as Error).message),
@@ -208,6 +274,23 @@ export function MatchesPage() {
       setActionError(null);
       setActionInfo(null);
       await queryClient.invalidateQueries({ queryKey: ['matches'] });
+    },
+    onError: (err) => setActionError((err as Error).message),
+  });
+
+  const removeGuest = useMutation({
+    mutationFn: async (guestId: string) => {
+      if (!subscribeMatch) throw new Error('Selecione uma partida.');
+      if (!state.playerId) throw new Error('Complete seu perfil para remover convidados.');
+      await matchGateway.removeGuest({
+        matchId: subscribeMatch.id,
+        playerId: state.playerId,
+        guestId,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['matches'] });
+      await queryClient.invalidateQueries({ queryKey: ['matches', 'attendance', subscribeMatch?.id] });
     },
     onError: (err) => setActionError((err as Error).message),
   });
@@ -236,6 +319,31 @@ export function MatchesPage() {
       })
       .sort((a, b) => new Date(b.match.startAt).getTime() - new Date(a.match.startAt).getTime());
   }, [matches]);
+
+  const handleShare = async () => {
+    if (!subscribeMatch) return;
+    const { dateLabel, timeLabel } = formatDateTime(subscribeMatch.startAt);
+    const matchLink = `${window.location.origin}/partidas/${subscribeMatch.id}`;
+    const shareText = buildMatchShareText({
+      matchName: subscribeMatch.name,
+      dateLabel,
+      timeLabel,
+      matchLink,
+    });
+    try {
+      if (navigator.share) {
+        await navigator.share({ text: shareText, title: subscribeMatch.name });
+        setShareFeedback('Partida compartilhada.');
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        setShareFeedback('Texto copiado.');
+      }
+    } catch {
+      setShareFeedback('Não foi possível compartilhar.');
+    } finally {
+      window.setTimeout(() => setShareFeedback(null), 2000);
+    }
+  };
 
   const openMatches = useMemo(
     () => matchCards.filter(({ isClosed, isFinalized }) => !isClosed && !isFinalized),
@@ -547,6 +655,11 @@ export function MatchesPage() {
                             return;
                           }
                           setRentEquipment(Boolean(match.rentEquipment));
+                          setPendingGuests([]);
+                          setGuestFlow('subscribe');
+                          setShareFeedback(null);
+                          setShowGuestForm(false);
+                          setRemovingGuestId(null);
                           setActionError(null);
                           setActionInfo(null);
                           setSubscribeMatch(match);
@@ -557,27 +670,55 @@ export function MatchesPage() {
                     ) : null}
 
                     {canSubscribe && match.isSubscribed ? (
-                      <TacticalButton
-                        variant="cyan"
-                        fullWidth
-                        disabled={cancelSubscription.isPending}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (!state.userId) {
-                            navigate('/auth');
-                            return;
-                          }
-                          if (!state.playerId) {
-                            navigate('/onboarding');
-                            return;
-                          }
-                          setActionError(null);
-                          setActionInfo(null);
-                          setCancelMatch(match);
-                        }}
-                      >
-                        [ CANCELAR INSCRICAO ]
-                      </TacticalButton>
+                      <>
+                        <TacticalButton
+                          variant="amber"
+                          fullWidth
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!state.userId) {
+                              navigate('/auth');
+                              return;
+                            }
+                            if (!state.playerId) {
+                              navigate('/onboarding');
+                              return;
+                            }
+                            setRentEquipment(false);
+                            setPendingGuests([]);
+                            setGuestFlow('add-guest');
+                            setShareFeedback(null);
+                            setShowGuestForm(true);
+                            setRemovingGuestId(null);
+                            setActionError(null);
+                            setActionInfo(null);
+                            setSubscribeMatch(match);
+                          }}
+                        >
+                          [ <UserPlus className="w-4 h-4" /> CONVIDADO ]
+                        </TacticalButton>
+                        <TacticalButton
+                          variant="cyan"
+                          fullWidth
+                          disabled={cancelSubscription.isPending}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!state.userId) {
+                              navigate('/auth');
+                              return;
+                            }
+                            if (!state.playerId) {
+                              navigate('/onboarding');
+                              return;
+                            }
+                            setActionError(null);
+                            setActionInfo(null);
+                            setCancelMatch(match);
+                          }}
+                        >
+                          [ CANCELAR INSCRICAO ]
+                        </TacticalButton>
+                      </>
                     ) : null}
 
                     {!canSubscribe && match.isSubscribed ? (
@@ -759,17 +900,25 @@ export function MatchesPage() {
 
       <Dialog open={Boolean(subscribeMatch)} onOpenChange={(open) => {
         if (!open) {
+          if (paymentMatch) return;
           setSubscribeMatch(null);
           setRentEquipment(false);
+          setPendingGuests([]);
+          setGuestFlow(null);
+          setShareFeedback(null);
+          setShowGuestForm(false);
+          setRemovingGuestId(null);
           setActionError(null);
           setActionInfo(null);
         }
       }}>
-        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52]">
+        <DialogContent className="bg-[#0B0E14] border border-[#2D3A52] max-h-[calc(100vh-2rem)] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">[ Confirmar Participação ]</DialogTitle>
+            <DialogTitle className="text-[#E6F1FF] font-mono-technical uppercase">
+              {isGuestOnly ? '[ Adicionar Convidados ]' : '[ Confirmar Participação ]'}
+            </DialogTitle>
             <DialogDescription className="text-[#7F94B0]">
-              Escolha o aluguel e avance para o pagamento.
+              {isGuestOnly ? 'Inclua convidados e avance para o pagamento.' : 'Escolha o aluguel e avance para o pagamento.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -782,40 +931,83 @@ export function MatchesPage() {
                   {formatDateTime(subscribeMatch.startAt).timeLabel}
                 </div>
               </div>
-              <div
-                role="button"
-                tabIndex={0}
-                aria-pressed={rentEquipment}
-                onClick={() => setRentEquipment((prev) => !prev)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setRentEquipment((prev) => !prev);
-                  }
-                }}
-                className={`w-full cursor-pointer clip-tactical-card border-x-4 p-3 text-left transition-all ${rentEquipment
-                    ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
-                    : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
+              {!isGuestOnly ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={rentEquipment}
+                  onClick={() => setRentEquipment((prev) => !prev)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setRentEquipment((prev) => !prev);
+                    }
+                  }}
+                  className={`w-full cursor-pointer clip-tactical-card border-x-4 p-3 text-left transition-all ${
+                    rentEquipment
+                      ? 'border-[#00F0FF] bg-[#00F0FF]/10 shadow-[0_0_18px_rgba(0,240,255,0.35)]'
+                      : 'border-[#2D3A52] bg-[#141A26] hover:border-[#00F0FF]/40'
                   }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-md border flex items-center justify-center ${rentEquipment
-                        ? 'border-[#00F0FF] bg-[#00F0FF]/20 text-[#00F0FF]'
-                        : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0]'
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-md border flex items-center justify-center ${
+                        rentEquipment
+                          ? 'border-[#00F0FF] bg-[#00F0FF]/20 text-[#00F0FF]'
+                          : 'border-[#2D3A52] bg-[#0B0E14] text-[#7F94B0]'
                       }`}
-                  >
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-[#E6F1FF] font-mono-technical uppercase">Aluguel de equipamento</div>
-                    <div className="text-[10px] text-[#7F94B0] font-mono-technical">
-                      Precisa do kit do campo para jogar?
+                    >
+                      <Shield className="w-4 h-4" />
                     </div>
+                    <div className="flex-1">
+                      <div className="text-xs text-[#E6F1FF] font-mono-technical uppercase">Aluguel de equipamento</div>
+                      <div className="text-[10px] text-[#7F94B0] font-mono-technical">
+                        Precisa do kit do campo para jogar?
+                      </div>
+                    </div>
+                    <Checkbox checked={rentEquipment} className="pointer-events-none" />
                   </div>
-                  <Checkbox checked={rentEquipment} className="pointer-events-none" />
                 </div>
-              </div>
+              ) : null}
+              <Accordion
+                type="single"
+                collapsible
+                value={isGuestAccordionOpen ? 'guests' : undefined}
+                onValueChange={(value) => setShowGuestForm(value === 'guests')}
+                className="space-y-3"
+              >
+                <AccordionItem value="guests" className="border-none">
+                  <AccordionTrigger className="clip-tactical-card border-x-4 border-[#2D3A52] bg-[#141A26] px-3 py-3 text-left hover:no-underline">
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <span className="text-[10px] text-[#7F94B0] font-mono-technical uppercase">
+                        Convidados
+                      </span>
+                      <span className="clip-tactical inline-flex items-center gap-2 border border-[#00F0FF] bg-[#00F0FF15] px-3 py-1 text-[12px] font-mono-technical uppercase text-[#00F0FF]">
+                        [ <UserPlus className="w-4 h-4" /> CONVIDADO ]
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-3">
+                    <MatchGuestForm
+                      pendingGuests={pendingGuests}
+                      onPendingGuestsChange={setPendingGuests}
+                      existingGuests={isGuestOnly ? existingGuests : []}
+                      onRemoveExistingGuest={
+                        isGuestOnly
+                          ? (guestId) => {
+                              setRemovingGuestId(guestId);
+                              removeGuest.mutate(guestId, {
+                                onSettled: () => setRemovingGuestId(null),
+                              });
+                            }
+                          : undefined
+                      }
+                      removingGuestId={removingGuestId}
+                      disabled={subscribeMutation.isPending}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
               {paymentPricing.benefits.length > 0 ? (
                 <div className="bg-[#0F1E2B] border border-[#00F0FF] text-[#00F0FF] text-[10px] font-mono-technical uppercase rounded-lg p-3 space-y-1">
                   {paymentPricing.benefits.map((benefit) => (
@@ -842,6 +1034,7 @@ export function MatchesPage() {
                 setPaymentMatch(subscribeMatch);
                 setSubscribeMatch(null);
               }}
+              disabled={subscribeMutation.isPending || (isGuestOnly && pendingGuests.length === 0)}
             >
               [ CONTINUAR PARA PAGAMENTO ]
             </TacticalButton>
@@ -855,6 +1048,11 @@ export function MatchesPage() {
           if (!open) {
             setPaymentMatch(null);
             setRentEquipment(false);
+            setPendingGuests([]);
+            setGuestFlow(null);
+            setShareFeedback(null);
+            setShowGuestForm(false);
+            setRemovingGuestId(null);
             setActionError(null);
             setActionInfo(null);
           }

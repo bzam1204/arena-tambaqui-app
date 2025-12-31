@@ -1,166 +1,137 @@
 task
 <task>
 
-Centro de Notificações (MVP In-App)
-
+convidados de jogador
 </task>
 
 <techspec>
 
-# Definição de Ideia — Centro de Notificações (MVP In-App)
 
-## 1) Título
+# Inscrição de Convidados em Partidas
 
-Centro de Notificações (sininho + contador + popup com abas) para elogios/denúncias
+## 1. Problema / Oportunidade
+Atualmente, um jogador da plataforma não pode inscrever amigos ou familiares que não possuem conta no aplicativo para participar de uma partida. O processo para levar um convidado é manual e informal (via WhatsApp com o dono do campo), o que gera desorganização no controle de presença, no pagamento e no aluguel de equipamentos.
 
-## 2) Contexto e problema
+Esta funcionalidade cria a oportunidade de formalizar e simplificar a inclusão de jogadores casuais, centralizando a gestão e o pagamento, e aumentando a previsibilidade para os donos de campo.
 
-No Arena Tambaqui, a reputação do jogador é impactada por transmissões anônimas (elogios/denúncias) vinculadas a partidas reais. Atualmente, o jogador pode não perceber rapidamente esses eventos, pois precisa navegar ativamente pelo app (feed/ranking/perfil). Isso reduz engajamento e enfraquece o feedback imediato sobre comportamento e compromisso.
+## 2. Objetivo (resultado mensurável)
+Facilitar a inclusão de jogadores casuais nas partidas, permitindo que um jogador existente se torne responsável pela inscrição e pagamento de um ou mais convidados.
 
-## 3) Objetivo
+O sucesso será medido por:
+- **Adoção:** Número de convidados inscritos através da nova funcionalidade nas primeiras 4 semanas.
+- **Eficiência Operacional:** Feedback positivo de pelo menos 2 donos de campo sobre a redução do trabalho manual para gerenciar participantes externos.
+- **Aumento de Participação:** Aumento de 5% no número médio de participantes por partida em 90 dias.
 
-Disponibilizar um canal in-app de comunicação de eventos de reputação (elogio/denúncia) que:
+## 3. Usuários e Permissões
+- **Jogador de Airsoft / Jogador VIP:**
+  - Pode adicionar um ou mais convidados ao se inscrever ou após a inscrição.
+  - Pode remover convidados que adicionou.
+  - É responsável pelo pagamento dos seus convidados.
+  - É o "fiador" da reputação de seus convidados.
+  - Pode usar o botão para compartilhar os detalhes da partida.
 
-* Informe o jogador de forma rápida e consistente
-* Permita gerenciar “não lidas” com fluidez (optimistic update)
-* Melhore percepção e uso das transmissões pós-partida
+- **Dono de Campo / Arena (Admin):**
+  - Pode visualizar os convidados na lista de participantes da partida, identificados com o nome de quem os convidou.
+  - Pode clicar em um convidado para ver seus detalhes (nome, idade, aluguel) em um modal.
+  - Realiza o check-in do convidado através da lista de chamada existente.
 
-### Métricas sugeridas (MVP)
+## 4. Jornada / Fluxo do Usuário (MVP)
+Descreve o fluxo para um jogador que deseja adicionar um convidado.
 
-* % de usuários que abrem o sininho ao menos 1x por sessão/semana
-* % de notificações marcadas como lidas
-* tempo médio entre criação da transmissão e leitura
+**Fluxo Principal:**
+1. O jogador acessa a tela de uma partida e inicia o processo de inscrição (ou clica em "Adicionar Convidado" se já estiver inscrito).
+2. O sistema apresenta a opção "Adicionar Convidado".
+3. Ao clicar, um formulário simples solicita: **Nome Completo**, **Idade** e um seletor **"Vai alugar equipamento?"**.
+4. Se a idade informada for menor que 18, um checkbox obrigatório é exibido: **"Confirmo ser o responsável legal e estarei presente"**.
+5. O jogador confirma os dados e o convidado é adicionado a um resumo do pedido. O jogador pode repetir o processo para adicionar mais convidados.
+6. Na tela de checkout, os custos de cada convidado são discriminados e somados ao valor total do jogador.
+7. O jogador realiza um único pagamento via Pix para si e todos os seus convidados.
 
-## 4) Escopo do MVP
+**Fluxos Alternativos/Exceções:**
+- **Remover Convidado:** O jogador pode, a qualquer momento antes da partida, remover um convidado de sua inscrição. O sistema o informa que qualquer reembolso deve ser tratado diretamente com o admin do campo.
+- **Adicionar Convidado Posteriormente:** Se o jogador já está inscrito, ele pode voltar à tela da partida e usar o botão "Adicionar Convidado" para iniciar um novo fluxo de adição e pagamento apenas para o novo convidado.
+- **Cancelar Inscrição Própria:** O sistema impede que um jogador cancele sua própria inscrição se ele tiver convidados ativos. Uma mensagem o instruirá a remover os convidados primeiro.
+- **Compartilhar Detalhes:** O jogador pode clicar no botão "Compartilhar Detalhes da Partida" para gerar um texto formatado para compartilhar via WhatsApp com seu convidado.
 
-### Inclui
+## 5. Regras de Negócio
+As regras que governam o comportamento da funcionalidade.
 
-* Notificações **in-app** (sem Web Push)
-* Eventos: **apenas elogio e denúncia**
-* UI: sininho no header + badge + popup scrollável com abas “Não lidas” (default) e “Lidas”
-* Clique no item = marca como lida (sem botão)
-* “Limpar tudo” (marca todas como lidas; nada é apagado do banco)
+- **RN01: A Regra do "Fiador":** O jogador que convida é totalmente responsável pelo comportamento do convidado. Qualquer elogio ou denúncia feita a um convidado durante a avaliação pós-partida será aplicado diretamente ao perfil e à reputação do jogador que o inscreveu.
+- **RN02: Lógica de Pagamento:** A regra de negócio existente é aplicada aos convidados: o aluguel de equipamento (R$ 50) isenta a taxa de inscrição (R$ 20). Um convidado paga R$ 20 (inscrição) ou R$ 50 (inscrição + aluguel).
+- **RN03: Benefícios VIP:** Benefícios de Jogador VIP (isenção de taxa, descontos) não se estendem aos seus convidados. Convidados sempre pagam o valor cheio.
+- **RN04: Regra de Cancelamento:** Um jogador não pode cancelar sua própria inscrição em uma partida enquanto tiver convidados ativos vinculados a ele. Ele deve remover todos os convidados primeiro.
+- **RN05: Dados Efêmeros:** Os dados do convidado (nome, idade) são temporários, usados apenas para a partida em questão, e não criam uma conta ou perfil permanente na plataforma.
+- **RN06: Responsabilidade de Menores:** Se um convidado for menor de 18 anos, o jogador que o inscreve deve obrigatoriamente marcar um checkbox confirmando ser o responsável legal e que estará presente.
+- **RN07: Visibilidade:** Todos os jogadores inscritos na partida podem ver o nome dos convidados na lista de participantes, mas apenas o Admin pode visualizar os detalhes (idade, aluguel) no modal.
+- **RN08: Sem Limites:** Não há um limite técnico imposto pela plataforma para o número de convidados que um jogador pode levar.
 
-### Não inclui (fora de escopo)
+## 6. Requisitos Funcionais (checklist)
+Lista de funcionalidades que devem ser implementadas.
 
-* Notificações de navegador (Web Push) / push mobile
-* Preferências de notificação (silenciar/categorias/horários)
-* Notificações para outros eventos (partida, pagamento, chamada, VIP etc.)
-* Regras avançadas de retenção/paginação/histórico detalhado
+- [ ] **RF01:** Permitir que um jogador adicione um ou mais convidados durante sua inscrição.
+- [ ] **RF02:** Permitir que um jogador já inscrito adicione novos convidados a qualquer momento.
+- [ ] **RF03:** Implementar o formulário de dados do convidado (Nome Completo, Idade, Aluguel de equipamento).
+- [ ] **RF04:** Implementar a lógica de exibição do checkbox obrigatório para convidados menores de idade.
+- [ ] **RF05:** Atualizar o sistema de checkout para calcular e discriminar os custos dos convidados, aplicando a regra de isenção de inscrição por aluguel.
+- [ ] **RF06:** Permitir que o jogador remova um convidado de sua inscrição.
+- [ ] **RF07:** Implementar a regra de bloqueio que impede um jogador de cancelar sua própria inscrição se tiver convidados ativos.
+- [ ] **RF08:** Exibir os convidados na lista de participantes (visão do jogador e do admin) com a identificação "(Convidado de [Nome do Jogador])".
+- [ ] **RF09:** Criar um modal (visível apenas para o Admin) que exibe os detalhes de um convidado ao ser clicado.
+- [ ] **RF10:** Incluir os convidados na lista de avaliação pós-partida, garantindo que denúncias/elogios a eles sejam atribuídos ao jogador responsável.
+- [ ] **RF11:** Implementar um botão "Compartilhar Detalhes da Partida" que gere um texto formatado com informações do evento.
 
-## 5) Regras de negócio
+## 7. Requisitos Não Funcionais (MVP)
+Requisitos de qualidade e restrições técnicas.
 
-1. **Transmissões só após partida fechada:** usuário só pode criar elogio/denúncia quando a partida estiver finalizada/fechada.
-2. **Gatilho de notificação:** ao criar uma transmissão (elogio/denúncia), cria-se uma notificação para o **jogador alvo**.
-3. **Mensagem:**
+- **RNF01: Privacidade (LGPD):** Os dados dos convidados devem ser tratados como informações sensíveis, armazenados de forma segura e utilizados exclusivamente para os fins da partida, sendo descartados ou anonimizados após o evento.
+- **RNF02: Usabilidade:** O fluxo de adicionar e gerenciar convidados deve ser intuitivo e integrado de forma fluida à jornada de inscrição existente, seguindo o padrão mobile-first.
+- **RNF03: Performance:** A adição de convidados e o recálculo do checkout devem ocorrer de forma rápida, sem impactar a performance da aplicação.
 
-   * “Você recebeu um elogio na Partida {NOME_DA_PARTIDA}”
-   * “Você recebeu uma denúncia na Partida {NOME_DA_PARTIDA}”
-4. **Anonimato preservado:** não expor autor e não expor foto real.
-5. **Ordenação:** mais recente primeiro em ambas as abas.
-6. **Leitura:** clicar no item marca como lida.
-7. **Limpar tudo:** marca todas como lidas (persistente); **não deleta** nada.
+## 8. Fora de Escopo (por agora)
+O que NÃO será feito nesta versão para manter o foco.
 
-## 6) UX / UI (comportamento)
+- Reembolsos automáticos via plataforma em caso de remoção de convidado.
+- Integração com sistema de inventário para controle de equipamentos de aluguel.
+- Criação de qualquer tipo de perfil, conta ou histórico para o convidado.
+- Possibilidade de um convidado se converter em um usuário da plataforma a partir do convite.
 
-* Header exibe sininho com badge numérico de **não lidas**.
-* Ao clicar no sininho, abre popup/drawer:
+## 9. Perguntas em Aberto
+Nenhuma
 
-  * Abas: **Não lidas (padrão)** e **Lidas**
-  * Lista scrollável
-  * Estado vazio por aba (popup permanece aberto)
-* **Optimistic update** ao clicar numa notificação não lida:
+## 10. Critérios de Aceite (Given/When/Then)
+Cenários para validação da funcionalidade.
 
-  * remove imediatamente da aba “Não lidas”
-  * decrementa badge imediatamente
-  * persiste “lida” no banco
-  * em caso de falha, re-sync e feedback (ex.: toast) para consistência
+**Cenário 1:** Jogador VIP adiciona dois convidados, um com aluguel e outro sem
+- **Dado que** eu sou um Jogador VIP logado e inscrito em uma partida.
+- **Quando** eu clico em "Adicionar Convidado", preencho os dados para "Convidado A" sem aluguel, e em seguida adiciono "Convidado B" com aluguel.
+- **Então** a tela de checkout deve exibir um total de R$ 70,00, discriminado como: "Inscrição (VIP): R$ 0,00", "Convidado A: R$ 20,00" e "Convidado B (com aluguel): R$ 50,00".
 
-## 7) Requisitos funcionais
+**Cenário 2:** Jogador tenta cancelar sua própria inscrição tendo um convidado ativo
+- **Dado que** eu sou um jogador inscrito em uma partida e adicionei pelo menos um convidado.
+- **Quando** eu tento cancelar minha própria inscrição na partida.
+- **Então** o sistema deve exibir uma mensagem de erro informando que eu preciso remover meus convidados primeiro antes de poder cancelar minha participação.
 
-* [ ] Sininho no header global
-* [ ] Badge = contagem de notificações não lidas
-* [ ] Listagem de notificações do usuário com filtro por lidas/não lidas
-* [ ] Popup/drawer com abas (“Não lidas” default / “Lidas”)
-* [ ] Clique em item não lido marca como lido (persistente) + optimistic update
-* [ ] Clique em item já lido não altera estado
-* [ ] “Limpar tudo” marca todas as não lidas como lidas
-* [ ] Backend cria notificação ao registrar transmissão (elogio/denúncia) para o jogador alvo
-* [ ] Segurança: usuário só acessa/atualiza notificações próprias
+**Cenário 3:** Um jogador denuncia o convidado de outro jogador após a partida
+- **Dado que** o "Jogador A" e o "Convidado de Jogador B" participaram da mesma partida.
+- **Quando** o "Jogador A", na tela de avaliação pós-partida, seleciona "Convidado de Jogador B" e registra uma denúncia.
+- **Então** a penalidade de reputação (+5 denúncias) deve ser aplicada ao perfil do "Jogador B".
 
-## 8) Requisitos não funcionais (MVP)
+**Cenário 4:** Admin visualiza os detalhes de um convidado menor de idade
+- **Dado que** um jogador inscreveu um convidado de 17 anos que irá alugar equipamento.
+- **Quando** o Admin acessa a lista de chamada da partida e clica no nome do convidado.
+- **Então** um modal deve ser exibido com as informações: "Nome: [Nome do Convidado]", "Idade: 17", "Aluguel: Sim", "Responsável: [Nome do Jogador que convidou]".
 
-* Consistência do badge garantida por re-fetch ao abrir popup (re-sync) e/ou estratégia equivalente
-* Performance aceitável para listas usuais (paginação avançada fora do MVP)
-* Logs mínimos para criação e leitura (readAt) para suporte/métricas
+## 11. Riscos e Dependências
+Fatores que podem impactar a entrega ou o sucesso da funcionalidade.
 
-## 9) Critérios de aceite (Given/When/Then)
+**Riscos:**
+- **Atrito por Reembolso Manual:** O processo manual de reembolso pode gerar insatisfação e sobrecarga operacional para o admin do campo.
+- **Abuso da Regra do "Fiador":** Jogadores podem não se importar em receber penalidades de reputação por convidados com mau comportamento, enfraquecendo o sistema.
 
-1. **Badge inicial**
-
-* Given que o usuário tem N notificações não lidas
-* When o header renderiza
-* Then o badge mostra N
-
-2. **Abertura do popup**
-
-* Given que o usuário está logado
-* When clica no sininho
-* Then abre o popup/drawer com abas e lista scrollável
-
-3. **Aba padrão**
-
-* Given que o popup abriu
-* When renderiza pela primeira vez
-* Then a aba “Não lidas” está selecionada
-
-4. **Ordenação**
-
-* Given notificações em uma aba
-* When a lista é exibida
-* Then a ordem é do mais recente para o mais antigo
-
-5. **Clique marca como lida (optimistic)**
-
-* Given uma notificação não lida e badge = N
-* When o usuário clica no item
-* Then o item sai imediatamente da aba “Não lidas”, o badge vira N-1, e o banco registra como lida
-
-6. **Persistência após reload**
-
-* Given que o usuário marcou uma notificação como lida
-* When recarrega a página
-* Then ela não retorna como não lida e aparece na aba “Lidas”
-
-7. **Limpar tudo**
-
-* Given N>0 notificações não lidas
-* When clica em “Limpar tudo”
-* Then o badge vai a 0, “Não lidas” mostra estado vazio, e as notificações ficam em “Lidas”
-
-8. **Clique em notificação já lida**
-
-* Given uma notificação na aba “Lidas”
-* When o usuário clica no item
-* Then nenhuma alteração de estado ocorre e o badge não muda
-
-9. **Estado vazio não fecha**
-
-* Given que uma aba não tem itens
-* When o usuário abre/alternar para essa aba
-* Then o popup permanece aberto e mostra mensagem de vazio
-
-10. **Bloqueio de transmissão antes do fechamento**
-
-* Given uma partida não fechada
-* When o usuário tenta criar elogio/denúncia
-* Then o sistema bloqueia e nenhuma notificação é criada
-
-## 10) Dependências e riscos
-
-* Garantir enforcement da regra “transmissões só após fechamento” no backend (não apenas na UI).
-* Falhas na persistência após optimistic update exigem re-sync para evitar inconsistência visual.
-
+**Dependências:**
+- **Módulo de Partidas:** A funcionalidade depende da estrutura existente de criação e gestão de partidas.
+- **Módulo de Pagamentos (Pix):** O fluxo depende da integração com o checkout de Pix atual.
+- **Módulo de Reputação:** A regra do "fiador" depende do sistema de denúncias e elogios pós-partida.
 
 </techspec>
 

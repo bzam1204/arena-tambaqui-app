@@ -30,6 +30,20 @@ export interface MatchAttendanceEntry {
   marked: boolean;
   paid: boolean;
   paymentMarked: boolean;
+  isGuest?: boolean;
+  guestAge?: number | null;
+  guardianConfirmed?: boolean;
+  invitedByPlayerId?: string | null;
+  invitedByName?: string | null;
+  invitedByNickname?: string | null;
+  responsiblePlayerId?: string | null;
+}
+
+export interface MatchGuestInput {
+  fullName: string;
+  age?: number | null;
+  rentEquipment: boolean;
+  guardianConfirmed?: boolean;
 }
 
 export interface CreateMatchInput {
@@ -42,7 +56,14 @@ export interface MatchGateway {
   listMatches(params: { playerId?: string }): Promise<MatchSummary[]>;
   createMatch(input: CreateMatchInput): Promise<void>;
   updateMatch(input: { matchId: string; name: string; startAt: string }): Promise<void>;
-  subscribe(input: { matchId: string; playerId: string; rentEquipment: boolean }): Promise<void>;
+  subscribe(input: {
+    matchId: string;
+    playerId: string;
+    rentEquipment: boolean;
+    guests?: MatchGuestInput[];
+  }): Promise<void>;
+  addGuests(input: { matchId: string; playerId: string; guests: MatchGuestInput[] }): Promise<void>;
+  removeGuest(input: { matchId: string; playerId: string; guestId: string }): Promise<void>;
   unsubscribe(input: { matchId: string; playerId: string }): Promise<void>;
   removePlayer(input: { matchId: string; playerId: string }): Promise<void>;
   deleteMatch(input: { matchId: string }): Promise<void>;

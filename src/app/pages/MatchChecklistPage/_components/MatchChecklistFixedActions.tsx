@@ -1,4 +1,4 @@
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, Share, UserPlus } from 'lucide-react';
 import { TacticalButton } from '@/components/TacticalButton';
 
 type MatchChecklistFixedActionsProps = {
@@ -6,16 +6,21 @@ type MatchChecklistFixedActionsProps = {
   onToggleOpen: () => void;
   showEditAction: boolean;
   showSubscribeAction: boolean;
+  showAddGuestAction: boolean;
   showCancelSubscription: boolean;
+  showShareAction: boolean;
   showAdminActions: boolean;
   isLocked: boolean;
   isFinalized: boolean;
+  shareFeedback?: string | null;
   deletePending: boolean;
   finalizePending: boolean;
   cancelPending: boolean;
   onEdit: () => void;
   onSubscribe: () => void;
+  onAddGuest: () => void;
   onCancelSubscription: () => void;
+  onShare: () => void;
   onDelete: () => void;
   onFinalize: () => void;
 };
@@ -25,20 +30,31 @@ export function MatchChecklistFixedActions({
   onToggleOpen,
   showEditAction,
   showSubscribeAction,
+  showAddGuestAction,
   showCancelSubscription,
+  showShareAction,
   showAdminActions,
   isLocked,
   isFinalized,
+  shareFeedback,
   deletePending,
   finalizePending,
   cancelPending,
   onEdit,
   onSubscribe,
+  onAddGuest,
   onCancelSubscription,
+  onShare,
   onDelete,
   onFinalize,
 }: MatchChecklistFixedActionsProps) {
-  const hasActions = showEditAction || showSubscribeAction || showCancelSubscription || showAdminActions;
+  const hasActions =
+    showEditAction ||
+    showSubscribeAction ||
+    showAddGuestAction ||
+    showCancelSubscription ||
+    showShareAction ||
+    showAdminActions;
   if (!hasActions) return null;
 
   return (
@@ -50,11 +66,10 @@ export function MatchChecklistFixedActions({
         <button
           type="button"
           onClick={onToggleOpen}
-          className={`h-10 clip-tactical-card border-x-3 border-[#2D3A52] bg-[#0B0E14]/70 backdrop-blur-md px-4 text-[10px] font-mono-technical uppercase text-[#7F94B0] hover:text-[#00F0FF] hover:border-[#00F0FF]/50 transition-all ${
-            isOpen
-              ? 'bg-[#D4A536]/20 border border-[#D4A536] text-[#D4A536] shadow-[0_0_10px_rgba(212,165,54,0.3)] hover:bg-[#D4A536]/30 hover:shadow-[0_0_20px_rgba(212,165,54,0.6)]'
-              : ''
-          }`}
+          className={`h-10 clip-tactical-card border-x-3 border-[#2D3A52] bg-[#0B0E14]/70 backdrop-blur-md px-4 text-[10px] font-mono-technical uppercase text-[#7F94B0] hover:text-[#00F0FF] hover:border-[#00F0FF]/50 transition-all ${isOpen
+            ? 'bg-[#D4A536]/20 border border-[#D4A536] text-[#D4A536] shadow-[0_0_10px_rgba(212,165,54,0.3)] hover:bg-[#D4A536]/30 hover:shadow-[0_0_20px_rgba(212,165,54,0.6)]'
+            : ''
+            }`}
           aria-expanded={isOpen}
         >
           <span className="inline-flex items-center gap-2">
@@ -64,44 +79,62 @@ export function MatchChecklistFixedActions({
         </button>
       </div>
       <div className="mt-2 bg-[#0B0E14]/80 backdrop-blur-md border-t border-[#2D3A52] pt-4 pb-6 space-y-3">
-          {(showEditAction || showSubscribeAction || showCancelSubscription) ? (
-            <div className="space-y-2">
-              {showSubscribeAction ? (
-                <TacticalButton variant="amber" fullWidth onClick={onSubscribe}>
-                  [ PARTICIPAR ]
+        {(showEditAction || showSubscribeAction || showAddGuestAction || showCancelSubscription || showShareAction) ? (
+          <div className="space-y-2">
+            {showShareAction ? (
+              <>
+                <TacticalButton variant="cyan" fullWidth onClick={onShare}>
+                  [ <Share className='w-4 h-4' /> COMPARTILHAR PARTIDA ]
                 </TacticalButton>
-              ) : null}
-              {showEditAction ? (
-                <TacticalButton variant="cyan" fullWidth onClick={onEdit}>
-                  [ EDITAR PARTIDA ]
-                </TacticalButton>
-              ) : null}
-              {showCancelSubscription ? (
-                <TacticalButton variant="cyan" fullWidth disabled={cancelPending} onClick={onCancelSubscription}>
-                  [ CANCELAR INSCRICAO ]
-                </TacticalButton>
-              ) : null}
-            </div>
-          ) : null}
+                {shareFeedback ? (
+                  <div className="text-[10px] text-[#00F0FF] font-mono-technical uppercase text-center">
+                    {shareFeedback}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            {showSubscribeAction ? (
+              <TacticalButton variant="amber" fullWidth onClick={onSubscribe}>
+                [ PARTICIPAR ]
+              </TacticalButton>
+            ) : null}
+            {showAddGuestAction ? (
+              <TacticalButton variant="amber" fullWidth onClick={onAddGuest}>
+                [ <UserPlus className="w-4 h-4" /> GERENCIAR CONVIDADO(S) ]
+              </TacticalButton>
+            ) : null}
+            {showEditAction ? (
+              <TacticalButton variant="cyan" fullWidth onClick={onEdit}>
+                [ EDITAR PARTIDA ]
+              </TacticalButton>
+            ) : null}
+            {showCancelSubscription ? (
+              <TacticalButton variant="cyan" fullWidth disabled={cancelPending} onClick={onCancelSubscription}>
+                [ CANCELAR INSCRICAO ]
+              </TacticalButton>
+            ) : null}
 
-          {showAdminActions ? (
-            <div className="space-y-2">
-              <TacticalButton variant="cyan" fullWidth disabled={deletePending} onClick={onDelete}>
-                {deletePending ? '[ CANCELANDO... ]' : '[ CANCELAR PARTIDA ]'}
-              </TacticalButton>
-              <TacticalButton
-                variant="amber"
-                fullWidth
-                disabled={!isLocked || isFinalized || finalizePending}
-                onClick={onFinalize}
-              >
-                {finalizePending ? '[ PROCESSANDO... ]' : '[ FINALIZAR PARTIDA E PROCESSAR ]'}
-              </TacticalButton>
-              <p className="text-[10px] text-[#D4A536] font-mono-technical text-center">
+          </div>
+        ) : null}
+
+        {showAdminActions ? (
+          <div className="space-y-2">
+            <TacticalButton variant="cyan" fullWidth disabled={deletePending} onClick={onDelete}>
+              {deletePending ? '[ CANCELANDO... ]' : '[ CANCELAR PARTIDA ]'}
+            </TacticalButton>
+            <TacticalButton
+              variant="amber"
+              fullWidth
+              disabled={!isLocked || isFinalized || finalizePending}
+              onClick={onFinalize}
+            >
+              {finalizePending ? '[ PROCESSANDO... ]' : '[ FINALIZAR PARTIDA E PROCESSAR ]'}
+            </TacticalButton>
+            <p className="text-[10px] text-[#D4A536] font-mono-technical text-center">
                 // ATENCAO: Ação irreversivel. Penalidades por ausência serão aplicadas automaticamente após confirmação.
-              </p>
-            </div>
-          ) : null}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

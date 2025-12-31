@@ -11,6 +11,7 @@ import { Inject, TkMatchGateway, TkTransmissionGateway } from '@/infra/container
 
 export interface TransmissionPlayer {
   id: string;
+  targetId?: string;
   name: string;
   nickname: string;
   avatar?: string;
@@ -157,21 +158,28 @@ export function TransmissionModal({
   const matchRoster = useMemo(() => {
     if (!requireMatch) return players;
     return (matchAttendance ?? [])
-      .map((entry) => ({
-        id: entry.playerId,
-        name: entry.playerName,
-        nickname: entry.playerNickname,
-        avatar: entry.playerAvatar ?? undefined,
-        avatarFrame: entry.playerAvatarFrame ?? null,
-        isVip: entry.playerIsVip ?? false,
-      }))
-      .filter((player) => player.id !== submitterId);
+      .map((entry) => {
+        const isGuest = Boolean(entry.isGuest);
+        const invitedBy = entry.invitedByNickname || entry.invitedByName;
+        const targetId = isGuest ? entry.responsiblePlayerId ?? entry.invitedByPlayerId ?? entry.playerId : undefined;
+        return {
+          id: entry.playerId,
+          targetId,
+          name: isGuest && invitedBy ? `Convidado de ${invitedBy}` : entry.playerName,
+          nickname: entry.playerNickname,
+          avatar: entry.playerAvatar ?? undefined,
+          avatarFrame: entry.playerAvatarFrame ?? null,
+          isVip: entry.playerIsVip ?? false,
+        };
+      })
+      .filter((player) => (player.targetId ?? player.id) !== submitterId);
   }, [matchAttendance, players, requireMatch, submitterId]);
   const transmittedTargetSet = useMemo(() => new Set(transmittedTargets), [transmittedTargets]);
+  const resolveTargetId = useCallback((player: TransmissionPlayer) => player.targetId ?? player.id, []);
   const availablePlayers = useMemo(() => {
     if (!requireMatch) return matchRoster;
-    return matchRoster.filter((player) => !transmittedTargetSet.has(player.id));
-  }, [matchRoster, requireMatch, transmittedTargetSet]);
+    return matchRoster.filter((player) => !transmittedTargetSet.has(resolveTargetId(player)));
+  }, [matchRoster, requireMatch, resolveTargetId, transmittedTargetSet]);
   const playerListLoading = requireMatch ? (matchPlayersLoading || transmittedLoading) : isLoading;
   const playerListError = requireMatch ? (matchPlayersIsError || transmittedIsError) : false;
   const playerListErrorMessage = (matchPlayersError as Error)?.message || (transmittedError as Error)?.message;
@@ -246,12 +254,14 @@ export function TransmissionModal({
   const handleSelectPlayer = (player: TransmissionPlayer) => {
     if (lockedTargetId) return;
     if (requireMatch && !selectedMatchId) return;
-    if (requireMatch && transmittedTargetSet.has(player.id)) return;
+    if (requireMatch && transmittedTargetSet.has(resolveTargetId(player))) return;
     setSelectedTarget(player);
     setStep('type');
   };
 
-  const selectedTargetAlreadyTransmitted = Boolean(selectedTarget && transmittedTargetSet.has(selectedTarget.id));
+  const selectedTargetAlreadyTransmitted = Boolean(
+    selectedTarget && transmittedTargetSet.has(resolveTargetId(selectedTarget)),
+  );
 
   const handleSelectType = (type: 'report' | 'praise') => {
     if (lockedType) return;
@@ -268,7 +278,7 @@ export function TransmissionModal({
     if (selectedTarget && reportType && content.trim() && !submitting) {
       if (requireMatch && !selectedMatchId) return;
       onSubmit({
-        targetId: selectedTarget.id,
+        targetId: resolveTargetId(selectedTarget),
         type: reportType,
         content: content.trim(),
         matchId: selectedMatchId,

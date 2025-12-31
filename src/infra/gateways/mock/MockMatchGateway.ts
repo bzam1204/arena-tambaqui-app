@@ -5,6 +5,7 @@ import type {
   MatchOption,
   MatchAttendanceEntry,
   CreateMatchInput,
+  MatchGuestInput,
 } from '@/app/gateways/MatchGateway';
 import type { PlayerGateway } from '@/app/gateways/PlayerGateway';
 import { TkPlayerGateway } from '@/app/gateways/PlayerGateway';
@@ -38,6 +39,21 @@ interface AttendanceRecord {
   markedAt: string;
 }
 
+interface GuestRecord {
+  id: string;
+  matchId: string;
+  invitedByPlayerId: string;
+  fullName: string;
+  age: number | null;
+  rentEquipment: boolean;
+  guardianConfirmed: boolean;
+  createdAt: string;
+  attended: boolean;
+  markedAt?: string | null;
+  paid: boolean;
+  paidMarkedAt?: string | null;
+}
+
 function iso(date: Date) {
   return date.toISOString();
 }
@@ -47,6 +63,7 @@ export class MockMatchGateway implements MatchGateway {
   private matches: MatchRecord[] = [];
   private subscriptions: SubscriptionRecord[] = [];
   private attendance: AttendanceRecord[] = [];
+  private guests: GuestRecord[] = [];
 
   constructor(
     @inject(TkPlayerGateway) private readonly playerGateway: PlayerGateway,
@@ -91,6 +108,7 @@ export class MockMatchGateway implements MatchGateway {
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
       .map((match) => {
         const subs = this.subscriptions.filter((s) => s.matchId === match.id);
+        const guests = this.guests.filter((g) => g.matchId === match.id);
         const own = params.playerId ? subs.find((s) => s.playerId === params.playerId) : undefined;
         return {
           id: match.id,
@@ -98,8 +116,9 @@ export class MockMatchGateway implements MatchGateway {
           startAt: match.startAt,
           createdAt: match.createdAt,
           finalizedAt: match.finalizedAt ?? null,
-          subscriptionCount: subs.length,
-          rentEquipmentCount: subs.filter((s) => s.rentEquipment).length,
+          subscriptionCount: subs.length + guests.length,
+          rentEquipmentCount:
+            subs.filter((s) => s.rentEquipment).length + guests.filter((g) => g.rentEquipment).length,
           isSubscribed: Boolean(own),
           rentEquipment: own?.rentEquipment,
         } satisfies MatchSummary;
@@ -127,7 +146,12 @@ export class MockMatchGateway implements MatchGateway {
     match.startAt = input.startAt;
   }
 
-  async subscribe(input: { matchId: string; playerId: string; rentEquipment: boolean }): Promise<void> {
+  async subscribe(input: {
+    matchId: string;
+    playerId: string;
+    rentEquipment: boolean;
+    guests?: MatchGuestInput[];
+  }): Promise<void> {
     const match = this.matches.find((m) => m.id === input.matchId);
     if (!match) throw new Error('Partida não encontrada.');
     if (match.finalizedAt) throw new Error('Partida já finalizada.');
@@ -148,6 +172,39 @@ export class MockMatchGateway implements MatchGateway {
         paidMarkedAt: null,
       },
     ];
+
+    if (input.guests && input.guests.length) {
+      this.guests = [...this.guests, ...this.createGuestRecords(input.matchId, input.playerId, input.guests)];
+    }
+  }
+
+  async addGuests(input: { matchId: string; playerId: string; guests: MatchGuestInput[] }): Promise<void> {
+    const match = this.matches.find((m) => m.id === input.matchId);
+    if (!match) throw new Error('Partida não encontrada.');
+    if (match.finalizedAt) throw new Error('Partida já finalizada.');
+    if (new Date(match.startAt) <= new Date()) throw new Error('Inscrições encerradas.');
+    if (!this.subscriptions.some((s) => s.matchId === input.matchId && s.playerId === input.playerId)) {
+      throw new Error('Você precisa estar inscrito para adicionar convidados.');
+    }
+    if (!input.guests.length) return;
+
+    this.guests = [...this.guests, ...this.createGuestRecords(input.matchId, input.playerId, input.guests)];
+  }
+
+  async removeGuest(input: { matchId: string; playerId: string; guestId: string }): Promise<void> {
+    const match = this.matches.find((m) => m.id === input.matchId);
+    if (!match) throw new Error('Partida não encontrada.');
+    if (match.finalizedAt) throw new Error('Partida já finalizada.');
+    if (new Date(match.startAt) <= new Date()) throw new Error('Inscrições encerradas.');
+
+    const guestIndex = this.guests.findIndex(
+      (guest) =>
+        guest.id === input.guestId &&
+        guest.matchId === input.matchId &&
+        guest.invitedByPlayerId === input.playerId,
+    );
+    if (guestIndex === -1) throw new Error('Convidado não encontrado.');
+    this.guests = this.guests.filter((_, index) => index !== guestIndex);
   }
 
   async unsubscribe(input: { matchId: string; playerId: string }): Promise<void> {
@@ -155,6 +212,13 @@ export class MockMatchGateway implements MatchGateway {
     if (!match) throw new Error('Partida não encontrada.');
     if (match.finalizedAt) throw new Error('Partida já finalizada.');
     if (new Date(match.startAt) <= new Date()) throw new Error('Inscrições encerradas.');
+
+    const hasGuests = this.guests.some(
+      (guest) => guest.matchId === input.matchId && guest.invitedByPlayerId === input.playerId,
+    );
+    if (hasGuests) {
+      throw new Error('Remova seus convidados antes de cancelar.');
+    }
 
     const existingIndex = this.subscriptions.findIndex(
       (s) => s.matchId === input.matchId && s.playerId === input.playerId,
@@ -164,11 +228,22 @@ export class MockMatchGateway implements MatchGateway {
   }
 
   async removePlayer(input: { matchId: string; playerId: string }): Promise<void> {
+    const guestIndex = this.guests.findIndex(
+      (guest) => guest.matchId === input.matchId && guest.id === input.playerId,
+    );
+    if (guestIndex !== -1) {
+      this.guests = this.guests.filter((_, index) => index !== guestIndex);
+      return;
+    }
+
     this.subscriptions = this.subscriptions.filter(
       (sub) => !(sub.matchId === input.matchId && sub.playerId === input.playerId),
     );
     this.attendance = this.attendance.filter(
       (entry) => !(entry.matchId === input.matchId && entry.playerId === input.playerId),
+    );
+    this.guests = this.guests.filter(
+      (guest) => !(guest.matchId === input.matchId && guest.invitedByPlayerId === input.playerId),
     );
   }
 
@@ -178,6 +253,7 @@ export class MockMatchGateway implements MatchGateway {
     this.matches = this.matches.filter((_, index) => index !== matchIndex);
     this.subscriptions = this.subscriptions.filter((sub) => sub.matchId !== input.matchId);
     this.attendance = this.attendance.filter((entry) => entry.matchId !== input.matchId);
+    this.guests = this.guests.filter((guest) => guest.matchId !== input.matchId);
   }
 
   async listAttendance(matchId: string): Promise<MatchAttendanceEntry[]> {
@@ -188,7 +264,7 @@ export class MockMatchGateway implements MatchGateway {
     const markedSet = new Set(this.attendance.filter((a) => a.matchId === matchId).map((a) => a.playerId));
 
     const players = await Promise.all(subs.map((s) => this.playerGateway.getPlayer(s.playerId)));
-    return subs.map((sub, index) => {
+    const playerEntries = subs.map((sub, index) => {
       const player = players[index];
       return {
         id: sub.id,
@@ -206,6 +282,43 @@ export class MockMatchGateway implements MatchGateway {
         paymentMarked: Boolean(sub.paidMarkedAt),
       } satisfies MatchAttendanceEntry;
     });
+
+    const guestRows = this.guests.filter((guest) => guest.matchId === matchId);
+    const inviters = await Promise.all(guestRows.map((guest) => this.playerGateway.getPlayer(guest.invitedByPlayerId)));
+    const guestEntries = guestRows.map((guest, index) => {
+      const inviter = inviters[index];
+      return {
+        id: guest.id,
+        matchId: guest.matchId,
+        playerId: guest.id,
+        playerName: guest.fullName,
+        playerNickname: guest.fullName,
+        playerAvatar: null,
+        playerAvatarFrame: null,
+        playerIsVip: false,
+        rentEquipment: guest.rentEquipment,
+        attended: guest.attended,
+        marked: Boolean(guest.markedAt),
+        paid: guest.paid,
+        paymentMarked: Boolean(guest.paidMarkedAt),
+        isGuest: true,
+        guestAge: guest.age,
+        guardianConfirmed: guest.guardianConfirmed,
+        invitedByPlayerId: guest.invitedByPlayerId,
+        invitedByName: inviter?.name ?? inviter?.nickname ?? 'Operador',
+        invitedByNickname: inviter?.nickname ?? inviter?.name ?? 'Operador',
+        responsiblePlayerId: guest.invitedByPlayerId,
+      } satisfies MatchAttendanceEntry;
+    });
+
+    const combined = [
+      ...playerEntries.map((entry, index) => ({ entry, sortAt: subs[index].createdAt })),
+      ...guestEntries.map((entry, index) => ({ entry, sortAt: guestRows[index].createdAt })),
+    ];
+
+    return combined
+      .sort((a, b) => new Date(a.sortAt).getTime() - new Date(b.sortAt).getTime())
+      .map((row) => row.entry);
   }
 
   async updateAttendance(input: { matchId: string; playerId: string; attended: boolean }): Promise<void> {
@@ -213,6 +326,13 @@ export class MockMatchGateway implements MatchGateway {
     if (!match) throw new Error('Partida não encontrada.');
     if (match.finalizedAt) throw new Error('Partida já finalizada.');
     if (new Date(match.startAt) > new Date()) throw new Error('Partida ainda não iniciou.');
+
+    const guest = this.guests.find((g) => g.matchId === input.matchId && g.id === input.playerId);
+    if (guest) {
+      guest.attended = input.attended;
+      guest.markedAt = iso(new Date());
+      return;
+    }
 
     const existing = this.attendance.find((a) => a.matchId === input.matchId && a.playerId === input.playerId);
     if (existing) {
@@ -235,6 +355,13 @@ export class MockMatchGateway implements MatchGateway {
     const match = this.matches.find((m) => m.id === input.matchId);
     if (!match) throw new Error('Partida não encontrada.');
     if (match.finalizedAt) throw new Error('Partida já finalizada.');
+
+    const guest = this.guests.find((g) => g.matchId === input.matchId && g.id === input.playerId);
+    if (guest) {
+      guest.paid = input.paid;
+      guest.paidMarkedAt = iso(new Date());
+      return;
+    }
 
     const subscription = this.subscriptions.find(
       (sub) => sub.matchId === input.matchId && sub.playerId === input.playerId,
@@ -281,6 +408,17 @@ export class MockMatchGateway implements MatchGateway {
 
     match.finalizedAt = iso(new Date());
     match.finalizedBy = input.adminId;
+
+    this.guests = this.guests.map((guest) =>
+      guest.matchId === input.matchId
+        ? {
+            ...guest,
+            fullName: 'Convidado',
+            age: null,
+            guardianConfirmed: false,
+          }
+        : guest,
+    );
   }
 
   async listEligibleMatchesForTransmission(input: { playerId: string }): Promise<MatchOption[]> {
@@ -305,5 +443,34 @@ export class MockMatchGateway implements MatchGateway {
 
   async countPlayerMatches(input: { playerId: string }): Promise<number> {
     return this.attendance.filter((entry) => entry.playerId === input.playerId && entry.attended).length;
+  }
+
+  private createGuestRecords(matchId: string, invitedByPlayerId: string, guests: MatchGuestInput[]) {
+    const now = iso(new Date());
+    return guests.map((guest) => {
+      const fullName = guest.fullName.trim();
+      if (!fullName) {
+        throw new Error('Informe o nome do convidado.');
+      }
+      const age = typeof guest.age === 'number' && !Number.isNaN(guest.age) ? guest.age : null;
+      const isMinor = typeof age === 'number' && age < 18;
+      if (isMinor && !guest.guardianConfirmed) {
+        throw new Error('Confirme a responsabilidade legal para convidados menores de idade.');
+      }
+      return {
+        id: `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        matchId,
+        invitedByPlayerId,
+        fullName,
+        age,
+        rentEquipment: guest.rentEquipment,
+        guardianConfirmed: Boolean(guest.guardianConfirmed),
+        createdAt: now,
+        attended: false,
+        markedAt: null,
+        paid: false,
+        paidMarkedAt: null,
+      } satisfies GuestRecord;
+    });
   }
 }
